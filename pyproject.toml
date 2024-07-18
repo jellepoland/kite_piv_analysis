@@ -1,6 +1,6 @@
 [project]
 
-name = "exampleproject"
+name = "kite_piv_analysis"
 # Define the name of your project here. This is mandatory. Once you publish your package for the first time,
 # this name will be locked and associated with your project. It affects how users will
 # install your package via pip, like so:
@@ -83,7 +83,11 @@ classifiers = [
 dependencies = [
   "numpy", 
   "pandas>=1.5.3", 
-  "matplotlib>=3.7.1"
+  "matplotlib>=3.7.1",
+  "xarray>=2024.6.0",
+  "netCDF4",
+  "scipy",
+  "openpyxl",
 ]
 
 # You can define additional groups of dependencies here (e.g., development dependencies).
