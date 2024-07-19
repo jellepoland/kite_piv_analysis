@@ -50,13 +50,13 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     # Load the data
     data = np.genfromtxt(file_path, skip_header=4)
 
-    # Reshape the data into matrix form (j by i)
-    data_matrix = data.reshape((j_value, i_value, -1))
+    # Reshape the data into matrix form (i by j)
+    data_matrix = data.reshape((i_value, j_value, -1))
 
     # Create coordinates
     coords = {
-        "y_j": np.arange(j_value),
         "x_i": np.arange(i_value),
+        "y_j": np.arange(j_value),
     }
 
     # Create data variables
@@ -76,24 +76,34 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
         "divergence_2d",
         "swirling_strength_2d",
     ]
+
     data_vars = {}
     for idx, var in enumerate(variables_edited):
         var_data = data_matrix[..., idx]
-        # if var in variables_needing_filtering:
+        # # calculate a boolean mask for the data
+        # mask = np.abs(var_data - mean) > 3 * standard_deviation
+        # if mask and var in variables_needing_filtering:
         #     # Replace zero values with nan for specific variables
-        #     # var_data = np.where(var_data == 0, np.nan, var_data)
-        data_vars[var] = (["y_j", "x_i"], var_data)
+        #     var_data = np.where(var_data == 0, np.nan, var_data)
+        data_vars[var] = (["x_i", "y_j"], var_data)
 
     # Create the dataset
     dataset = xr.Dataset(data_vars, coords=coords)
 
-    # Add metadata
-    dataset.attrs["case_name_davis"] = case_name_davis
-    dataset.attrs["file_name_davis"] = file_name_davis
+    # Add dataset wide (for whole aoa_13 sweep)
     dataset.attrs["i_value"] = i_value
     dataset.attrs["j_value"] = j_value
-    dataset.attrs["variables_raw"] = variables_raw
     dataset.attrs["aoa"] = aoa_value
+    dataset.attrs["variables_edited"] = variables_edited
+    dataset.attrs["variables_raw"] = variables_raw
+
+    # Add the plane specific information (only for current plane)
+    dataset["case_name_davis"] = xr.DataArray(
+        np.array([case_name_davis]), dims=["file"]
+    )
+    dataset["file_name_davis"] = xr.DataArray(
+        np.array([file_name_davis]), dims=["file"]
+    )
 
     ### Loading labbook
     labbook_df = pd.read_csv(labbook_path)
@@ -165,7 +175,7 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     )
 
     # Calculate induction velocity (subtracting mean stream)
-    mean_velocity = dataset[["vel_u", "vel_v", "vel_w"]].mean(dim=["y_j", "x_i"])
+    mean_velocity = dataset[["vel_u", "vel_v", "vel_w"]].mean(dim=["x_i", "y_j"])
     for comp in ["u", "v", "w"]:
         dataset[f"vel_induction_{comp}"] = (
             dataset[f"vel_{comp}"] - mean_velocity[f"vel_{comp}"]
@@ -187,6 +197,7 @@ def process_all_dat_files(
             if file.endswith("1.dat"):
                 file_path = os.path.join(root, file)
                 dataset = read_dat_file(file_path, labbook_path, aoa_value)
+                logging.info(f"Processed dataset: {dataset}")
                 # ONLY taking the last_measurement_values, neglecting the rest for now
                 if dataset.is_last_measurement.values:
                     all_datasets.append(dataset)
