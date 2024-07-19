@@ -4,7 +4,10 @@ import xarray as xr
 import logging
 import re
 import sys
+from datetime import datetime
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+from matplotlib.cm import get_cmap
 
 
 def load_processed_data(input_file: str) -> xr.Dataset:
@@ -16,11 +19,12 @@ def plot_quiver(
     y,
     u,
     v,
+    color_values,
+    colorbar_label,
     title,
     scale=None,
     width=0.005,
-    cmap="viridis",
-    colorbar_label="Velocity Magnitude",
+    cmap="RdBu",
     save_path=None,
 ):
     """
@@ -45,11 +49,19 @@ def plot_quiver(
         If provided, saves the figure to this path
     """
 
+    # Mask zero values in color_values
+    masked_color_values = np.ma.masked_where(color_values == 0, color_values)
+
+    # Create a custom colormap with black for masked values
+    base_cmap = get_cmap(cmap)
+    cmap_colors = base_cmap(np.arange(base_cmap.N))
+    cmap_colors = np.vstack(
+        (np.array([0, 0, 0, 1]), cmap_colors)
+    )  # Add black as the first color
+    custom_cmap = ListedColormap(cmap_colors)
+
     # Create figure and axis
     fig, ax = plt.subplots(figsize=(10, 8))
-
-    # Calculate velocity magnitude for coloring
-    velocity_mag = np.sqrt(u**2 + v**2)
 
     # Create quiver plot
     quiv = ax.quiver(
@@ -57,12 +69,12 @@ def plot_quiver(
         y,
         u,
         v,
-        velocity_mag,
+        masked_color_values,
         scale=scale,
         scale_units="xy",
         angles="xy",
         width=width,
-        cmap=cmap,
+        cmap=custom_cmap,
     )
 
     # Add colorbar
@@ -75,7 +87,6 @@ def plot_quiver(
     ax.set_ylabel("Y")
 
     # Add timestamp to the plot
-    from datetime import datetime
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     plt.text(
@@ -94,6 +105,8 @@ def plot_quiver(
 
     # Save if path is provided
     if save_path:
+        # create directory if it does not exist
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         print(f"Figure saved to {save_path}")
 
@@ -117,10 +130,15 @@ if __name__ == "__main__":
     datapoint_list = [loaded_dataset.isel(file=i) for i in range(size)]
 
     for datapoint in datapoint_list[0:1]:
-        case_name_davis = datapoint.case_name_davis.values
-        logging.info(f"datapoint.data_vars: {datapoint.data_vars}")
+        case_name_davis = datapoint.case_name_davis
+        # logging.info(f"datapoint.data_vars: {datapoint.data_vars}")
         logging.info(f"case_name: {case_name_davis}")
         logging.info(f"FileName: {datapoint.file_name_labbook.values}")
+
+        # TODO:
+        # color should be Ux / Uinf
+        # quiver should be based on umag 2D array
+        # cmap red to blue with white in middle around 1
 
         # Example usage:
         x, y = datapoint.x.values, datapoint.y.values
@@ -131,6 +149,8 @@ if __name__ == "__main__":
             y,
             u,
             v,
-            "Vector Field Example",
+            color_values=datapoint.Ux_Uinf.values,
+            colorbar_label=r"$\frac{U_x}{U_\infty}$",
+            title="Vector Field Example",
             save_path=f"results/aoa_13/{case_name_davis}.png",
         )

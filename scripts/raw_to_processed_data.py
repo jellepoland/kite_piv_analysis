@@ -36,8 +36,8 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
         "dv_dy",
         "dw_dx",
         "dw_dy",
-        "vorticity_w_z",
-        "vorticity_mag",
+        "vorticity_jw_z",
+        "vorticity_jmag",
         "divergence_2d",
         "swirling_strength_2d",
         "is_valid",
@@ -53,29 +53,51 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     # Reshape the data into matrix form (j by i)
     data_matrix = data.reshape((j_value, i_value, -1))
 
-    # Create an xarray Dataset
+    # Create coordinates
     coords = {
-        "j": np.arange(j_value),
-        "i": np.arange(i_value),
+        "y_j": np.arange(j_value),
+        "x_i": np.arange(i_value),
     }
-    data_vars = {
-        var: (("j", "i"), data_matrix[..., idx])
-        for idx, var in enumerate(variables_edited)
-    }
+
+    # Create data variables
+    variables_needing_filtering = [
+        "vel_u",
+        "vel_v",
+        "vel_w",
+        "vel_mag",
+        "du_dx",
+        "du_dy",
+        "dv_dx",
+        "dv_dy",
+        "dw_dx",
+        "dw_dy",
+        "vorticity_jw_z",
+        "vorticity_jmag",
+        "divergence_2d",
+        "swirling_strength_2d",
+    ]
+    data_vars = {}
+    for idx, var in enumerate(variables_edited):
+        var_data = data_matrix[..., idx]
+        # if var in variables_needing_filtering:
+        #     # Replace zero values with nan for specific variables
+        #     # var_data = np.where(var_data == 0, np.nan, var_data)
+        data_vars[var] = (["y_j", "x_i"], var_data)
+
+    # Create the dataset
     dataset = xr.Dataset(data_vars, coords=coords)
 
-    # Adding dataset wide (for the whole aoa sweep) metadata, as attributes
-    dataset.attrs["variables_raw"] = variables_raw
-    dataset.attrs["variables_edited"] = variables_edited
+    # Add metadata
+    dataset.attrs["case_name_davis"] = case_name_davis
+    dataset.attrs["file_name_davis"] = file_name_davis
     dataset.attrs["i_value"] = i_value
     dataset.attrs["j_value"] = j_value
+    dataset.attrs["variables_raw"] = variables_raw
+    dataset.attrs["aoa"] = aoa_value
 
-    # Adding file specific (for each plane) metadata, as data variables
-    dataset["case_name_davis"] = case_name_davis
-    dataset["file_name_davis"] = file_name_davis
-
-    # Find the corresponding row in the lab book, only look at first 34 characters
+    ### Loading labbook
     labbook_df = pd.read_csv(labbook_path)
+    # Find the corresponding row in the lab book, only look at first 34 characters
     row = labbook_df[labbook_df["file_name_labbook"].str[:35] == case_name_davis[:35]]
 
     # Adding a boolean flag to indicate if this is the last_measurement
@@ -89,42 +111,68 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
 
     # Check if row was found
     row_dict = row.to_dict()
-    date = str(row_dict["Date"])
-    row_dict["Date"] = date.replace("/", "_")
+    date = str(row_dict["date"])
+    row_dict["date"] = date.replace("/", "_")
 
     for key, values in row_dict.items():
         values_str = str(values)
         # Step 1: Remove the outer curly braces and split by colon to separate key-value pair
-        key_value_str = values_str.strip("{}").split(":")
+        key_jvalue_str = values_str.strip("{}").split(":")
         logging.debug(f"key: {key}")
         logging.debug(f"values: {values}")
         logging.debug(
-            f"key_value_str: {key_value_str}, len(key_value_str): {len(key_value_str)}"
+            f"key_jvalue_str: {key_jvalue_str}, len(key_jvalue_str): {len(key_jvalue_str)}"
         )
         # Step 2: Clean up key and value strings by removing extra spaces and quotes
-        if len(key_value_str) > 1:
-            value = key_value_str[1].strip().strip("'")
+        if len(key_jvalue_str) > 1:
+            value = str(key_jvalue_str[1].strip().strip("'"))
         else:
             value = ""
 
+        keys_that_are_floats = [
+            "vw",
+            "vw_set",
+            "dpa",
+            "pressure",
+            "temp",
+            "density",
+            "h_table",
+            "y_traverse",
+            "x_traverse",
+            "x_plane_number",
+            "y_plane_number",
+            "z_plane_number",
+        ]
+        # Add the aoa value, which is the same for each run
         if key == "aoa":
             value = float(aoa_value)
-        dataset[key] = xr.DataArray([value], dims=["file"])
+        # Convert the values to floats if they are supposed to be floats
+        elif key in keys_that_are_floats:
+            value = float(value)
+
+        # appending the data to the dataset
+        dataset[key] = xr.DataArray(np.array([value]), dims=["file"])
+
         logging.debug(f"Adding key: {key}, value: {value}")
-        if key == "Z":
+
+        # Stop after the z_plane_number key
+        if key == "z_plane_number":
             break
 
-    # Calculate additional velocity (resultant velocity)
+    # Calculate additional velocity (resultant velocity
     dataset["vel_resultant"] = np.sqrt(
         dataset["vel_u"] ** 2 + dataset["vel_v"] ** 2 + dataset["vel_w"] ** 2
     )
 
     # Calculate induction velocity (subtracting mean stream)
-    mean_velocity = dataset[["vel_u", "vel_v", "vel_w"]].mean(dim=["j", "i"])
+    mean_velocity = dataset[["vel_u", "vel_v", "vel_w"]].mean(dim=["y_j", "x_i"])
     for comp in ["u", "v", "w"]:
         dataset[f"vel_induction_{comp}"] = (
             dataset[f"vel_{comp}"] - mean_velocity[f"vel_{comp}"]
         )
+
+    # Calculate Ux_iUinf
+    dataset["Ux_Uinf"] = dataset["vel_u"] / dataset["vw"]
 
     return dataset
 
@@ -158,7 +206,21 @@ if __name__ == "__main__":
 
     ### Cleaning up the labbook notes:
     # The data was move to the top, to easier read out
-    # Header names were adjusted to: vw_set, vw
+    # Header names were adjusted to:
+    # header_names = [
+    #     "vw",
+    #     "vw_set",
+    #     "dpa",
+    #     "pressure",
+    #     "temp",
+    #     "density",
+    #     "h_table",
+    #     "y_traverse",
+    #     "x_traverse",
+    #     "x_plane_number",
+    #     "y_plane_number",
+    #     "z_plane_number",
+    # ]
     # REDONE_               was added to when measurement was redone
     # YAW_MISLAGINMENT_     was added to when measurement was redone, due to yaw misalignment (new flipped.._v5 cases)
     # row 25                Comment to change Davis Filenames
@@ -166,7 +228,7 @@ if __name__ == "__main__":
     # row 140               Added a line of X's to separate the different measurement sets
 
     # Process all .dat files
-    input_directory = sys.path[0] + "/data/aoa_13/"
+    input_directory = sys.path[0] + "/data/aoa_13_test/"
     lab_book_path = sys.path[0] + "/data/labbook_cleaned.csv"
     aoa_value = 13.0
     combined_dataset = process_all_dat_files(input_directory, lab_book_path, aoa_value)
