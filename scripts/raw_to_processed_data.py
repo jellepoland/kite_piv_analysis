@@ -52,50 +52,42 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
 
     # Reshape the data into matrix form (i by j)
     data_matrix = data.reshape((i_value, j_value, -1))
+    logging.debug(f"data_matrix.shape: {data_matrix.shape}")
+    logging.debug(f"data_matrix: {data_matrix[0].shape}")
+    logging.debug(f"data_matrix: {data_matrix[0][0].shape}")
+    logging.debug(f"variables_edited: {variables_edited}")
+    logging.debug(f"data_matrix: {data_matrix[0][0]}")
+    logging.debug(
+        f" np.arange(data_matrix.shape[2]): {np.arange(data_matrix.shape[2])}"
+    )
 
-    # Create coordinates
-    coords = {
-        "x_i": np.arange(i_value),
-        "y_j": np.arange(j_value),
-    }
+    # # Create data variables
+    # variables_needing_filtering = [
+    #     "vel_u",
+    #     "vel_v",
+    #     "vel_w",
+    #     "vel_mag",
+    #     "du_dx",
+    #     "du_dy",
+    #     "dv_dx",
+    #     "dv_dy",
+    #     "dw_dx",
+    #     "dw_dy",
+    #     "vorticity_jw_z",
+    #     "vorticity_jmag",
+    #     "divergence_2d",
+    #     "swirling_strength_2d",
+    # ]
 
-    # Create data variables
-    variables_needing_filtering = [
-        "vel_u",
-        "vel_v",
-        "vel_w",
-        "vel_mag",
-        "du_dx",
-        "du_dy",
-        "dv_dx",
-        "dv_dy",
-        "dw_dx",
-        "dw_dy",
-        "vorticity_jw_z",
-        "vorticity_jmag",
-        "divergence_2d",
-        "swirling_strength_2d",
-    ]
-
-    data_vars = {}
-    for idx, var in enumerate(variables_edited):
-        var_data = data_matrix[..., idx]
-        # # calculate a boolean mask for the data
-        # mask = np.abs(var_data - mean) > 3 * standard_deviation
-        # if mask and var in variables_needing_filtering:
-        #     # Replace zero values with nan for specific variables
-        #     var_data = np.where(var_data == 0, np.nan, var_data)
-        data_vars[var] = (["x_i", "y_j"], var_data)
-
-    # Create the dataset
-    dataset = xr.Dataset(data_vars, coords=coords)
-
-    # Add dataset wide (for whole aoa_13 sweep)
-    dataset.attrs["i_value"] = i_value
-    dataset.attrs["j_value"] = j_value
-    dataset.attrs["aoa"] = aoa_value
-    dataset.attrs["variables_edited"] = variables_edited
-    dataset.attrs["variables_raw"] = variables_raw
+    # data_vars = {}
+    # for idx, var in enumerate(variables_edited):
+    #     var_data = data_matrix[..., idx]
+    #     # # calculate a boolean mask for the data
+    #     # mask = np.abs(var_data - mean) > 3 * standard_deviation
+    #     # if mask and var in variables_needing_filtering:
+    #     #     # Replace zero values with nan for specific variables
+    #     #     var_data = np.where(var_data == 0, np.nan, var_data)
+    #     data_vars[var] = (["x_i", "y_j"], var_data)
 
     # Add the plane specific information (only for current plane)
     dataset["case_name_davis"] = xr.DataArray(
@@ -183,6 +175,25 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
 
     # Calculate Ux_iUinf
     dataset["Ux_Uinf"] = dataset["vel_u"] / dataset["vw"]
+
+    #########
+    # Create the dataset
+    dataset = xr.Dataset(
+        data_matrix,
+        coords={
+            "x_i": np.arange(i_value),
+            "y_j": np.arange(j_value),
+            "z_var": np.arange(data_matrix.shape[2]),
+        },
+    )
+
+    # Add dataset wide (for whole aoa_13 sweep)
+    dataset.attrs["i_value"] = i_value
+    dataset.attrs["j_value"] = j_value
+    dataset.attrs["k_variables"] = aoa_value
+    dataset.attrs["aoa"] = aoa_value
+    dataset.attrs["variables_edited"] = variables_edited
+    dataset.attrs["variables_raw"] = variables_raw
 
     return dataset
 
