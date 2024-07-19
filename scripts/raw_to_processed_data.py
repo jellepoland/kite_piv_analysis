@@ -10,19 +10,10 @@ import openpyxl
 print(sys.executable)
 
 
-def read_xlsx_file(file_path: str) -> pd.DataFrame:
-    # Convert Excel to CSV manually or using another tool
-    csv_path = file_path.replace(".xlsx", ".csv")  # Example: Replace extension
-    df = pd.read_csv(csv_path)
-    return df
-
-
-def read_dat_file(
-    file_path: str, labbook_df: pd.DataFrame, aoa_value: float
-) -> xr.Dataset:
+def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dataset:
     # Extract the case name and file name from the file path
-    case_name = os.path.basename(os.path.dirname(file_path))
-    file_name = os.path.basename(file_path)
+    case_name_davis = os.path.basename(os.path.dirname(file_path))
+    file_name_davis = os.path.basename(file_path)
 
     # Read the header information
     with open(file_path, "r") as file:
@@ -64,24 +55,38 @@ def read_dat_file(
 
     # Create an xarray Dataset
     coords = {
-        "y_": np.arange(j_value),
-        "x_": np.arange(i_value),
+        "j": np.arange(j_value),
+        "i": np.arange(i_value),
     }
     data_vars = {
-        var: (("y_", "x_"), data_matrix[..., idx])
+        var: (("j", "i"), data_matrix[..., idx])
         for idx, var in enumerate(variables_edited)
     }
     dataset = xr.Dataset(data_vars, coords=coords)
 
-    # Add metadata from the .dat file
-    dataset.attrs["case_name"] = case_name
-    dataset.attrs["file_name"] = file_name
+    # Adding dataset wide (for the whole aoa sweep) metadata, as attributes
+    dataset.attrs["variables_raw"] = variables_raw
+    dataset.attrs["variables_edited"] = variables_edited
     dataset.attrs["i_value"] = i_value
     dataset.attrs["j_value"] = j_value
-    dataset.attrs["variables_raw"] = variables_raw
+
+    # Adding file specific (for each plane) metadata, as data variables
+    dataset["case_name_davis"] = case_name_davis
+    dataset["file_name_davis"] = file_name_davis
 
     # Find the corresponding row in the lab book, only look at first 34 characters
-    row = labbook_df[labbook_df["Filename"].str[:34] == case_name[:34]]
+    labbook_df = pd.read_csv(labbook_path)
+    row = labbook_df[labbook_df["file_name_labbook"].str[:35] == case_name_davis[:35]]
+
+    # Adding a boolean flag to indicate if this is the last_measurement
+    if row.empty:
+        dataset["is_last_measurement"] = False
+    else:
+        logging.info(
+            f"labbook: {row['file_name_labbook']}, case_name_davis: {case_name_davis}"
+        )
+        dataset["is_last_measurement"] = True
+
     # Check if row was found
     row_dict = row.to_dict()
     date = str(row_dict["Date"])
@@ -91,13 +96,21 @@ def read_dat_file(
         values_str = str(values)
         # Step 1: Remove the outer curly braces and split by colon to separate key-value pair
         key_value_str = values_str.strip("{}").split(":")
+        logging.debug(f"key: {key}")
+        logging.debug(f"values: {values}")
+        logging.debug(
+            f"key_value_str: {key_value_str}, len(key_value_str): {len(key_value_str)}"
+        )
         # Step 2: Clean up key and value strings by removing extra spaces and quotes
-        value = key_value_str[1].strip().strip("'")
+        if len(key_value_str) > 1:
+            value = key_value_str[1].strip().strip("'")
+        else:
+            value = ""
 
         if key == "aoa":
             value = float(aoa_value)
-        dataset.attrs[key] = value
-        logging.info(f"Adding key: {key}, value: {value}")
+        dataset[key] = xr.DataArray([value], dims=["file"])
+        logging.debug(f"Adding key: {key}, value: {value}")
         if key == "Z":
             break
 
@@ -107,7 +120,7 @@ def read_dat_file(
     )
 
     # Calculate induction velocity (subtracting mean stream)
-    mean_velocity = dataset[["vel_u", "vel_v", "vel_w"]].mean(dim=["x_", "y_"])
+    mean_velocity = dataset[["vel_u", "vel_v", "vel_w"]].mean(dim=["j", "i"])
     for comp in ["u", "v", "w"]:
         dataset[f"vel_induction_{comp}"] = (
             dataset[f"vel_{comp}"] - mean_velocity[f"vel_{comp}"]
@@ -117,29 +130,22 @@ def read_dat_file(
 
 
 def process_all_dat_files(
-    dat_file_path: str, lab_book_path: str, aoa_value
+    dat_file_path: str, labbook_path: str, aoa_value
 ) -> xr.Dataset:
-    lab_book = read_xlsx_file(lab_book_path)
     all_datasets = []
     logging.info(f"Processing all .dat files in directory: {dat_file_path}")
     for root, _, files in os.walk(dat_file_path):
         for file in files:
             if file.endswith("1.dat"):
                 file_path = os.path.join(root, file)
-                dataset = read_dat_file(file_path, lab_book, aoa_value)
-                all_datasets.append(dataset)
+                dataset = read_dat_file(file_path, labbook_path, aoa_value)
+                # ONLY taking the last_measurement_values, neglecting the rest for now
+                if dataset.is_last_measurement.values:
+                    all_datasets.append(dataset)
 
     # Combine all datasets
     combined_dataset = xr.concat(all_datasets, dim="file")
     return combined_dataset
-
-
-def save_processed_data(dataset: xr.Dataset, output_path: str):
-    dataset.to_netcdf(output_path)
-
-
-def load_processed_data(input_file: str) -> xr.Dataset:
-    return xr.open_dataset(input_file)
 
 
 if __name__ == "__main__":
@@ -150,27 +156,22 @@ if __name__ == "__main__":
     # Set up logging
     logging.basicConfig(level=logging.INFO)
 
+    ### Cleaning up the labbook notes:
+    # The data was move to the top, to easier read out
+    # Header names were adjusted to: vw_set, vw
+    # REDONE_               was added to when measurement was redone
+    # YAW_MISLAGINMENT_     was added to when measurement was redone, due to yaw misalignment (new flipped.._v5 cases)
+    # row 25                Comment to change Davis Filenames
+    # row 118               Comment Z3 to Z2 was corrected
+    # row 140               Added a line of X's to separate the different measurement sets
+
     # Process all .dat files
-    input_directory = sys.path[0] + "/data/aoa_13_smaller/"
-    lab_book_path = sys.path[0] + "/data/Labook_110424_1216.xlsx"
+    input_directory = sys.path[0] + "/data/aoa_13/"
+    lab_book_path = sys.path[0] + "/data/labbook_cleaned.csv"
     aoa_value = 13.0
     combined_dataset = process_all_dat_files(input_directory, lab_book_path, aoa_value)
     # logging.info(f"Combined dataset: {combined_dataset}")
 
     # Save the processed data
-    output_path = sys.path[0] + "/processed_data/combined_piv_data.nc"
-    save_processed_data(combined_dataset, output_path)
-    # logging.info(f"Saved processed data to {output_path}")
-
-    # Load the processed data (for future use)
-    loaded_dataset = load_processed_data(output_path)
-    # logging.info(f"Loaded dataset: {loaded_dataset}")
-
-    # Example of accessing data
-    logging.info(f"Velocity u for first file: {loaded_dataset['vel_u'].isel(file=0)}")
-    logging.info(f"Angle of attack: {loaded_dataset.attrs['aoa']}")
-    logging.info(f"Date: {loaded_dataset.attrs['Date']}")
-    logging.info(f"Case name: {loaded_dataset.attrs['case_name']}")
-    logging.info(f"File name: {loaded_dataset.attrs['file_name']}")
-    logging.info(f"Number of files: {len(loaded_dataset.file)}")
-    logging.info(f"Z: {loaded_dataset.attrs['Z']}")
+    processed_data_path = sys.path[0] + "/processed_data/combined_piv_data.nc"
+    combined_dataset.to_netcdf(processed_data_path)
