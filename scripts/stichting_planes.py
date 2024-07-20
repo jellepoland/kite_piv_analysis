@@ -8,6 +8,32 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 
+def create_empty_dataset_like(template_dataset, shape):
+    empty_data = np.empty(shape)
+    data_array = xr.DataArray(
+        empty_data,
+        dims=["x_i", "y_j", "variable"],
+        coords={
+            "x_i": np.arange(shape[0]),
+            "y_j": np.arange(shape[1]),
+            "variable": template_dataset.data.variable,
+        },
+    )
+    new_dataset = xr.Dataset({"data": data_array})
+
+    # Copy attributes and other coordinates
+    new_dataset.attrs = template_dataset.attrs.copy()
+    for coord in template_dataset.coords:
+        if coord not in ["x_i", "y_j", "variable"]:
+            new_dataset[coord] = template_dataset[coord]
+
+    return new_dataset
+
+
+# Usage:
+new_dataset = create_empty_dataset_like(dataset, (100, 100, len(variables_edited)))
+
+
 def stitching_x123_planes(data_x1, data_x2, data_x3, x_traverse_step=300):
 
     ### 1. defining the mastergrid

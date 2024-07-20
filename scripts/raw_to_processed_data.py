@@ -15,6 +15,7 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     case_name_davis = os.path.basename(os.path.dirname(file_path))
     file_name_davis = os.path.basename(file_path)
 
+    ### Loading in the .dat file
     # Read the header information
     with open(file_path, "r") as file:
         header = [file.readline().strip() for _ in range(4)]
@@ -60,56 +61,20 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     logging.debug(
         f" np.arange(data_matrix.shape[2]): {np.arange(data_matrix.shape[2])}"
     )
-
-    # # Create data variables
-    # variables_needing_filtering = [
-    #     "vel_u",
-    #     "vel_v",
-    #     "vel_w",
-    #     "vel_mag",
-    #     "du_dx",
-    #     "du_dy",
-    #     "dv_dx",
-    #     "dv_dy",
-    #     "dw_dx",
-    #     "dw_dy",
-    #     "vorticity_jw_z",
-    #     "vorticity_jmag",
-    #     "divergence_2d",
-    #     "swirling_strength_2d",
-    # ]
-
-    # data_vars = {}
-    # for idx, var in enumerate(variables_edited):
-    #     var_data = data_matrix[..., idx]
-    #     # # calculate a boolean mask for the data
-    #     # mask = np.abs(var_data - mean) > 3 * standard_deviation
-    #     # if mask and var in variables_needing_filtering:
-    #     #     # Replace zero values with nan for specific variables
-    #     #     var_data = np.where(var_data == 0, np.nan, var_data)
-    #     data_vars[var] = (["x_i", "y_j"], var_data)
-
-    # Add the plane specific information (only for current plane)
-    dataset["case_name_davis"] = xr.DataArray(
-        np.array([case_name_davis]), dims=["file"]
-    )
-    dataset["file_name_davis"] = xr.DataArray(
-        np.array([file_name_davis]), dims=["file"]
-    )
-
     ### Loading labbook
+    labbook_dict = {}
     labbook_df = pd.read_csv(labbook_path)
     # Find the corresponding row in the lab book, only look at first 34 characters
     row = labbook_df[labbook_df["file_name_labbook"].str[:35] == case_name_davis[:35]]
 
     # Adding a boolean flag to indicate if this is the last_measurement
     if row.empty:
-        dataset["is_last_measurement"] = False
+        labbook_dict["is_last_measurement"] = False
     else:
         logging.info(
             f"labbook: {row['file_name_labbook']}, case_name_davis: {case_name_davis}"
         )
-        dataset["is_last_measurement"] = True
+        labbook_dict["is_last_measurement"] = True
 
     # Check if row was found
     row_dict = row.to_dict()
@@ -152,8 +117,8 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
         elif key in keys_that_are_floats:
             value = float(value)
 
-        # appending the data to the dataset
-        dataset[key] = xr.DataArray(np.array([value]), dims=["file"])
+        # appending the data to the dict
+        labbook_dict[key] = value
 
         logging.debug(f"Adding key: {key}, value: {value}")
 
@@ -161,36 +126,68 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
         if key == "z_plane_number":
             break
 
-    # Calculate additional velocity (resultant velocity
-    dataset["vel_resultant"] = np.sqrt(
-        dataset["vel_u"] ** 2 + dataset["vel_v"] ** 2 + dataset["vel_w"] ** 2
+    ### Calculating additional matrix level variables
+    # resultant 3D velocity
+    vel_resultant = np.sqrt(
+        data_matrix[:, :, variables_edited.index("vel_u")] ** 2
+        + data_matrix[:, :, variables_edited.index("vel_v")] ** 2
+        + data_matrix[:, :, variables_edited.index("vel_w")] ** 2
     )
+    # Add the resultant velocity to the data_matrix
+    data_matrix = np.concatenate((data_matrix, vel_resultant[..., np.newaxis]), axis=2)
+    variables_edited.append("vel_resultant")
+    # # induction velocity in x, y, z
+    # mean_velocity = np.mean(
+    #     data_matrix[
+    #         :, :, variables_edited.index("vel_u") : variables_edited.index("vel_w") + 1
+    #     ],
+    #     axis=(0, 1),
+    # )
+    # for comp in ["u", "v", "w"]:
+    #     variable_value = (
+    #         data_matrix[:, :, variables_edited.index(f"vel_{comp}")]
+    #         - mean_velocity[comp]
+    #     )
+    #     data_matrix = np.concatenate(
+    #         (data_matrix, variable_value[..., np.newaxis]), axis=2
+    #     )
+    #     variables_edited.append(f"vel_induction_{comp}")
 
-    # Calculate induction velocity (subtracting mean stream)
-    mean_velocity = dataset[["vel_u", "vel_v", "vel_w"]].mean(dim=["x_i", "y_j"])
-    for comp in ["u", "v", "w"]:
-        dataset[f"vel_induction_{comp}"] = (
-            dataset[f"vel_{comp}"] - mean_velocity[f"vel_{comp}"]
-        )
+    # Normalized streamwise velocity
+    Ux_Uinf = data_matrix[:, :, variables_edited.index("vel_u")] / labbook_dict["vw"]
+    data_matrix = np.concatenate((data_matrix, Ux_Uinf[..., np.newaxis]), axis=2)
+    variables_edited.append("Ux_Uinf")
 
-    # Calculate Ux_iUinf
-    dataset["Ux_Uinf"] = dataset["vel_u"] / dataset["vw"]
-
-    #########
-    # Create the dataset
-    dataset = xr.Dataset(
+    ### Creating the dataset
+    # Create a single 3D DataArray to hold all variables
+    data_array = xr.DataArray(
         data_matrix,
+        dims=["x_i", "y_j", "variable"],
         coords={
             "x_i": np.arange(i_value),
             "y_j": np.arange(j_value),
-            "z_var": np.arange(data_matrix.shape[2]),
+            "variable": variables_edited,
         },
+    )
+
+    # Create the dataset with this single 3D DataArray
+    dataset = xr.Dataset({"data": data_array})
+
+    # Add plane specific information
+    for key, value in labbook_dict.items():
+        dataset[key] = xr.DataArray(np.array([value]), dims=["file"])
+
+    dataset["case_name_davis"] = xr.DataArray(
+        np.array([case_name_davis]), dims=["file"]
+    )
+    dataset["file_name_davis"] = xr.DataArray(
+        np.array([file_name_davis]), dims=["file"]
     )
 
     # Add dataset wide (for whole aoa_13 sweep)
     dataset.attrs["i_value"] = i_value
     dataset.attrs["j_value"] = j_value
-    dataset.attrs["k_variables"] = aoa_value
+    dataset.attrs["k_variables"] = len(variables_edited)
     dataset.attrs["aoa"] = aoa_value
     dataset.attrs["variables_edited"] = variables_edited
     dataset.attrs["variables_raw"] = variables_raw
@@ -214,8 +211,7 @@ def process_all_dat_files(
                     all_datasets.append(dataset)
 
     # Combine all datasets
-    combined_dataset = xr.concat(all_datasets, dim="file")
-    return combined_dataset
+    return xr.concat(all_datasets, dim="file")
 
 
 if __name__ == "__main__":
@@ -259,3 +255,10 @@ if __name__ == "__main__":
     # Save the processed data
     processed_data_path = sys.path[0] + "/processed_data/combined_piv_data.nc"
     combined_dataset.to_netcdf(processed_data_path)
+
+    ##TODO: incorporate this
+    # call data like:
+    u_velocity = dataset.data.sel(variable="vel_u")
+
+    # U could populate like:
+    new_dataset.data[i, j, :] = dataset.data[i, j, :]
