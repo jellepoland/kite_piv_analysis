@@ -35,13 +35,13 @@ def create_populated_dataset_both(
     logging.info(f"normal_slice: {normal_slice}")
     logging.info(f"both_normal_region_slice: {both_normal_region_slice}")
     logging.info(
-        f"normal data shape: {xr_dataset_normal.data.values[normal_slice, :, :].shape}"
+        f"normal data shape: {xr_dataset_normal.data.values[:, normal_slice, :].shape}"
     )
     logging.info(
-        f"empty_data slice shape: {empty_data[both_normal_region_slice, :, :].shape}"
+        f"empty_data slice shape: {empty_data[:, both_normal_region_slice, :].shape}"
     )
-    empty_data[both_normal_region_slice, :, :] = xr_dataset_normal.data.values[
-        normal_slice, :, :
+    empty_data[:, both_normal_region_slice, :] = xr_dataset_normal.data.values[
+        :, normal_slice, :
     ]
     # overlap region
     overlap_slice = slice(j_normal_start_overlap, j_normal_end_overlap)
@@ -50,13 +50,13 @@ def create_populated_dataset_both(
     logging.info(f"overlap_slice: {overlap_slice}")
     logging.info(f"both_overlap_region_slice: {both_overlap_region_slice}")
     logging.info(
-        f"normal data shape: {xr_dataset_normal.data.values[overlap_slice, :, :].shape}"
+        f"normal data shape: {xr_dataset_normal.data.values[:,overlap_slice,  :].shape}"
     )
     logging.info(
-        f"empty_data slice shape: {empty_data[both_overlap_region_slice, :, :].shape}"
+        f"empty_data slice shape: {empty_data[:,both_overlap_region_slice,  :].shape}"
     )
-    empty_data[both_overlap_region_slice, :, :] = xr_dataset_normal.data.values[
-        overlap_slice, :, :
+    empty_data[:, both_overlap_region_slice, :] = xr_dataset_normal.data.values[
+        :, overlap_slice, :
     ]
 
     # flipped region
@@ -66,13 +66,13 @@ def create_populated_dataset_both(
     logging.info(f"flipped_slice: {flipped_slice}")
     logging.info(f"both_flipped_region_slice: {both_flipped_region_slice}")
     logging.info(
-        f"flipped data shape: {xr_dataset_flipped.data.values[flipped_slice, :, :].shape}"
+        f"flipped data shape: {xr_dataset_flipped.data.values[ :,flipped_slice, :].shape}"
     )
     logging.info(
-        f"empty_data slice shape: {empty_data[both_flipped_region_slice, :, :].shape}"
+        f"empty_data slice shape: {empty_data[ :, both_flipped_region_slice,:].shape}"
     )
-    empty_data[both_flipped_region_slice, :, :] = xr_dataset_flipped.data.values[
-        flipped_slice, :, :
+    empty_data[:, both_flipped_region_slice, :] = xr_dataset_flipped.data.values[
+        :, flipped_slice, :
     ]
 
     ### Create DataArray
@@ -89,11 +89,11 @@ def create_populated_dataset_both(
             "variable": xr_dataset_normal.variables_edited,
         },
     )
-    logging.debug(f"data_array.shape: {data_array.shape}")
+    logging.info(f"data_array.shape: {data_array.shape}")
     # Create Dataset
     new_dataset = xr.Dataset({"data": data_array})
 
-    logging.debug(f"new_dataset.data.shape: {new_dataset.data.shape}")
+    logging.info(f"new_dataset.data.shape: {new_dataset.data.shape}")
 
     ### Attributes
     # copying attributes
@@ -178,7 +178,7 @@ def stitching_normal_to_flipped(
     logging.info(f"j_flipped_start_overlap: {j_flipped_start_overlap}")
     logging.info(f"j_flipped_end_overlap: {j_flipped_end_overlap}")
 
-    ### 3. Correcting x-coordinates
+    ### 3. Correcting y-coordinates
     def correct_y_coordinates(dataset, y_offset):
         # grabbing the x index
         y_index = dataset.variables_edited.index("y")
@@ -186,7 +186,8 @@ def stitching_normal_to_flipped(
         data_matrix = dataset["data"].values
         # creating a copy to make sure we don't modify the original
         new_data_matrix = data_matrix.copy()
-        new_data_matrix[:, :, y_index] = data_matrix[:, :, y_index] + y_offset
+        # adding the offset to the y values
+        new_data_matrix[:, :, y_index] = new_data_matrix[:, :, y_index] + y_offset
         # creating a new DataArray
         new_data_array = xr.DataArray(
             new_data_matrix,
@@ -280,9 +281,10 @@ def stitching_plotting_saving_y_normal_to_flipped(
     for group in datapoint_list_grouped:
         logging.info(f"Group: {group[0].file_name.values}, {group[1].file_name.values}")
 
-    all_x123_stitched = []
+    all_xr_dataset_both = []
     # looping over each y-plane
     for datapoint_group, y_value in zip(datapoint_list_grouped, y_value_list):
+        logging.info(f"y_value: {y_value}")
         xr_dataset_normal = datapoint_group[0]
         xr_dataset_flipped = datapoint_group[1]
         y_plane_number = y_value
@@ -295,8 +297,8 @@ def stitching_plotting_saving_y_normal_to_flipped(
         # logging
         logging.info(f"-------------------")
         logging.debug(f"datapoint_group: {len(datapoint_group)}")
-        logging.info(f"xr_dataset_normal: {xr_dataset_normal[0].file_name.values}")
-        logging.info(f"xr_dataset_flipped: {xr_dataset_flipped[1].file_name.values}")
+        logging.info(f"xr_dataset_normal: {xr_dataset_normal.file_name.values}")
+        logging.info(f"xr_dataset_flipped: {xr_dataset_flipped.file_name.values}")
         logging.info(f"y_plane_number: {y_plane_number}")
         logging.info(f"file_name: {file_name}")
         logging.info(f"shape: {xr_dataset_both.data.shape}")
@@ -308,15 +310,13 @@ def stitching_plotting_saving_y_normal_to_flipped(
             f'x_values, min, max: {xr_dataset_both.data.sel(variable="x").min().values}, {xr_dataset_both.data.sel(variable="x").max().values}'
         )
 
-        breakpoint()
-
         ### Create plots
         plot_quiver(
-            xr_dataset_x123.data.sel(variable="x").values,
-            xr_dataset_x123.data.sel(variable="y").values,
-            xr_dataset_x123.data.sel(variable="vel_u").values,
-            xr_dataset_x123.data.sel(variable="vel_v").values,
-            color_values=xr_dataset_x123.data.sel(variable=cbar_variable_name).values,
+            xr_dataset_both.data.sel(variable="x").values,
+            xr_dataset_both.data.sel(variable="y").values,
+            xr_dataset_both.data.sel(variable="vel_u").values,
+            xr_dataset_both.data.sel(variable="vel_v").values,
+            color_values=xr_dataset_both.data.sel(variable=cbar_variable_name).values,
             colorbar_label=colorbar_label,
             title=file_name + f"(from file: {save_path_file})",
             u_inf=u_inf,  # TODO: change this to vw
@@ -330,12 +330,12 @@ def stitching_plotting_saving_y_normal_to_flipped(
         )
 
         # Append to list
-        all_x123_stitched.append(xr_dataset_x123)
+        all_xr_dataset_both.append(xr_dataset_both)
 
-    xr_all_x123_stitched = xr.concat(all_x123_stitched, dim="file")
+    xr_all_stitched = xr.concat(all_xr_dataset_both, dim="file")
 
     # Save the stitched dataset
-    xr_all_x123_stitched.to_netcdf(save_path_file)
+    xr_all_stitched.to_netcdf(save_path_file)
 
 
 if __name__ == "__main__":
@@ -366,9 +366,11 @@ if __name__ == "__main__":
         min_cbar_value=0.8,
     )
     # STANDARD DEVIATION Load the processed data
-    load_path_file = sys.path[0] + "/processed_data/combined_piv_data_std.nc"
-    save_path_file = sys.path[0] + "/processed_data/combined_piv_data_x123_std.nc"
-    save_path_folder_plots = sys.path[0] + "/results/aoa_13/all_x123_planes/"
+    load_path_file = (
+        sys.path[0] + "/processed_data/combined_piv_data_x123_planes_std.nc"
+    )
+    save_path_file = sys.path[0] + "/processed_data/combined_piv_data_all_planes.nc"
+    save_path_folder_plots = sys.path[0] + "/results/aoa_13/all_planes/"
     stitching_plotting_saving_y_normal_to_flipped(
         load_path_file,
         save_path_file,

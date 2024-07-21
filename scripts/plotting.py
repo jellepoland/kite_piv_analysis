@@ -289,7 +289,7 @@ if __name__ == "__main__":
     # logging.info(f"Data attrs: {loaded_dataset.attrs}")
     datapoint_list = [loaded_dataset.isel(file=i) for i in range(size)]
 
-    for datapoint in datapoint_list[0:1]:
+    for datapoint in datapoint_list:
         case_name_davis = datapoint.case_name_davis.values
         # logging.info(f"datapoint.data_vars: {datapoint.data_vars}")
         # logging.info(f"data, {datapoint.variables_edited}")
@@ -313,4 +313,5 @@ if __name__ == "__main__":
             save_path=sys.path[0]
             + f"/results/aoa_13/seperate_planes/{case_name_davis}.png",
             subsample=10,  # Adjust subsample factor as needed
+            is_show_plot=False,
         )
