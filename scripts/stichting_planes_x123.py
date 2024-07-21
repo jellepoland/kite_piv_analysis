@@ -116,14 +116,22 @@ def create_populated_dataset_x123(
     ### Stitched Plane Specific Information
     # adding a file_name
     new_dataset["file_name"] = xr.DataArray(np.array([file_name_x123]), dims=["file"])
-    y_value = xr_dataset_x1["y_plane_number"].values
-    new_dataset["y_plane_number"] = xr.DataArray(np.array([y_value]), dims=["file"])
+    y_plane_number = xr_dataset_x1["y_plane_number"].values
+    new_dataset["y_plane_number"] = xr.DataArray(
+        np.array([y_plane_number]), dims=["file"]
+    )
+    h_table = xr_dataset_x1["h_table"].values
+    new_dataset["h_table"] = xr.DataArray(np.array([h_table]), dims=["file"])
+    z_plane_number = xr_dataset_x1["z_plane_number"].values
+    new_dataset["z_plane_number"] = xr.DataArray(
+        np.array([z_plane_number]), dims=["file"]
+    )
 
     return new_dataset
 
 
 def stitching_x123_planes(
-    xr_dataset_x1, xr_dataset_x2, xr_dataset_x3, file_name_x123, x_traverse_step=300
+    xr_dataset_x1, xr_dataset_x2, xr_dataset_x3, file_name_x123, x_traverse_step
 ):
 
     ### 1. defining the mastergrid
@@ -319,8 +327,14 @@ def stitching_plotting_saving_x123_planes(
         xr_dataset_x1 = datapoint_group[0]
         xr_dataset_x2 = datapoint_group[1]
         xr_dataset_x3 = datapoint_group[2]
-        y_plane_number = int(datapoint_group[0]["y_plane_number"].values)
-        z_plane_number = int(datapoint_group[0]["z_plane_number"].values)
+        y_plane_number = int(xr_dataset_x1["y_plane_number"].values)
+        z_plane_number = int(xr_dataset_x1["z_plane_number"].values)
+        x_traverse_step = int(xr_dataset_x2["y_traverse"].values)
+
+        if int(x_traverse_step) != 300:
+            raise ValueError(
+                f"x_traverse_step is not 300, but {x_traverse_step}, check labbook"
+            )
 
         if "flipped" in str(datapoint_group[0]["case_name_davis"].values):
             orientation = "flipped"
@@ -330,7 +344,11 @@ def stitching_plotting_saving_x123_planes(
         file_name = f"aoa_13_{orientation}_z{z_plane_number}_y{y_plane_number}_x123"
 
         xr_dataset_x123 = stitching_x123_planes(
-            xr_dataset_x1, xr_dataset_x2, xr_dataset_x3, file_name_x123=file_name
+            xr_dataset_x1,
+            xr_dataset_x2,
+            xr_dataset_x3,
+            file_name_x123=file_name,
+            x_traverse_step=x_traverse_step,
         )
 
         # logging

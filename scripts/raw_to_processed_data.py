@@ -54,41 +54,43 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
 
     # Reshape the data into matrix form (i by j)
     data_matrix = data.reshape((i_value, j_value, -1))
-    logging.info(f"data_matrix.shape: {data_matrix.shape}")
-    logging.info(f"data_matrix type: {type(data_matrix)}")
-    # logging.info(f"data_matrix: {data_matrix[0].shape}")
-    # logging.info(f"data_matrix: {data_matrix[0][0].shape}")
-    logging.info(f"variables_edited: {variables_edited}")
-    # logging.info(f"data_matrix: {data_matrix[0][0]}")
-    # logging.info(f" np.arange(data_matrix.shape[2]): {np.arange(data_matrix.shape[2])}")
-    logging.info(
+    logging.debug(f"data_matrix.shape: {data_matrix.shape}")
+    logging.debug(f"data_matrix type: {type(data_matrix)}")
+    logging.debug(f"variables_edited: {variables_edited}")
+    logging.debug(
         f"data_matrix x_range: {data_matrix[:,:,0].min()} to {data_matrix[:,:,0].max()}"
     )
-    logging.info(
+    logging.debug(
         f"data_matrix y_range: {data_matrix[:,:,1].min()} to {data_matrix[:,:,1].max()}"
     )
     # flipping the data_matrix if is a "flipped" case
     if "flipped" in str(case_name_davis):
-        logging.info(
+        logging.debug(
             f"----Flipping the data_matrix, case_name_davis: {case_name_davis}"
         )
-        new_data_matrix = data_matrix.copy()
-        new_data_matrix = np.flip(new_data_matrix, axis=1)
-        # after flipping the data points, y containing values also need a sign change
-        new_data_matrix[:, :, y_index] = -new_data_matrix[:, :, y_index]
+        data_matrix = np.flip(data_matrix, axis=1)
+        ### after flipping the data points, y containing values also need a sign change
+        # defining variables that need sign change
+        variables_needing_sign_change = [
+            "y",
+            "vel_v",
+            "du_dy",
+            "dv_dy",
+            "dw_dy",
+            "vorticity_jw_z",
+        ]
+        ### changing sign for those variables
+        for variable in variables_needing_sign_change:
+            index = variables_edited.index(variable)
+            data_matrix[:, :, index] = -data_matrix[:, :, index]
 
-    else:
-        new_data_matrix = data_matrix.copy()
-
-    logging.info(f"data_matrix.shape: {new_data_matrix.shape}")
-    logging.info(
-        f"data_matrix x_range: {new_data_matrix[:,:,0].min()} to {new_data_matrix[:,:,0].max()}"
+    logging.debug(f"data_matrix.shape: {data_matrix.shape}")
+    logging.debug(
+        f"data_matrix x_range: {data_matrix[:,:,0].min()} to {data_matrix[:,:,0].max()}"
     )
-    logging.info(
-        f"data_matrix y_range: {new_data_matrix[:,:,1].min()} to {new_data_matrix[:,:,1].max()}"
+    logging.debug(
+        f"data_matrix y_range: {data_matrix[:,:,1].min()} to {data_matrix[:,:,1].max()}"
     )
-    breakpoint()
-
     ### Loading labbook
     labbook_dict = {}
     labbook_df = pd.read_csv(labbook_path)

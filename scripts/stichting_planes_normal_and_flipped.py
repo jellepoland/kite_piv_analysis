@@ -16,21 +16,26 @@ def create_populated_dataset_both(
     k_both_value,
     xr_dataset_normal,
     xr_dataset_flipped,
+    j_both_start,
     j_both_start_overlap,
     j_both_end_overlap,
+    j_both_end,
+    j_normal_start,
     j_normal_start_overlap,
     j_normal_end_overlap,
     j_flipped_start_overlap,
     j_flipped_end_overlap,
+    j_flipped_end,
 ):
     # Create empty data array
     empty_data = np.full((i_both_value, j_both_value, k_both_value), np.nan)
     logging.info(f"empty_data.shape: {empty_data.shape}")
+    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
 
     # Populate non-overlapping regions directly
     # normal region
-    normal_slice = slice(0, j_normal_start_overlap)
-    both_normal_region_slice = slice(0, j_both_start_overlap)
+    normal_slice = slice(j_normal_start, j_normal_start_overlap)
+    both_normal_region_slice = slice(j_both_start, j_both_start_overlap)
     logging.info(f"--- normal region non-overlapping")
     logging.info(f"normal_slice: {normal_slice}")
     logging.info(f"both_normal_region_slice: {both_normal_region_slice}")
@@ -40,46 +45,56 @@ def create_populated_dataset_both(
     logging.info(
         f"empty_data slice shape: {empty_data[:, both_normal_region_slice, :].shape}"
     )
-    empty_data[:, both_normal_region_slice, :] = xr_dataset_normal.data.values[
-        :, normal_slice, :
-    ]
+    for k in range(k_both_value):
+        empty_data[:, both_normal_region_slice, k] = xr_dataset_normal.data.values[
+            :, normal_slice, k
+        ]
+    # empty_data[:, both_normal_region_slice, :] = xr_dataset_normal.data.values[
+    #     :, normal_slice, :
+    # ]
+    logging.info(
+        f"NORMAL: ymin, ymax: {xr_dataset_normal.data.values[:, normal_slice, 1].min(), xr_dataset_normal.data.values[:, normal_slice, 1].max()}"
+    )
+    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
     # overlap region
-    overlap_slice = slice(j_normal_start_overlap, j_normal_end_overlap)
+    overlap_slice = slice(j_flipped_start_overlap, j_flipped_end_overlap)
     both_overlap_region_slice = slice(j_both_start_overlap, j_both_end_overlap)
     logging.info(f"--- overlap region")
     logging.info(f"overlap_slice: {overlap_slice}")
     logging.info(f"both_overlap_region_slice: {both_overlap_region_slice}")
-    logging.info(
-        f"normal data shape: {xr_dataset_normal.data.values[:,overlap_slice,  :].shape}"
+    logging.debug(
+        f"flipped_data shape: {xr_dataset_flipped.data.values[:,overlap_slice,  :].shape}"
     )
-    logging.info(
+    logging.debug(
         f"empty_data slice shape: {empty_data[:,both_overlap_region_slice,  :].shape}"
     )
-    empty_data[:, both_overlap_region_slice, :] = xr_dataset_normal.data.values[
+    empty_data[:, both_overlap_region_slice, :] = xr_dataset_flipped.data.values[
         :, overlap_slice, :
     ]
-
+    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
     # flipped region
-    flipped_slice = slice(j_flipped_start_overlap, j_flipped_end_overlap)
-    both_flipped_region_slice = slice(j_both_start_overlap, j_both_end_overlap)
+    flipped_slice = slice(j_flipped_end_overlap, j_flipped_end)
+    both_flipped_region_slice = slice(j_both_end_overlap, j_both_end)
     logging.info(f"--- flipped region non-overlapping")
     logging.info(f"flipped_slice: {flipped_slice}")
     logging.info(f"both_flipped_region_slice: {both_flipped_region_slice}")
-    logging.info(
+    logging.debug(
         f"flipped data shape: {xr_dataset_flipped.data.values[ :,flipped_slice, :].shape}"
     )
-    logging.info(
+    logging.debug(
         f"empty_data slice shape: {empty_data[ :, both_flipped_region_slice,:].shape}"
     )
     empty_data[:, both_flipped_region_slice, :] = xr_dataset_flipped.data.values[
         :, flipped_slice, :
     ]
-
+    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
     ### Create DataArray
-    logging.info(f"empty_data.shape: {empty_data.shape}")
-    logging.info(
+    logging.info(f"--- empty_data.shape: {empty_data.shape}")
+    logging.info(f"i,j,k: {i_both_value, j_both_value, k_both_value}")
+    logging.debug(
         f"xr_dataset_normal.variables_edited: {xr_dataset_normal.variables_edited}"
     )
+    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
     data_array = xr.DataArray(
         empty_data,
         dims=["x_i", "y_j", "variable"],
@@ -113,14 +128,14 @@ def create_populated_dataset_both(
 
 
 def stitching_normal_to_flipped(
-    xr_dataset_normal, xr_dataset_flipped, file_name_both, y_traverse_step=300
+    xr_dataset_normal, xr_dataset_flipped, file_name_both, y_traverse_step
 ):
 
     ### 1. defining the new mastergrid
-    x_min = 0
-    x_max = xr_dataset_normal.data.sel(variable="x").max().values
-    y_min = 0
-    y_start_overlap = y_traverse_step
+    x_both_min = 0
+    x_both_max = xr_dataset_normal.data.sel(variable="x").max().values
+    y_both_min = 0
+    y_both_start_overlap = y_traverse_step
     y_len_normal = (
         xr_dataset_normal.data.sel(variable="y").max().values
         - xr_dataset_normal.data.sel(variable="y").min().values
@@ -129,19 +144,19 @@ def stitching_normal_to_flipped(
         xr_dataset_flipped.data.sel(variable="y").max().values
         - xr_dataset_flipped.data.sel(variable="y").min().values
     )
-    y_end_overlap = y_len_normal
-    y_max = y_traverse_step + y_len_flipped
+    y_both_end_overlap = y_len_normal
+    y_both_max = y_traverse_step + y_len_flipped
 
     # logging
     logging.info(f"y_len_normal: {y_len_normal}")
     logging.info(f"y_len_flipped: {y_len_flipped}")
     logging.info(f"y_traverse_step: {y_traverse_step}")
-    logging.info(f"x_min: {x_min}")
-    logging.info(f"x_max: {x_max}")
-    logging.info(f"y_min: {y_min}")
-    logging.info(f"y_start_overlap: {y_start_overlap}")
-    logging.info(f"y_end_overlap: {y_end_overlap}")
-    logging.info(f"y_max: {y_max}")
+    logging.info(f"x_min: {x_both_min}")
+    logging.info(f"x_max: {x_both_max}")
+    logging.info(f"y_both_min: {y_both_min}")
+    logging.info(f"y_both_start_overlap: {y_both_start_overlap}")
+    logging.info(f"y_both_end_overlap: {y_both_end_overlap}")
+    logging.info(f"y_both_max: {y_both_max}")
 
     ### 2. Calculating resolution
     # assuming that x1,x2,x3 planes have the same resolution
@@ -149,15 +164,18 @@ def stitching_normal_to_flipped(
     y_res_normal = (xr_dataset_normal.j_value) / y_len_normal
     y_res_flipped = (xr_dataset_flipped.j_value) / y_len_flipped
     j_both_start = 0
-    j_both_start_overlap = int(y_traverse_step * y_res_normal)
-    j_both_end_overlap = int(y_len_normal * y_res_normal)
+    j_both_start_overlap = int(y_both_start_overlap * y_res_normal)
+    j_both_end_overlap = int(y_both_end_overlap * y_res_normal)
     y_delta_overlap = j_both_end_overlap - j_both_start_overlap
-    j_both_end = int(j_both_start_overlap + y_len_flipped * y_res_flipped)
-    # Defining i values for the 3 planes
+    j_both_end = int(y_both_max * y_res_flipped)
+
+    # Defining j values for the 3 planes
+    j_normal_start = j_both_start
     j_normal_start_overlap = int(j_both_start_overlap)
     j_normal_end_overlap = int(j_both_end_overlap)
     j_flipped_start_overlap = int(j_both_start)
     j_flipped_end_overlap = int(j_both_end_overlap - j_both_start_overlap)
+    j_flipped_end = int(j_both_end - j_both_start_overlap)
 
     # logging
     logging.info(
@@ -173,10 +191,12 @@ def stitching_normal_to_flipped(
     logging.info(f"j_both_end_overlap: {j_both_end_overlap}")
     logging.info(f"y_delta_overlap: {y_delta_overlap}")
     logging.info(f"j_both_end: {j_both_end}")
+    logging.info(f"j_normal_start: {j_normal_start}")
     logging.info(f"j_normal_start_overlap: {j_normal_start_overlap}")
     logging.info(f"j_normal_end_overlap: {j_normal_end_overlap}")
     logging.info(f"j_flipped_start_overlap: {j_flipped_start_overlap}")
     logging.info(f"j_flipped_end_overlap: {j_flipped_end_overlap}")
+    logging.info(f"j_flipped_end: {j_flipped_end}")
 
     ### 3. Correcting y-coordinates
     def correct_y_coordinates(dataset, y_offset):
@@ -209,31 +229,37 @@ def stitching_normal_to_flipped(
     )
 
     # Correct flipped dataset
-    y_offset = -xr_dataset_flipped.data.sel(variable="y").min().values + y_traverse_step
+    y_offset = (
+        -xr_dataset_flipped.data.sel(variable="y").min().values + y_both_start_overlap
+    )
     xr_dataset_flipped_corrected_y = correct_y_coordinates(xr_dataset_flipped, y_offset)
 
     # Log the corrections
     logging.info(
-        f"Normal y-coordinate range: {xr_dataset_normal_corrected_y.data.sel(variable='y').min().values} to {xr_dataset_normal_corrected_y.data.sel(variable='y').max().values}"
+        f"CORRECTED: Normal y-coordinate range: {xr_dataset_normal_corrected_y.data.sel(variable='y').min().values} to {xr_dataset_normal_corrected_y.data.sel(variable='y').max().values}"
     )
     logging.info(
-        f"Flipped y-coordinate range: {xr_dataset_flipped_corrected_y.data.sel(variable='y').min().values} to {xr_dataset_flipped_corrected_y.data.sel(variable='y').max().values}"
+        f"CORRECTED: Flipped y-coordinate range: {xr_dataset_flipped_corrected_y.data.sel(variable='y').min().values} to {xr_dataset_flipped_corrected_y.data.sel(variable='y').max().values}"
     )
 
     ### 3. Populating data
     xr_dataset_x123 = create_populated_dataset_both(
         file_name_both=file_name_both,
-        i_both_value=xr_dataset_normal.i_value,
+        i_both_value=xr_dataset_normal_corrected_y.i_value,
         j_both_value=j_both_end,
-        k_both_value=len(xr_dataset_normal.variables_edited),
+        k_both_value=len(xr_dataset_normal_corrected_y.variables_edited),
         xr_dataset_normal=xr_dataset_normal_corrected_y,
         xr_dataset_flipped=xr_dataset_flipped_corrected_y,
+        j_both_start=j_both_start,
         j_both_start_overlap=j_both_start_overlap,
         j_both_end_overlap=j_both_end_overlap,
+        j_both_end=j_both_end,
+        j_normal_start=j_normal_start,
         j_normal_start_overlap=j_normal_start_overlap,
         j_normal_end_overlap=j_normal_end_overlap,
         j_flipped_start_overlap=j_flipped_start_overlap,
         j_flipped_end_overlap=j_flipped_end_overlap,
+        j_flipped_end=j_flipped_end,
     )
 
     return xr_dataset_x123
@@ -261,11 +287,11 @@ def stitching_plotting_saving_y_normal_to_flipped(
     y_value_list = []
     for datapoint in datapoint_list:
         logging.debug(f"datapoint.file_name: {datapoint.file_name.values}")
-        if "flipped" in str(datapoint.file_name.values):
-            flipped_data_point_list.append(datapoint)
-        elif "normal" in str(datapoint.file_name.values):
+        if "normal" in str(datapoint.file_name.values):
             normal_data_point_list.append(datapoint)
             y_value_list.append(int(datapoint["y_plane_number"].values))
+        elif "flipped" in str(datapoint.file_name.values):
+            flipped_data_point_list.append(datapoint)
 
     # Grouping the datapoints
     datapoint_list_grouped = []
@@ -282,16 +308,59 @@ def stitching_plotting_saving_y_normal_to_flipped(
         logging.info(f"Group: {group[0].file_name.values}, {group[1].file_name.values}")
 
     all_xr_dataset_both = []
+
+    # TODO: tweak these values
+    additional_tweaked_y_traverse_step_z1 = 450  # 750
+    additional_tweaked_y_traverse_step_z2 = 550
+    additional_tweaked_y_traverse_step_z3 = 550
+
     # looping over each y-plane
+    # TODO: remove data_point_list_grouped[0:1] to process all y-planes
     for datapoint_group, y_value in zip(datapoint_list_grouped, y_value_list):
         logging.info(f"y_value: {y_value}")
         xr_dataset_normal = datapoint_group[0]
         xr_dataset_flipped = datapoint_group[1]
+        logging.info(f"normal: {xr_dataset_normal.file_name.values}")
+        logging.info(f"flipped: {xr_dataset_flipped.file_name.values}")
+
         y_plane_number = y_value
+
+        # Making sure we are dealing with the same y_plane_number
+        y_plane_number_from_file_normal = xr_dataset_normal["y_plane_number"].values
+        y_plane_number_from_file_flipped = xr_dataset_flipped["y_plane_number"].values
+        if (
+            y_plane_number_from_file_normal != y_plane_number_from_file_flipped
+            or y_plane_number_from_file_normal != y_plane_number
+        ):
+            raise ValueError(
+                f"y_plane_number from normal and flipped files are not the same: {y_plane_number_from_file_normal}, {y_plane_number_from_file_flipped}"
+            )
         file_name = f"aoa_13_both_z1_y{y_plane_number}"
+        h_table_normal = xr_dataset_normal["h_table"].values
+        h_table_flipped = xr_dataset_flipped["h_table"].values
+        delta_h_table = h_table_normal - h_table_flipped
+        z_plane_number = xr_dataset_normal["z_plane_number"].values
+        if z_plane_number == 1:
+            y_traverse_step = delta_h_table - additional_tweaked_y_traverse_step_z1
+        elif z_plane_number == 2:
+            y_traverse_step = delta_h_table - additional_tweaked_y_traverse_step_z2
+        elif z_plane_number == 3:
+            y_traverse_step = delta_h_table - additional_tweaked_y_traverse_step_z3
+
+        logging.info(f"h_table_normal: {h_table_normal}")
+        logging.info(f"h_table_flipped: {h_table_flipped}")
+        logging.info(f"delta_h_table: {delta_h_table}")
+        logging.info(f"z_plane_number: {z_plane_number}")
+        logging.info(
+            f"additional_tweaked_y_traverse_step_z1: {additional_tweaked_y_traverse_step_z1}"
+        )
+        logging.info(f"y_traverse_step: {y_traverse_step}")
 
         xr_dataset_both = stitching_normal_to_flipped(
-            xr_dataset_normal, xr_dataset_flipped, file_name_both=file_name
+            xr_dataset_normal,
+            xr_dataset_flipped,
+            file_name_both=file_name,
+            y_traverse_step=y_traverse_step,
         )
 
         # logging
@@ -308,6 +377,9 @@ def stitching_plotting_saving_y_normal_to_flipped(
         logging.info(f"file_name: {xr_dataset_both['file_name'].values}")
         logging.info(
             f'x_values, min, max: {xr_dataset_both.data.sel(variable="x").min().values}, {xr_dataset_both.data.sel(variable="x").max().values}'
+        )
+        logging.info(
+            f'y_values, min, max: {xr_dataset_both.data.sel(variable="y").min().values}, {xr_dataset_both.data.sel(variable="y").max().values}'
         )
 
         ### Create plots
@@ -358,30 +430,30 @@ if __name__ == "__main__":
         cmap="RdBu",
         colorbar_label=r"$\frac{U_x}{U_\infty}$",
         u_inf=15,
-        is_with_quiver=True,
+        is_with_quiver=False,
         plot_name_end=".png",
         is_show_plot=True,
         cbar_variable_name="ux_uinf",
         max_cbar_value=1.2,
         min_cbar_value=0.8,
     )
-    # STANDARD DEVIATION Load the processed data
-    load_path_file = (
-        sys.path[0] + "/processed_data/combined_piv_data_x123_planes_std.nc"
-    )
-    save_path_file = sys.path[0] + "/processed_data/combined_piv_data_all_planes.nc"
-    save_path_folder_plots = sys.path[0] + "/results/aoa_13/all_planes/"
-    stitching_plotting_saving_y_normal_to_flipped(
-        load_path_file,
-        save_path_file,
-        save_path_folder_plots,
-        cmap="jet",
-        colorbar_label=r"$std. vel_u$",
-        u_inf=1,
-        is_with_quiver=False,
-        plot_name_end="_std.png",
-        is_show_plot=True,
-        cbar_variable_name="vel_u",
-        max_cbar_value=8,
-        min_cbar_value=0,
-    )
+    # # STANDARD DEVIATION Load the processed data
+    # load_path_file = (
+    #     sys.path[0] + "/processed_data/combined_piv_data_x123_planes_std.nc"
+    # )
+    # save_path_file = sys.path[0] + "/processed_data/combined_piv_data_all_planes.nc"
+    # save_path_folder_plots = sys.path[0] + "/results/aoa_13/all_planes/"
+    # stitching_plotting_saving_y_normal_to_flipped(
+    #     load_path_file,
+    #     save_path_file,
+    #     save_path_folder_plots,
+    #     cmap="jet",
+    #     colorbar_label=r"$std. vel_u$",
+    #     u_inf=1,
+    #     is_with_quiver=False,
+    #     plot_name_end="_std.png",
+    #     is_show_plot=False,
+    #     cbar_variable_name="vel_u",
+    #     max_cbar_value=8,
+    #     min_cbar_value=0,
+    # )

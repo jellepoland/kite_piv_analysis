@@ -297,7 +297,7 @@ if __name__ == "__main__":
         # logging.info(f"FileName: {datapoint.file_name_labbook.values}")
         # logging.info(f" ----")
         # logging.info(datapoint.data.sel(variable="x").values)
-        logging.info(datapoint.data_vars)
+        # logging.info(datapoint.data_vars)
         # logging.info(f" ----")
         logging.info(f"file_name: {datapoint['file_name'].values}")
 
