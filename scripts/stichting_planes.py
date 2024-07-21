@@ -6,130 +6,282 @@ import re
 import sys
 from datetime import datetime
 import matplotlib.pyplot as plt
+from plotting import plot_quiver
 
 
-def create_empty_dataset_like(template_dataset, shape):
-    empty_data = np.empty(shape)
+def create_populated_dataset(
+    file_name_x123,
+    i_x123_value,
+    j_x123_value,
+    k_x123_value,
+    xr_dataset_x1,
+    xr_dataset_x2,
+    xr_dataset_x3,
+    i_x123_start_overlap_1,
+    i_x123_end_overlap_1,
+    i_x123_start_overlap_2,
+    i_x123_end_overlap_2,
+    i_x1_start_overlap_1,
+    i_x1_end_overlap_1,
+    i_x2_start_overlap_1,
+    i_x2_end_overlap_1,
+    i_x2_start_overlap_2,
+    i_x2_end_overlap_2,
+    i_x3_start_overlap_2,
+    i_x3_end_overlap_2,
+):
+    # Create empty data array
+    empty_data = np.full((i_x123_value, j_x123_value, k_x123_value), np.nan)
+    logging.debug(f"empty_data.shape: {empty_data.shape}")
+
+    # Populate non-overlapping regions directly
+    # x1 region
+    x1_slice = slice(0, i_x1_start_overlap_1)
+    x123_slice = slice(0, i_x123_start_overlap_1)
+    logging.debug(f"--- x1 region non-overlapping")
+    logging.debug(f"x1_slice: {x1_slice}")
+    logging.debug(f"x123_slice: {x123_slice}")
+    logging.debug(f"x1 data shape: {xr_dataset_x1.data.values[x1_slice, :, :].shape}")
+    logging.debug(f"empty_data slice shape: {empty_data[x123_slice, :, :].shape}")
+    empty_data[x123_slice, :, :] = xr_dataset_x1.data.values[x1_slice, :, :]
+
+    # overlap_1 region
+    x1_slice = slice(i_x1_start_overlap_1, i_x1_end_overlap_1)
+    x123_slice = slice(i_x123_start_overlap_1, i_x123_end_overlap_1)
+    logging.debug(f"--- overlap_1 region")
+    logging.debug(f"x1_slice: {x1_slice}")
+    logging.debug(f"x123_slice: {x123_slice}")
+    logging.debug(f"x1 data shape: {xr_dataset_x1.data.values[x1_slice, :, :].shape}")
+    logging.debug(f"empty_data slice shape: {empty_data[x123_slice, :, :].shape}")
+    empty_data[x123_slice, :, :] = xr_dataset_x1.data.values[x1_slice, :, :]
+
+    # x2 region (between overlaps)
+    x2_slice = slice(i_x2_end_overlap_1, i_x2_start_overlap_2)
+    x123_slice = slice(i_x123_end_overlap_1, i_x123_start_overlap_2)
+    logging.debug(f"--- x2 region between overlaps")
+    logging.debug(f"x2_slice: {x2_slice}")
+    logging.debug(f"x123_slice: {x123_slice}")
+    logging.debug(f"x2 data shape: {xr_dataset_x2.data.values[x2_slice, :, :].shape}")
+    logging.debug(f"empty_data slice shape: {empty_data[x123_slice, :, :].shape}")
+    empty_data[x123_slice, :, :] = xr_dataset_x2.data.values[x2_slice, :, :]
+
+    # overlap_2 region
+    x2_slice = slice(i_x2_start_overlap_2, i_x2_end_overlap_2)
+    x123_slice = slice(i_x123_start_overlap_2, i_x123_end_overlap_2)
+    logging.debug(f"--- overlap_2 region")
+    logging.debug(f"x2_slice: {x2_slice}")
+    logging.debug(f"x123_slice: {x123_slice}")
+    logging.debug(f"x2 data shape: {xr_dataset_x2.data.values[x2_slice, :, :].shape}")
+    logging.debug(f"empty_data slice shape: {empty_data[x123_slice, :, :].shape}")
+    empty_data[x123_slice, :, :] = xr_dataset_x2.data.values[x2_slice, :, :]
+
+    # x3 region
+    x3_slice = slice(i_x3_end_overlap_2, None)
+    x123_slice = slice(i_x123_end_overlap_2, None)
+    logging.debug(f"--- x3 region")
+    logging.debug(f"x3_slice: {x3_slice}")
+    logging.debug(f"x123_slice: {x123_slice}")
+    logging.debug(f"x3 data shape: {xr_dataset_x3.data.values[x3_slice, :, :].shape}")
+    logging.debug(f"empty_data slice shape: {empty_data[x123_slice, :, :].shape}")
+    empty_data[x123_slice, :, :] = xr_dataset_x3.data.values[x3_slice, :, :]
+
+    ### Create DataArray
+    logging.debug(f"empty_data.shape: {empty_data.shape}")
+    logging.debug(f"xr_dataset_x1.variables_edited: {xr_dataset_x1.variables_edited}")
     data_array = xr.DataArray(
         empty_data,
         dims=["x_i", "y_j", "variable"],
         coords={
-            "x_i": np.arange(shape[0]),
-            "y_j": np.arange(shape[1]),
-            "variable": template_dataset.data.variable,
+            "x_i": np.arange(i_x123_value),
+            "y_j": np.arange(j_x123_value),
+            "variable": xr_dataset_x1.variables_edited,
         },
     )
+    logging.debug(f"data_array.shape: {data_array.shape}")
+    # Create Dataset
     new_dataset = xr.Dataset({"data": data_array})
 
-    # Copy attributes and other coordinates
-    new_dataset.attrs = template_dataset.attrs.copy()
-    for coord in template_dataset.coords:
-        if coord not in ["x_i", "y_j", "variable"]:
-            new_dataset[coord] = template_dataset[coord]
+    logging.debug(f"new_dataset.data.shape: {new_dataset.data.shape}")
+
+    ### Attributes
+    # copying attributes
+    new_dataset.attrs = xr_dataset_x1.attrs.copy()
+    # editing the ones that have changed
+    new_dataset.attrs["i_value"] = i_x123_value
+    new_dataset.attrs["j_value"] = j_x123_value
+    new_dataset.attrs["k_value"] = k_x123_value
+
+    # TODO: think about how you will handle this
+    # can't just average the wind speed values for example...
+    ### Stitched Plane Specific Information
+    # adding a file_name
+    new_dataset["file_name"] = xr.DataArray(np.array([file_name_x123]), dims=["file"])
 
     return new_dataset
 
 
-# Usage:
-new_dataset = create_empty_dataset_like(dataset, (100, 100, len(variables_edited)))
-
-
-def stitching_x123_planes(data_x1, data_x2, data_x3, x_traverse_step=300):
+def stitching_x123_planes(
+    xr_dataset_x1, xr_dataset_x2, xr_dataset_x3, file_name_x123, x_traverse_step=300
+):
 
     ### 1. defining the mastergrid
     x_min = 0
     x_start_overlap_1 = x_traverse_step
-    x_end_overlap_1 = data_x1.x.max().values - data_x1.x.min().values
+    x_len_x1 = (
+        xr_dataset_x1.data.sel(variable="x").max().values
+        - xr_dataset_x1.data.sel(variable="x").min().values
+    )
+    x_end_overlap_1 = x_len_x1
     x_start_overlap_2 = 2 * x_traverse_step
-    x_len_x2 = data_x2.x.max().values - data_x2.x.min().values
+    x_len_x2 = (
+        xr_dataset_x2.data.sel(variable="x").max().values
+        - xr_dataset_x2.data.sel(variable="x").min().values
+    )
     x_end_overlap_2 = x_start_overlap_2 + x_len_x2
-    # finding the maximum x value of the X3 plane
-    x_len_x3 = data_x3.x.max().values - data_x3.x.min().values
-    logging.info(f"x_len_x3: {x_len_x3}")
+    x_len_x3 = (
+        xr_dataset_x3.data.sel(variable="x").max().values
+        - xr_dataset_x3.data.sel(variable="x").min().values
+    )
+
     x_max = 2 * x_traverse_step + x_len_x3
-    logging.info(f"x_max: {x_max}")
+
     y_min = 0
     # assuming that x1,x2,x3 planes have the same y_min and y_max
-    y_max = data_x1.y.max().values
+    y_max = xr_dataset_x1.data.sel(variable="y").max().values
+
+    # logging
+    logging.debug(f"x_len_x1: {x_len_x1}")
+    logging.debug(f"x_len_x2: {x_len_x2}")
+    logging.debug(f"x_len_x3: {x_len_x3}")
+    logging.debug(f"x_traverse_step: {x_traverse_step}")
+    logging.debug(f"x_min: {x_min}")
+    logging.debug(f"x_start_overlap_1: {x_start_overlap_1}")
+    logging.debug(f"x_end_overlap_1: {x_end_overlap_1}")
+    logging.debug(f"x_start_overlap_2: {x_start_overlap_2}")
+    logging.debug(f"x_end_overlap_2: {x_end_overlap_2}")
+    logging.debug(f"x_max: {x_max}")
+    logging.debug(f"y_min: {y_min}")
+    logging.debug(f"y_max: {y_max}")
 
     ### 2. Calculating resolution
     # assuming that x1,x2,x3 planes have the same resolution
     # calculation resolution as n_datapoints / (mm distance)
-    x_res = (data_x1.i_value) / (data_x1.x.max().values - data_x1.x.min().values)
-    i_start_overlap_1 = x_traverse_step * x_res
-    i_start_overlap_2 = 2 * x_traverse_step * x_res
+    x_res = (xr_dataset_x1.i_value) / x_len_x1
+    i_x123_start = 0
+    i_x123_start_overlap_1 = int(x_traverse_step * x_res)
+    i_x123_end_overlap_1 = int(x_len_x1 * x_res)
+    x_delta_overlap_1 = i_x123_end_overlap_1 - i_x123_start_overlap_1
+    i_x123_start_overlap_2 = int(i_x123_start_overlap_1 + x_traverse_step * x_res)
+    i_x123_end_overlap_2 = int(
+        i_x123_start_overlap_2 + ((x_len_x2 * x_res) - i_x123_start_overlap_1)
+    )
+    x_delta_overlap_2 = i_x123_end_overlap_2 - i_x123_start_overlap_2
+    i_x123_end = int(i_x123_start_overlap_2 + x_len_x3 * x_res)
+    # Defining i values for the 3 planes
+    i_x1_start_overlap_1 = int(i_x123_start_overlap_1)
+    i_x1_end_overlap_1 = int(i_x123_end_overlap_1)
+    i_x2_start_overlap_1 = int(i_x123_start_overlap_1 - i_x123_start_overlap_1)
+    i_x2_end_overlap_1 = int(i_x123_end_overlap_1 - i_x123_start_overlap_1)
+    i_x2_start_overlap_2 = int(i_x123_start_overlap_2 - i_x123_start_overlap_1)
+    i_x2_end_overlap_2 = int(i_x123_end_overlap_2 - i_x123_start_overlap_1)
+    i_x3_start_overlap_2 = int(i_x123_start_overlap_2 - i_x123_start_overlap_2)
+    i_x3_end_overlap_2 = int(i_x123_end_overlap_2 - i_x123_start_overlap_2)
 
-    n_x_points = int(x_max * x_res)
-    n_y_points = data_x1.j_value
-    # y_res = (data_x1.j_value) / (data_x1.y.max().values - data_x1.y.min().values)
-    # # calc. n_datapoints untill x_traverse_step
-    # n_data_points_in_x1 = x_traverse_step * x_res
-    ## calc. n_datapoints for the 3 planes
-    # n_data_points_in_x3 = x_max * x_res * data_x1.j_value
+    # logging
+    logging.debug(f"--- i_x1, j_x1: {xr_dataset_x1.i_value}, {xr_dataset_x1.j_value}")
+    logging.debug(f"x_res: {x_res}")
+    logging.debug(f"i_x123_start: {i_x123_start}")
+    logging.debug(f"i_x123_start_overlap_1: {i_x123_start_overlap_1}")
+    logging.debug(f"i_x123_end_overlap_1: {i_x123_end_overlap_1}")
+    logging.debug(f"x_delta_overlap_1: {x_delta_overlap_1}")
+    logging.debug(f"i_x123_start_overlap_2: {i_x123_start_overlap_2}")
+    logging.debug(f"i_x123_end_overlap_2: {i_x123_end_overlap_2}")
+    logging.debug(f"x_delta_overlap_2: {x_delta_overlap_2}")
+    logging.debug(f"i_x123_end: {i_x123_end}")
+    logging.debug(f"i_x1_start_overlap_1: {i_x1_start_overlap_1}")
+    logging.debug(f"i_x1_end_overlap_1: {i_x1_end_overlap_1}")
+    logging.debug(f"i_x2_start_overlap_1: {i_x2_start_overlap_1}")
+    logging.debug(f"i_x2_end_overlap_1: {i_x2_end_overlap_1}")
+    logging.debug(f"i_x2_start_overlap_2: {i_x2_start_overlap_2}")
+    logging.debug(f"i_x2_end_overlap_2: {i_x2_end_overlap_2}")
+    logging.debug(f"i_x3_start_overlap_2: {i_x3_start_overlap_2}")
+    logging.debug(f"i_x3_end_overlap_2: {i_x3_end_overlap_2}")
+
+    ### 3. Correcting x-coordinates
+    def correct_x_coordinates(dataset, x_offset):
+        # grabbing the x index
+        x_index = dataset.variables_edited.index("x")
+        # grabbing the data matrix
+        data_matrix = dataset["data"].values
+        # creating a copy to make sure we don't modify the original
+        new_data_matrix = data_matrix.copy()
+        new_data_matrix[:, :, x_index] = data_matrix[:, :, x_index] + x_offset
+        # creating a new DataArray
+        new_data_array = xr.DataArray(
+            new_data_matrix,
+            dims=["x_i", "y_j", "variable"],
+            coords={
+                "x_i": np.arange(new_data_matrix.shape[0]),
+                "y_j": np.arange(new_data_matrix.shape[1]),
+                "variable": dataset.variables_edited,
+            },
+        )
+        # channging the data in the dataset
+        dataset["data"] = new_data_array
+        return dataset
+
+    # Correct x1 dataset (no offset needed)
+    # logging.debug(f'dataset["data"].values: {xr_dataset_x1.data.values}')
+    # xr_dataset_x1_corrected_x = correct_x_coordinates(xr_dataset_x1, 1e5)
+    # logging.debug(f'dataset["data"].values: {xr_dataset_x1_corrected_x.data.values}')
+
+    # Correct x1 dataset (no offset needed)
+    x1_offset = -xr_dataset_x1.data.sel(variable="x").min().values
+    xr_dataset_x1_corrected_x = correct_x_coordinates(xr_dataset_x1, x1_offset)
+
+    # Correct x2 dataset
+    x2_offset = -xr_dataset_x2.data.sel(variable="x").min().values + x_traverse_step
+    xr_dataset_x2_corrected_x = correct_x_coordinates(xr_dataset_x2, x2_offset)
+
+    # Correct x3 dataset
+    x3_offset = -xr_dataset_x3.data.sel(variable="x").min().values + 2 * x_traverse_step
+    xr_dataset_x3_corrected_x = correct_x_coordinates(xr_dataset_x3, x3_offset)
+
+    # Log the corrections
+    logging.debug(
+        f"X1 x-coordinate range: {xr_dataset_x1_corrected_x.data.sel(variable='x').min().values} to {xr_dataset_x1_corrected_x.data.sel(variable='x').max().values}"
+    )
+    logging.debug(
+        f"X2 x-coordinate range: {xr_dataset_x2_corrected_x.data.sel(variable='x').min().values} to {xr_dataset_x2_corrected_x.data.sel(variable='x').max().values}"
+    )
+    logging.debug(
+        f"X3 x-coordinate range: {xr_dataset_x3_corrected_x.data.sel(variable='x').min().values} to {xr_dataset_x3_corrected_x.data.sel(variable='x').max().values}"
+    )
 
     ### 3. Populating data
-    x_mastergrid = np.linspace(x_min, x_max, n_x_points)
-    y_mastergrid = np.linspace(y_min, y_max, n_y_points)
-    i_value = n_x_points
-    j_value = n_y_points
+    xr_dataset_x123 = create_populated_dataset(
+        file_name_x123=file_name_x123,
+        i_x123_value=i_x123_end,
+        j_x123_value=xr_dataset_x1.j_value,
+        k_x123_value=len(xr_dataset_x1.variables_edited),
+        xr_dataset_x1=xr_dataset_x1_corrected_x,
+        xr_dataset_x2=xr_dataset_x2_corrected_x,
+        xr_dataset_x3=xr_dataset_x3_corrected_x,
+        i_x123_start_overlap_1=i_x123_start_overlap_1,
+        i_x123_end_overlap_1=i_x123_end_overlap_1,
+        i_x123_start_overlap_2=i_x123_start_overlap_2,
+        i_x123_end_overlap_2=i_x123_end_overlap_2,
+        i_x1_start_overlap_1=i_x1_start_overlap_1,
+        i_x1_end_overlap_1=i_x1_end_overlap_1,
+        i_x2_start_overlap_1=i_x2_start_overlap_1,
+        i_x2_end_overlap_1=i_x2_end_overlap_1,
+        i_x2_start_overlap_2=i_x2_start_overlap_2,
+        i_x2_end_overlap_2=i_x2_end_overlap_2,
+        i_x3_start_overlap_2=i_x3_start_overlap_2,
+        i_x3_end_overlap_2=i_x3_end_overlap_2,
+    )
 
-    ## Create empty xr dataset
-    data = np.zeros((i_value, j_value, len(data_x1.variables_edited)))
-    coords = {"x_i": x_mastergrid, "y_j": y_mastergrid}
-    data_matrix = data.reshape((i_value, j_value, -1))
-    variables_edited = data_x1.variables_edited
-    logging.info(f"variables_edited: {variables_edited}")
-    data_vars = {}
-    for idx, var in enumerate(variables_edited):
-        var_data = [data_matrix[..., idx]]
-        data_vars[var] = (["x_i", "y_j"], var_data)
-
-    dataset = xr.Dataset(data_vars, coords=coords)
-
-    # populating data
-    # Looping over y values
-    for j in range(j_value):
-        # looping over the whole first row, and then the second row, etc.
-        for i in range(i_value):
-
-            current_x_location = x_mastergrid[i]
-            logging.info(f"current_x_location: {current_x_location}")
-            logging.info(f"i,j: {i},{j}")
-            logging.info(f"data_x1.isel(x_i=i, y_j=j): {data_x1.isel(x_i=i, y_j=j)}")
-
-            # check if the x value is in the x1, non-overlapping part
-            if current_x_location < x_start_overlap_1:
-                # if within just add the data_x1 values
-                for var in data_x1.variables_edited:
-                    dataset[var].values[i, j] = data_x1[var].isel(x_i=i, y_j=j).values
-                breakpoint()
-            # if within overlap_1 region
-            elif x_start_overlap_1 <= current_x_location <= x_end_overlap_1:
-                # if within overlap region to a smoothing thing
-                # TODO: for now just add the data_x2
-                i_local_x1 = i
-                i_local_x2 = i - i_start_overlap_1
-                data[i, j, :] = data_x2.isel(x_i=i_local_x2, y_j=j)
-            # if in x2, between overlap_1 and overlap_2
-            elif x_end_overlap_1 < current_x_location < x_start_overlap_2:
-                i_local_x2 = i - i_start_overlap_1
-                data[i, j, :] = data_x2.isel(x_i=i_local_x2, y_j=j)
-            # if within overlap_2 region
-            elif x_start_overlap_2 <= current_x_location <= x_end_overlap_2:
-                # if within overlap region to a smoothing thing
-                # TODO: for now just add the data_x2
-                i_local_x2 = i - i_start_overlap_1
-                i_local_x3 = i - i_start_overlap_2
-                data[i, j, :] = data_x2.isel(x_i=i_local_x2, y_j=j)
-            # if within the x3 region
-            elif x_end_overlap_2 < current_x_location:
-                # if within just add the data_x3 values
-                i_local_x3 = i - i_start_overlap_2
-                data[i, j, :] = data_x3.isel(x_i=i_local_x3, y_j=j)
-            else:
-                raise ValueError("Something went wrong, outside of the x_range")
-
-    return dataset
+    return xr_dataset_x123
 
 
 if __name__ == "__main__":
@@ -144,17 +296,55 @@ if __name__ == "__main__":
     processed_data_path = sys.path[0] + "/processed_data/combined_piv_data.nc"
     loaded_dataset = xr.open_dataset(processed_data_path)
     size = loaded_dataset.sizes.get("file")
-    # logging.info(f"Data attrs: {loaded_dataset.attrs}")
     datapoint_list = [loaded_dataset.isel(file=i) for i in range(size)]
+    datapoint_list_grouped = [
+        datapoint_list[i : i + 3] for i in range(0, len(datapoint_list), 3)
+    ]
+    logging.debug(f"datapoint_list.shape: {len(datapoint_list)}")
+    logging.debug(f"datapoint_list_grouped.shape: {len(datapoint_list_grouped)}")
 
-    data_x1 = datapoint_list[0]
-    data_x2 = datapoint_list[1]
-    data_x3 = datapoint_list[2]
+    # looping over each y-plane
+    for datapoint_group in datapoint_list_grouped:
+        xr_dataset_x1 = datapoint_group[0]
+        xr_dataset_x2 = datapoint_group[1]
+        xr_dataset_x3 = datapoint_group[2]
+        y_plane_number = int(datapoint_group[0]["y_plane_number"].values)
+        file_name = f"aoa_13_flipped_z1_y{y_plane_number}_x123"
 
-    mastergrid = stitching_x123_planes(data_x1, data_x2, data_x3)
+        xr_dataset_y3_x123 = stitching_x123_planes(
+            xr_dataset_x1, xr_dataset_x2, xr_dataset_x3, file_name_x123=file_name
+        )
 
-    # for i, datapoint in enumerate(datapoint_list):
-    #     case_name_davis = datapoint.case_name_davis.values
-    #     logging.info(f"datapoint.data_vars: {datapoint.data_vars}")
-    #     logging.info(f"case_name: {case_name_davis}")
-    #     # logging.info(f"FileName: {datapoint.file_name_labbook.values}")
+        # logging
+        logging.info(f"-------------------")
+        logging.debug(f"datapoint_group: {len(datapoint_group)}")
+        logging.info(f"datapoint_group: {datapoint_group[0].file_name.values}")
+        logging.info(f"datapoint_group: {datapoint_group[1].file_name.values}")
+        logging.info(f"datapoint_group: {datapoint_group[2].file_name.values}")
+        logging.info(f"y_plane_number: {y_plane_number}")
+        logging.info(f"file_name: {file_name}")
+        logging.info(f"shape: {xr_dataset_y3_x123.data.shape}")
+        logging.info(f"i_value: {xr_dataset_y3_x123.i_value}")
+        logging.info(f"j_value: {xr_dataset_y3_x123.j_value}")
+        logging.info(f"k_variables: {xr_dataset_y3_x123.k_variables}")
+        logging.info(f"file_name: {xr_dataset_y3_x123['file_name'].values}")
+        logging.info(
+            f'x_values, min, max: {xr_dataset_y3_x123.data.sel(variable="x").min().values}, {xr_dataset_y3_x123.data.sel(variable="x").max().values}'
+        )
+
+        ### Create a plot for each y-plane
+        plot_quiver(
+            xr_dataset_y3_x123.data.sel(variable="x").values,
+            xr_dataset_y3_x123.data.sel(variable="y").values,
+            xr_dataset_y3_x123.data.sel(variable="vel_u").values,
+            xr_dataset_y3_x123.data.sel(variable="vel_v").values,
+            color_values=xr_dataset_y3_x123.data.sel(variable="ux_uinf").values,
+            colorbar_label=r"$\frac{U_x}{U_\infty}$",
+            title=file_name,
+            save_path=sys.path[0] + f"/results/aoa_13/{file_name}.png",
+            subsample=10,  # Adjust subsample factor as needed
+        )
+
+    # # Save the processed data
+    # processed_data_path = sys.path[0] + f"/processed_data/{file_name}.nc"
+    # xr_dataset_y3_x123.to_netcdf(processed_data_path)

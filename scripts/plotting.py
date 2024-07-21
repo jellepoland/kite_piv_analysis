@@ -226,17 +226,23 @@ if __name__ == "__main__":
     for datapoint in datapoint_list[0:1]:
         case_name_davis = datapoint.case_name_davis.values
         # logging.info(f"datapoint.data_vars: {datapoint.data_vars}")
+        # logging.info(f"data, {datapoint.variables_edited}")
         # logging.info(f"case_name: {case_name_davis}")
         # logging.info(f"FileName: {datapoint.file_name_labbook.values}")
+        # logging.info(f" ----")
+        # logging.info(datapoint.data.sel(variable="x").values)
+        logging.info(datapoint.data_vars)
+        # logging.info(f" ----")
+        logging.info(f"file_name: {datapoint['file_name'].values}")
 
         plot_quiver(
-            datapoint.x.values,
-            datapoint.y.values,
-            datapoint.vel_u.values,
-            datapoint.vel_v.values,
-            color_values=datapoint.Ux_Uinf.values,
+            datapoint.data.sel(variable="x").values,
+            datapoint.data.sel(variable="y").values,
+            datapoint.data.sel(variable="vel_u").values,
+            datapoint.data.sel(variable="vel_v").values,
+            color_values=datapoint.data.sel(variable="ux_uinf").values,
             colorbar_label=r"$\frac{U_x}{U_\infty}$",
             title="Vector Field Example",
-            save_path=sys.path[0] + f"results/aoa_13/{case_name_davis}.png",
+            save_path=sys.path[0] + f"/results/aoa_13/{case_name_davis}.png",
             subsample=10,  # Adjust subsample factor as needed
         )

@@ -154,9 +154,9 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     #     variables_edited.append(f"vel_induction_{comp}")
 
     # Normalized streamwise velocity
-    Ux_Uinf = data_matrix[:, :, variables_edited.index("vel_u")] / labbook_dict["vw"]
-    data_matrix = np.concatenate((data_matrix, Ux_Uinf[..., np.newaxis]), axis=2)
-    variables_edited.append("Ux_Uinf")
+    ux_uinf = data_matrix[:, :, variables_edited.index("vel_u")] / labbook_dict["vw"]
+    data_matrix = np.concatenate((data_matrix, ux_uinf[..., np.newaxis]), axis=2)
+    variables_edited.append("ux_uinf")
 
     ### Creating the dataset
     # Create a single 3D DataArray to hold all variables
@@ -183,11 +183,13 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     dataset["file_name_davis"] = xr.DataArray(
         np.array([file_name_davis]), dims=["file"]
     )
+    ## adding additional dict key
+    dataset["file_name"] = xr.DataArray(np.array([case_name_davis]), dims=["file"])
 
     # Add dataset wide (for whole aoa_13 sweep)
     dataset.attrs["i_value"] = i_value
     dataset.attrs["j_value"] = j_value
-    dataset.attrs["k_variables"] = len(variables_edited)
+    dataset.attrs["k_value"] = len(variables_edited)
     dataset.attrs["aoa"] = aoa_value
     dataset.attrs["variables_edited"] = variables_edited
     dataset.attrs["variables_raw"] = variables_raw
@@ -199,13 +201,13 @@ def process_all_dat_files(
     dat_file_path: str, labbook_path: str, aoa_value
 ) -> xr.Dataset:
     all_datasets = []
-    logging.info(f"Processing all .dat files in directory: {dat_file_path}")
+    logging.debug(f"Processing all .dat files in directory: {dat_file_path}")
     for root, _, files in os.walk(dat_file_path):
         for file in files:
             if file.endswith("1.dat"):
                 file_path = os.path.join(root, file)
                 dataset = read_dat_file(file_path, labbook_path, aoa_value)
-                logging.info(f"Processed dataset: {dataset}")
+                logging.debug(f"Processed dataset: {dataset}")
                 # ONLY taking the last_measurement_values, neglecting the rest for now
                 if dataset.is_last_measurement.values:
                     all_datasets.append(dataset)
@@ -255,10 +257,3 @@ if __name__ == "__main__":
     # Save the processed data
     processed_data_path = sys.path[0] + "/processed_data/combined_piv_data.nc"
     combined_dataset.to_netcdf(processed_data_path)
-
-    ##TODO: incorporate this
-    # call data like:
-    u_velocity = dataset.data.sel(variable="vel_u")
-
-    # U could populate like:
-    new_dataset.data[i, j, :] = dataset.data[i, j, :]
