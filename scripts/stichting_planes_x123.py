@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from plotting import plot_quiver
 
 
-def create_populated_dataset(
+def create_populated_dataset_x123(
     file_name_x123,
     i_x123_value,
     j_x123_value,
@@ -116,6 +116,8 @@ def create_populated_dataset(
     ### Stitched Plane Specific Information
     # adding a file_name
     new_dataset["file_name"] = xr.DataArray(np.array([file_name_x123]), dims=["file"])
+    y_value = xr_dataset_x1["y_plane_number"].values
+    new_dataset["y_plane_number"] = xr.DataArray(np.array([y_value]), dims=["file"])
 
     return new_dataset
 
@@ -166,17 +168,19 @@ def stitching_x123_planes(
     ### 2. Calculating resolution
     # assuming that x1,x2,x3 planes have the same resolution
     # calculation resolution as n_datapoints / (mm distance)
-    x_res = (xr_dataset_x1.i_value) / x_len_x1
+    x_res_x1 = (xr_dataset_x1.i_value) / x_len_x1
+    x_res_x2 = (xr_dataset_x2.i_value) / x_len_x2
+    x_res_x3 = (xr_dataset_x3.i_value) / x_len_x3
     i_x123_start = 0
-    i_x123_start_overlap_1 = int(x_traverse_step * x_res)
-    i_x123_end_overlap_1 = int(x_len_x1 * x_res)
+    i_x123_start_overlap_1 = int(x_traverse_step * x_res_x1)
+    i_x123_end_overlap_1 = int(x_len_x1 * x_res_x1)
     x_delta_overlap_1 = i_x123_end_overlap_1 - i_x123_start_overlap_1
-    i_x123_start_overlap_2 = int(i_x123_start_overlap_1 + x_traverse_step * x_res)
+    i_x123_start_overlap_2 = int(i_x123_start_overlap_1 + x_traverse_step * x_res_x2)
     i_x123_end_overlap_2 = int(
-        i_x123_start_overlap_2 + ((x_len_x2 * x_res) - i_x123_start_overlap_1)
+        i_x123_start_overlap_2 + ((x_len_x2 * x_res_x2) - i_x123_start_overlap_1)
     )
     x_delta_overlap_2 = i_x123_end_overlap_2 - i_x123_start_overlap_2
-    i_x123_end = int(i_x123_start_overlap_2 + x_len_x3 * x_res)
+    i_x123_end = int(i_x123_start_overlap_2 + x_len_x3 * x_res_x3)
     # Defining i values for the 3 planes
     i_x1_start_overlap_1 = int(i_x123_start_overlap_1)
     i_x1_end_overlap_1 = int(i_x123_end_overlap_1)
@@ -189,7 +193,9 @@ def stitching_x123_planes(
 
     # logging
     logging.debug(f"--- i_x1, j_x1: {xr_dataset_x1.i_value}, {xr_dataset_x1.j_value}")
-    logging.debug(f"x_res: {x_res}")
+    logging.debug(f"x_res_x1: {x_res_x1}")
+    logging.debug(f"x_res_x2: {x_res_x2}")
+    logging.debug(f"x_res_x3: {x_res_x3}")
     logging.debug(f"i_x123_start: {i_x123_start}")
     logging.debug(f"i_x123_start_overlap_1: {i_x123_start_overlap_1}")
     logging.debug(f"i_x123_end_overlap_1: {i_x123_end_overlap_1}")
@@ -259,7 +265,7 @@ def stitching_x123_planes(
     )
 
     ### 3. Populating data
-    xr_dataset_x123 = create_populated_dataset(
+    xr_dataset_x123 = create_populated_dataset_x123(
         file_name_x123=file_name_x123,
         i_x123_value=i_x123_end,
         j_x123_value=xr_dataset_x1.j_value,
@@ -284,17 +290,21 @@ def stitching_x123_planes(
     return xr_dataset_x123
 
 
-if __name__ == "__main__":
-    # Go back to root folder
-    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    sys.path.insert(0, root_path)
-
-    # Set up logging
-    logging.basicConfig(level=logging.INFO)
-
-    # Load the processed data
-    processed_data_path = sys.path[0] + "/processed_data/combined_piv_data.nc"
-    loaded_dataset = xr.open_dataset(processed_data_path)
+def stitching_plotting_saving_x123_planes(
+    load_path_file,
+    save_path_file,
+    save_path_folder_plots,
+    cmap,
+    colorbar_label,
+    u_inf,
+    is_with_quiver,
+    plot_name_end,
+    is_show_plot,
+    cbar_variable_name,
+    max_cbar_value,
+    min_cbar_value,
+):
+    loaded_dataset = xr.open_dataset(load_path_file)
     size = loaded_dataset.sizes.get("file")
     datapoint_list = [loaded_dataset.isel(file=i) for i in range(size)]
     datapoint_list_grouped = [
@@ -303,15 +313,23 @@ if __name__ == "__main__":
     logging.debug(f"datapoint_list.shape: {len(datapoint_list)}")
     logging.debug(f"datapoint_list_grouped.shape: {len(datapoint_list_grouped)}")
 
+    all_x123_stitched = []
     # looping over each y-plane
     for datapoint_group in datapoint_list_grouped:
         xr_dataset_x1 = datapoint_group[0]
         xr_dataset_x2 = datapoint_group[1]
         xr_dataset_x3 = datapoint_group[2]
         y_plane_number = int(datapoint_group[0]["y_plane_number"].values)
-        file_name = f"aoa_13_flipped_z1_y{y_plane_number}_x123"
+        z_plane_number = int(datapoint_group[0]["z_plane_number"].values)
 
-        xr_dataset_y3_x123 = stitching_x123_planes(
+        if "flipped" in str(datapoint_group[0]["case_name_davis"].values):
+            orientation = "flipped"
+        elif "normal" in str(datapoint_group[0]["case_name_davis"].values):
+            orientation = "normal"
+
+        file_name = f"aoa_13_{orientation}_z{z_plane_number}_y{y_plane_number}_x123"
+
+        xr_dataset_x123 = stitching_x123_planes(
             xr_dataset_x1, xr_dataset_x2, xr_dataset_x3, file_name_x123=file_name
         )
 
@@ -323,28 +341,86 @@ if __name__ == "__main__":
         logging.info(f"datapoint_group: {datapoint_group[2].file_name.values}")
         logging.info(f"y_plane_number: {y_plane_number}")
         logging.info(f"file_name: {file_name}")
-        logging.info(f"shape: {xr_dataset_y3_x123.data.shape}")
-        logging.info(f"i_value: {xr_dataset_y3_x123.i_value}")
-        logging.info(f"j_value: {xr_dataset_y3_x123.j_value}")
-        logging.info(f"k_variables: {xr_dataset_y3_x123.k_variables}")
-        logging.info(f"file_name: {xr_dataset_y3_x123['file_name'].values}")
+        logging.info(f"shape: {xr_dataset_x123.data.shape}")
+        logging.info(f"i_value: {xr_dataset_x123.i_value}")
+        logging.info(f"j_value: {xr_dataset_x123.j_value}")
+        # logging.info(f"k_variables: {xr_dataset_y3_x123.k_variables}")
+        logging.info(f"file_name: {xr_dataset_x123['file_name'].values}")
         logging.info(
-            f'x_values, min, max: {xr_dataset_y3_x123.data.sel(variable="x").min().values}, {xr_dataset_y3_x123.data.sel(variable="x").max().values}'
+            f'x_values, min, max: {xr_dataset_x123.data.sel(variable="x").min().values}, {xr_dataset_x123.data.sel(variable="x").max().values}'
         )
 
-        ### Create a plot for each y-plane
+        ### Create plots
         plot_quiver(
-            xr_dataset_y3_x123.data.sel(variable="x").values,
-            xr_dataset_y3_x123.data.sel(variable="y").values,
-            xr_dataset_y3_x123.data.sel(variable="vel_u").values,
-            xr_dataset_y3_x123.data.sel(variable="vel_v").values,
-            color_values=xr_dataset_y3_x123.data.sel(variable="ux_uinf").values,
-            colorbar_label=r"$\frac{U_x}{U_\infty}$",
-            title=file_name,
-            save_path=sys.path[0] + f"/results/aoa_13/{file_name}.png",
+            xr_dataset_x123.data.sel(variable="x").values,
+            xr_dataset_x123.data.sel(variable="y").values,
+            xr_dataset_x123.data.sel(variable="vel_u").values,
+            xr_dataset_x123.data.sel(variable="vel_v").values,
+            color_values=xr_dataset_x123.data.sel(variable=cbar_variable_name).values,
+            colorbar_label=colorbar_label,
+            title=file_name + f"(from file: {save_path_file})",
+            u_inf=u_inf,  # TODO: change this to vw
+            save_path=save_path_folder_plots + file_name + plot_name_end,
             subsample=10,  # Adjust subsample factor as needed
+            cmap=cmap,
+            is_with_quiver=is_with_quiver,
+            is_show_plot=is_show_plot,
+            max_cbar_value=max_cbar_value,
+            min_cbar_value=min_cbar_value,
         )
 
-    # # Save the processed data
-    # processed_data_path = sys.path[0] + f"/processed_data/{file_name}.nc"
-    # xr_dataset_y3_x123.to_netcdf(processed_data_path)
+        # Append to list
+        all_x123_stitched.append(xr_dataset_x123)
+
+    xr_all_x123_stitched = xr.concat(all_x123_stitched, dim="file")
+
+    # Save the stitched dataset
+    xr_all_x123_stitched.to_netcdf(save_path_file)
+
+
+if __name__ == "__main__":
+    # Go back to root folder
+    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.insert(0, root_path)
+
+    # Set up logging
+    logging.basicConfig(level=logging.INFO)
+
+    # Load the processed data
+    load_path_file = sys.path[0] + "/processed_data/combined_piv_data.nc"
+    save_path_file = sys.path[0] + "/processed_data/combined_piv_data_x123_planes.nc"
+    save_path_folder_plots = sys.path[0] + "/results/aoa_13/x123_planes/"
+    stitching_plotting_saving_x123_planes(
+        load_path_file,
+        save_path_file,
+        save_path_folder_plots,
+        cmap="RdBu",
+        colorbar_label=r"$\frac{U_x}{U_\infty}$",
+        u_inf=15,
+        is_with_quiver=True,
+        plot_name_end=".png",
+        is_show_plot=False,
+        cbar_variable_name="ux_uinf",
+        max_cbar_value=1.2,
+        min_cbar_value=0.8,
+    )
+    # STANDARD DEVIATION Load the processed data
+    load_path_file = sys.path[0] + "/processed_data/combined_piv_data_std.nc"
+    save_path_file = (
+        sys.path[0] + "/processed_data/combined_piv_data_x123_planes_std.nc"
+    )
+    save_path_folder_plots = sys.path[0] + "/results/aoa_13/x123_planes/"
+    stitching_plotting_saving_x123_planes(
+        load_path_file,
+        save_path_file,
+        save_path_folder_plots,
+        cmap="jet",
+        colorbar_label=r"$std. vel_u$",
+        u_inf=1,
+        is_with_quiver=False,
+        plot_name_end="_std.png",
+        is_show_plot=False,
+        cbar_variable_name="vel_u",
+        max_cbar_value=2,
+        min_cbar_value=0,
+    )

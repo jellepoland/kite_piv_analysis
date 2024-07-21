@@ -8,6 +8,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.cm import ScalarMappable, get_cmap
+import matplotlib.ticker as mticker
 
 
 def load_processed_data(input_file: str) -> xr.Dataset:
@@ -22,14 +23,22 @@ def plot_quiver(
     color_values,
     colorbar_label,
     title,
-    u_inf=15,
+    u_inf,
     scale=None,
-    width=0.005,
+    color_size=5,
+    color_alpha=0.9,
     width_arrow=0.02,
     scale_arrow=9,
     cmap="RdBu",
     save_path=None,
     subsample=5,  # New parameter to control subsampling
+    is_with_quiver=True,
+    is_show_plot=True,
+    cbar_label_spacing=20,
+    cbar_fontsize=16,
+    background_alpha=0.9,
+    max_cbar_value=1.2,
+    min_cbar_value=0.8,
 ):
     """
     Create a quiver plot of vector field with color based on velocity magnitude.
@@ -58,48 +67,103 @@ def plot_quiver(
     fig, ax = plt.subplots(figsize=(10, 8))
 
     # Mask zero values in color_values
-    masked_color_values = np.ma.masked_where(color_values == 0, color_values)
+    masked_color_values = np.ma.masked_where(color_values == 0.0, color_values)
 
-    # new_color_values = np.ones(color_values.shape)
-    # for i in range(color_values.shape[0]):
-    #     for j in range(color_values.shape[1]):
-    #         if color_values[i, j] != 0:
-    #             new_color_values[i, j] = color_values[i, j]
+    # # filter color_values_sub, to only take values within a specific range
+    # if is_with_cbar_masking:
+    #     masked_color_values = np.ma.masked_where(
+    #         masked_color_values > max_cbar_value, masked_color_values
+    #     )
+    #     masked_color_values = np.ma.masked_where(
+    #         masked_color_values < min_cbar_value, masked_color_values
+    #     )
+    ########
+    # old color approach
+    #####
+    # # Create a custom colormap with black for masked values
+    # base_cmap = get_cmap(cmap)
+    # cmap_colors = base_cmap(np.arange(base_cmap.N))
+    # cmap_colors = np.vstack(
+    #     (np.array([0, 0, 0, 1]), cmap_colors)
+    # )  # Add black as the first color
+    # custom_cmap = ListedColormap(cmap_colors)
+    # ## using quiver
+    # # Create quiver plot
+    # quiv = ax.quiver(
+    #     x_sub_colors,
+    #     y_sub_colors,
+    #     u_sub_colors,
+    #     v_sub_colors,
+    #     color_values_sub,
+    #     width=1.5 * width * subsample_colors,
+    #     cmap=custom_cmap,
+    #     alpha=background_alpha,
+    # )
+    # # cbar
+    # cbar = plt.colorbar(quiv)
+    # cbar.set_label(
+    #     colorbar_label,
+    #     rotation=0,
+    #     labelpad=cbar_label_spacing,
+    #     fontsize=cbar_fontsize,
+    # )
+    #########
 
-    # masked_color_values = new_color_values
-
-    # Create a custom colormap with black for masked values
-    base_cmap = get_cmap(cmap)
-    cmap_colors = base_cmap(np.arange(base_cmap.N))
-    cmap_colors = np.vstack(
-        (np.array([0, 0, 0, 1]), cmap_colors)
-    )  # Add black as the first color
-    custom_cmap = ListedColormap(cmap_colors)
-
-    ## subsample the data for colors
-    subsample_colors = 1
-    x_sub_colors = x[::subsample_colors, ::subsample_colors]
-    y_sub_colors = y[::subsample_colors, ::subsample_colors]
-    u_sub_colors = u[::subsample_colors, ::subsample_colors]
-    v_sub_colors = v[::subsample_colors, ::subsample_colors]
-    color_values_sub = masked_color_values[::subsample_colors, ::subsample_colors]
-
-    ## using quiver
-    # Create quiver plot
-    quiv = ax.quiver(
-        x_sub_colors,
-        y_sub_colors,
-        u_sub_colors,
-        v_sub_colors,
-        color_values_sub,
-        width=1.5 * width * subsample_colors,
-        cmap=custom_cmap,
-        alpha=0.9,
+    #### new approach
+    # Add colorbar, make sure to specify tick locations to match desired ticklabels
+    ### cbar
+    cax = plt.scatter(
+        x,
+        y,
+        c=masked_color_values,
+        cmap=cmap,
+        vmin=min_cbar_value,
+        vmax=max_cbar_value,
+        s=color_size,
+        alpha=color_alpha,
     )
-
-    # Add colorbar
-    cbar = plt.colorbar(quiv)
-    cbar.set_label(colorbar_label)
+    # Smooth background using contourf
+    # cax = ax.contourf(
+    #     x,
+    #     y,
+    #     masked_color_values,
+    #     levels=1000,
+    #     cmap=cmap,
+    #     vmin=min_cbar_value,
+    #     vmax=max_cbar_value,
+    # )
+    # # Smooth background using pcolormesh
+    # cax = ax.pcolormesh(
+    #     x,
+    #     y,
+    #     masked_color_values,
+    #     cmap=cmap,
+    #     shading="auto",
+    #     vmin=min_cbar_value,
+    #     vmax=max_cbar_value,
+    # )
+    mid_cbar_value = np.mean([min_cbar_value, max_cbar_value])
+    cbar = fig.colorbar(
+        cax,
+        ticks=[
+            min_cbar_value,
+            mid_cbar_value,
+            max_cbar_value,
+        ],
+        format=mticker.FixedFormatter(
+            [f"< {min_cbar_value}", f"{mid_cbar_value}", f"> {max_cbar_value}"]
+        ),
+        extend="both",
+    )
+    labels = cbar.ax.get_yticklabels()
+    labels[0].set_verticalalignment("top")
+    labels[-1].set_verticalalignment("bottom")
+    cbar.set_label(
+        colorbar_label,
+        rotation=0,
+        labelpad=cbar_label_spacing,
+        fontsize=cbar_fontsize,
+    )
 
     # ## using pcolormesh
     # # Plot the background color based on color_values using pcolormesh
@@ -133,48 +197,49 @@ def plot_quiver(
     # cbar = fig.colorbar(c, ax=ax)
     # cbar.set_label(colorbar_label)
 
-    ### QUIVER PLOT ###
-    # Create a custom colormap with black for masked values
-    base_cmap = get_cmap(cmap)
-    cmap_colors = base_cmap(np.arange(base_cmap.N))
-    cmap_colors = np.vstack(
-        (np.array([0, 0, 0, 0]), cmap_colors)
-    )  # Add transparent as the first color
-    custom_cmap = ListedColormap(cmap_colors)
+    if is_with_quiver:
+        ### QUIVER PLOT ###
+        # Create a custom colormap with black for masked values
+        base_cmap = get_cmap(cmap)
+        cmap_colors = base_cmap(np.arange(base_cmap.N))
+        cmap_colors = np.vstack(
+            (np.array([0, 0, 0, 0]), cmap_colors)
+        )  # Add transparent as the first color
+        custom_cmap = ListedColormap(cmap_colors)
 
-    # Normalize color_values to [0, 1] range
-    norm = Normalize(vmin=np.min(color_values), vmax=np.max(color_values))
-    sm = ScalarMappable(cmap=custom_cmap, norm=norm)
-    sm.set_array([])
+        # Normalize color_values to [0, 1] range
+        norm = Normalize(vmin=np.min(color_values), vmax=np.max(color_values))
+        sm = ScalarMappable(cmap=custom_cmap, norm=norm)
+        sm.set_array([])
 
-    # Calculate the magnitude of velocity
-    vel_mag = np.sqrt(u**2 + v**2)
+        # Calculate the magnitude of velocity
+        vel_mag = np.sqrt(u**2 + v**2)
 
-    # Subsample the data
-    x_sub = x[::subsample, ::subsample]
-    y_sub = y[::subsample, ::subsample]
-    u_sub = u[::subsample, ::subsample]
-    v_sub = v[::subsample, ::subsample]
-    vel_mag_sub = vel_mag[::subsample, ::subsample]
-    color_values_sub = color_values[::subsample, ::subsample]
+        # Subsample the data
+        x_sub = x[::subsample, ::subsample]
+        y_sub = y[::subsample, ::subsample]
+        u_sub = u[::subsample, ::subsample]
+        v_sub = v[::subsample, ::subsample]
+        vel_mag_sub = vel_mag[::subsample, ::subsample]
+        color_values_sub = color_values[::subsample, ::subsample]
 
-    # Plot the quiver arrows on top in black, with transparency for zero values
-    for i in range(x_sub.shape[0]):
-        for j in range(y_sub.shape[1]):
-            scale_param = subsample * (vel_mag_sub[i, j] / u_inf)
-            if scale_param != 0:
-                # if color_values_sub[i, j] != 0:
-                ax.quiver(
-                    x_sub[i, j],
-                    y_sub[i, j],
-                    u_sub[i, j],
-                    v_sub[i, j],
-                    color="k",
-                    scale=scale_arrow * (1 / scale_param),
-                    scale_units="xy",
-                    angles="xy",
-                    width=width_arrow * (1 / scale_param),
-                )
+        # Plot the quiver arrows on top in black, with transparency for zero values
+        for i in range(x_sub.shape[0]):
+            for j in range(y_sub.shape[1]):
+                scale_param = subsample * (vel_mag_sub[i, j] / u_inf)
+                if scale_param != 0:
+                    # if color_values_sub[i, j] != 0:
+                    ax.quiver(
+                        x_sub[i, j],
+                        y_sub[i, j],
+                        u_sub[i, j],
+                        v_sub[i, j],
+                        color="k",
+                        scale=scale_arrow * (1 / scale_param),
+                        scale_units="xy",
+                        angles="xy",
+                        width=width_arrow * (1 / scale_param),
+                    )
 
     # Set title and labels
     ax.set_title(title)
@@ -205,7 +270,8 @@ def plot_quiver(
         print(f"Figure saved to {save_path}")
 
     # Show plot
-    plt.show()
+    if is_show_plot:
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -241,8 +307,10 @@ if __name__ == "__main__":
             datapoint.data.sel(variable="vel_u").values,
             datapoint.data.sel(variable="vel_v").values,
             color_values=datapoint.data.sel(variable="ux_uinf").values,
+            u_inf=datapoint["vw"].values,
             colorbar_label=r"$\frac{U_x}{U_\infty}$",
             title="Vector Field Example",
-            save_path=sys.path[0] + f"/results/aoa_13/{case_name_davis}.png",
+            save_path=sys.path[0]
+            + f"/results/aoa_13/seperate_planes/{case_name_davis}.png",
             subsample=10,  # Adjust subsample factor as needed
         )

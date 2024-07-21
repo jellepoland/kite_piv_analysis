@@ -65,7 +65,19 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     labbook_dict = {}
     labbook_df = pd.read_csv(labbook_path)
     # Find the corresponding row in the lab book, only look at first 34 characters
-    row = labbook_df[labbook_df["file_name_labbook"].str[:35] == case_name_davis[:35]]
+
+    # checking for if dealing with flipped or normal
+    if "flipped" in case_name_davis:
+        untill_index = 35
+    elif "normal" in case_name_davis:
+        untill_index = 34
+    else:
+        logging.error(f"Case name not recognized: {case_name_davis}")
+
+    row = labbook_df[
+        labbook_df["file_name_labbook"].str[:untill_index]
+        == case_name_davis[:untill_index]
+    ]
 
     # Adding a boolean flag to indicate if this is the last_measurement
     if row.empty:
@@ -113,8 +125,15 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
         # Add the aoa value, which is the same for each run
         if key == "aoa":
             value = float(aoa_value)
+
+        if key == "vw" and value == "":
+            logging.info(f" -------------")
+            logging.info(f"case_name_davis: {case_name_davis}" f"Setting vw to 15.0")
+            value = 15.0
         # Convert the values to floats if they are supposed to be floats
-        elif key in keys_that_are_floats:
+        elif key in keys_that_are_floats and not value == "":
+            logging.debug(f"case_name_davis: {case_name_davis}")
+            logging.debug(f"Converting {key} to float, value: {value}")
             value = float(value)
 
         # appending the data to the dict
@@ -154,6 +173,7 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     #     variables_edited.append(f"vel_induction_{comp}")
 
     # Normalized streamwise velocity
+    logging.info(f"labbook_dict['vw']: {labbook_dict['vw']}")
     ux_uinf = data_matrix[:, :, variables_edited.index("vel_u")] / labbook_dict["vw"]
     data_matrix = np.concatenate((data_matrix, ux_uinf[..., np.newaxis]), axis=2)
     variables_edited.append("ux_uinf")
@@ -201,6 +221,7 @@ def process_all_dat_files(
     dat_file_path: str, labbook_path: str, aoa_value
 ) -> xr.Dataset:
     all_datasets = []
+    all_datasets_std = []
     logging.debug(f"Processing all .dat files in directory: {dat_file_path}")
     for root, _, files in os.walk(dat_file_path):
         for file in files:
@@ -211,9 +232,16 @@ def process_all_dat_files(
                 # ONLY taking the last_measurement_values, neglecting the rest for now
                 if dataset.is_last_measurement.values:
                     all_datasets.append(dataset)
+            if file.endswith("2.dat"):
+                file_path = os.path.join(root, file)
+                dataset = read_dat_file(file_path, labbook_path, aoa_value)
+                logging.debug(f"Processed dataset: {dataset}")
+                # ONLY taking the last_measurement_values, neglecting the rest for now
+                if dataset.is_last_measurement.values:
+                    all_datasets_std.append(dataset)
 
     # Combine all datasets
-    return xr.concat(all_datasets, dim="file")
+    return xr.concat(all_datasets, dim="file"), xr.concat(all_datasets_std, dim="file")
 
 
 if __name__ == "__main__":
@@ -251,9 +279,22 @@ if __name__ == "__main__":
     input_directory = sys.path[0] + "/data/aoa_13_test/"
     lab_book_path = sys.path[0] + "/data/labbook_cleaned.csv"
     aoa_value = 13.0
-    combined_dataset = process_all_dat_files(input_directory, lab_book_path, aoa_value)
+    combined_dataset, combined_dataset_std = process_all_dat_files(
+        input_directory, lab_book_path, aoa_value
+    )
+    size = combined_dataset.sizes.get("file")
+    datapoint_list = [combined_dataset.isel(file=i) for i in range(size)]
+    logging.info(f" ")
+    for datapoint in datapoint_list:
+        logging.info(f"processsed file_names: {datapoint.file_name.values}")
     # logging.info(f"Combined dataset: {combined_dataset}")
 
-    # Save the processed data
-    processed_data_path = sys.path[0] + "/processed_data/combined_piv_data.nc"
+    # Save the processed data (B0001.dat)
+    file_name = "combined_piv_data"
+    processed_data_path = sys.path[0] + f"/processed_data/{file_name}.nc"
     combined_dataset.to_netcdf(processed_data_path)
+
+    # Save the STANDARD DEVIATION (B0002.dat) processed data
+    file_name = "combined_piv_data_std"
+    processed_data_path = sys.path[0] + f"/processed_data/{file_name}.nc"
+    combined_dataset_std.to_netcdf(processed_data_path)
