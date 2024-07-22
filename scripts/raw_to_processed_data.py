@@ -72,7 +72,7 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
         ### after flipping the data points, y containing values also need a sign change
         # defining variables that need sign change
         variables_needing_sign_change = [
-            "y",
+            # "y",
             "vel_v",
             "du_dy",
             "dv_dy",

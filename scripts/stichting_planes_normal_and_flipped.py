@@ -7,6 +7,8 @@ import sys
 from datetime import datetime
 import matplotlib.pyplot as plt
 from plotting import plot_quiver
+import numpy as np
+import xarray as xr
 
 
 def create_populated_dataset_both(
@@ -26,75 +28,74 @@ def create_populated_dataset_both(
     j_flipped_start_overlap,
     j_flipped_end_overlap,
     j_flipped_end,
+    y_both_min,
+    y_both_start_overlap,
+    y_both_end_overlap,
+    y_both_max,
 ):
-    # Create empty data array
     empty_data = np.full((i_both_value, j_both_value, k_both_value), np.nan)
-    logging.info(f"empty_data.shape: {empty_data.shape}")
-    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
+    print(f"Initial empty_data shape: {empty_data.shape}")
 
-    # Populate non-overlapping regions directly
-    # normal region
+    # # Inverting y coordinates by reversing slices
+    # j_both_start, j_both_end = j_both_value - j_both_end, j_both_value - j_both_start
+    # j_both_start_overlap, j_both_end_overlap = (
+    #     j_both_value - j_both_end_overlap,
+    #     j_both_value - j_both_start_overlap,
+    # )
+    # j_normal_start, j_normal_end_overlap = (
+    #     j_both_value - j_normal_end_overlap,
+    #     j_both_value - j_normal_start,
+    # )
+    # j_normal_start_overlap = j_both_value - j_normal_start_overlap
+    # j_flipped_start_overlap, j_flipped_end_overlap = (
+    #     j_both_value - j_flipped_end_overlap,
+    #     j_both_value - j_flipped_start_overlap,
+    # )
+    # j_flipped_end = j_both_value - j_flipped_end
+    # j_flipped_start_overlap = j_both_value - j_flipped_start_overlap
+
+    # Normal region
     normal_slice = slice(j_normal_start, j_normal_start_overlap)
     both_normal_region_slice = slice(j_both_start, j_both_start_overlap)
-    logging.info(f"--- normal region non-overlapping")
-    logging.info(f"normal_slice: {normal_slice}")
-    logging.info(f"both_normal_region_slice: {both_normal_region_slice}")
-    logging.info(
-        f"normal data shape: {xr_dataset_normal.data.values[:, normal_slice, :].shape}"
-    )
-    logging.info(
-        f"empty_data slice shape: {empty_data[:, both_normal_region_slice, :].shape}"
-    )
-    for k in range(k_both_value):
-        empty_data[:, both_normal_region_slice, k] = xr_dataset_normal.data.values[
-            :, normal_slice, k
-        ]
-    # empty_data[:, both_normal_region_slice, :] = xr_dataset_normal.data.values[
-    #     :, normal_slice, :
-    # ]
-    logging.info(
-        f"NORMAL: ymin, ymax: {xr_dataset_normal.data.values[:, normal_slice, 1].min(), xr_dataset_normal.data.values[:, normal_slice, 1].max()}"
-    )
-    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
-    # overlap region
-    overlap_slice = slice(j_flipped_start_overlap, j_flipped_end_overlap)
-    both_overlap_region_slice = slice(j_both_start_overlap, j_both_end_overlap)
-    logging.info(f"--- overlap region")
-    logging.info(f"overlap_slice: {overlap_slice}")
-    logging.info(f"both_overlap_region_slice: {both_overlap_region_slice}")
-    logging.debug(
-        f"flipped_data shape: {xr_dataset_flipped.data.values[:,overlap_slice,  :].shape}"
-    )
-    logging.debug(
-        f"empty_data slice shape: {empty_data[:,both_overlap_region_slice,  :].shape}"
-    )
-    empty_data[:, both_overlap_region_slice, :] = xr_dataset_flipped.data.values[
-        :, overlap_slice, :
+    empty_data[:, both_normal_region_slice, :] = xr_dataset_normal.data.values[
+        :, normal_slice, :
     ]
-    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
-    # flipped region
+    print(f"Normal region - After assignment:")
+    print(f"y range: {np.nanmin(empty_data[:,:,1]), np.nanmax(empty_data[:,:,1])}")
+    print(f"Sample value at start: {empty_data[0, j_both_start, 1]}")
+    print(f"Sample value at end of normal: {empty_data[0, j_both_start_overlap-1, 1]}")
+
+    # Overlap region
+    overlap_slice_normal = slice(j_normal_start_overlap, j_normal_end_overlap)
+    overlap_slice_flipped = slice(j_flipped_start_overlap, j_flipped_end_overlap)
+    both_overlap_region_slice = slice(j_both_start_overlap, j_both_end_overlap)
+
+    alpha = np.linspace(0, 1, j_both_end_overlap - j_both_start_overlap).reshape(
+        1, -1, 1
+    )
+    normal_data = xr_dataset_normal.data.values[:, overlap_slice_normal, :]
+    flipped_data = xr_dataset_flipped.data.values[:, overlap_slice_flipped, :]
+    empty_data[:, both_overlap_region_slice, :] = (
+        1 - alpha
+    ) * normal_data + alpha * flipped_data
+
+    print(f"Overlap region - After assignment:")
+    print(f"y range: {np.nanmin(empty_data[:,:,1]), np.nanmax(empty_data[:,:,1])}")
+    print(f"Sample value at start of overlap: {empty_data[0, j_both_start_overlap, 1]}")
+    print(f"Sample value at end of overlap: {empty_data[0, j_both_end_overlap-1, 1]}")
+
+    # Flipped region
     flipped_slice = slice(j_flipped_end_overlap, j_flipped_end)
     both_flipped_region_slice = slice(j_both_end_overlap, j_both_end)
-    logging.info(f"--- flipped region non-overlapping")
-    logging.info(f"flipped_slice: {flipped_slice}")
-    logging.info(f"both_flipped_region_slice: {both_flipped_region_slice}")
-    logging.debug(
-        f"flipped data shape: {xr_dataset_flipped.data.values[ :,flipped_slice, :].shape}"
-    )
-    logging.debug(
-        f"empty_data slice shape: {empty_data[ :, both_flipped_region_slice,:].shape}"
-    )
     empty_data[:, both_flipped_region_slice, :] = xr_dataset_flipped.data.values[
         :, flipped_slice, :
     ]
-    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
-    ### Create DataArray
-    logging.info(f"--- empty_data.shape: {empty_data.shape}")
-    logging.info(f"i,j,k: {i_both_value, j_both_value, k_both_value}")
-    logging.debug(
-        f"xr_dataset_normal.variables_edited: {xr_dataset_normal.variables_edited}"
-    )
-    logging.info(f"ymin, ymax: {empty_data[:,:,1].min(), empty_data[:,:,1].max()}")
+    print(f"Flipped region - After assignment:")
+    print(f"y range: {np.nanmin(empty_data[:,:,1]), np.nanmax(empty_data[:,:,1])}")
+    print(f"Sample value at start of flipped: {empty_data[0, j_both_end_overlap, 1]}")
+    print(f"Sample value at end: {empty_data[0, -1, 1]}")
+
+    # Create DataArray
     data_array = xr.DataArray(
         empty_data,
         dims=["x_i", "y_j", "variable"],
@@ -104,26 +105,18 @@ def create_populated_dataset_both(
             "variable": xr_dataset_normal.variables_edited,
         },
     )
-    logging.info(f"data_array.shape: {data_array.shape}")
+
     # Create Dataset
     new_dataset = xr.Dataset({"data": data_array})
-
-    logging.info(f"new_dataset.data.shape: {new_dataset.data.shape}")
-
-    ### Attributes
-    # copying attributes
     new_dataset.attrs = xr_dataset_normal.attrs.copy()
-    # editing the ones that have changed
     new_dataset.attrs["i_value"] = i_both_value
     new_dataset.attrs["j_value"] = j_both_value
     new_dataset.attrs["k_value"] = k_both_value
-
-    # TODO: think about how you will handle this
-    # can't just average the wind speed values for example...
-    ### Stitched Plane Specific Information
-    # adding a file_name
     new_dataset["file_name"] = xr.DataArray(np.array([file_name_both]), dims=["file"])
 
+    print(
+        f"Final y range: {np.nanmin(empty_data[:,:,1]), np.nanmax(empty_data[:,:,1])}"
+    )
     return new_dataset
 
 
@@ -260,6 +253,10 @@ def stitching_normal_to_flipped(
         j_flipped_start_overlap=j_flipped_start_overlap,
         j_flipped_end_overlap=j_flipped_end_overlap,
         j_flipped_end=j_flipped_end,
+        y_both_min=y_both_min,
+        y_both_start_overlap=y_both_start_overlap,
+        y_both_end_overlap=y_both_end_overlap,
+        y_both_max=y_both_max,
     )
 
     return xr_dataset_x123
@@ -290,8 +287,12 @@ def stitching_plotting_saving_y_normal_to_flipped(
         if "normal" in str(datapoint.file_name.values):
             normal_data_point_list.append(datapoint)
             y_value_list.append(int(datapoint["y_plane_number"].values))
+            logging.info(f"normal")
         elif "flipped" in str(datapoint.file_name.values):
             flipped_data_point_list.append(datapoint)
+
+        # print(f"file_name: {datapoint.variables_edited}")
+        # print(f"datapoint: {datapoint.data.sel(variable='y').values}")
 
     # Grouping the datapoints
     datapoint_list_grouped = []
@@ -314,7 +315,7 @@ def stitching_plotting_saving_y_normal_to_flipped(
     additional_tweaked_y_traverse_step_z2 = 550
     additional_tweaked_y_traverse_step_z3 = 550
 
-    # looping over each y-plane
+    # looping over each plane
     # TODO: remove data_point_list_grouped[0:1] to process all y-planes
     for datapoint_group, y_value in zip(datapoint_list_grouped, y_value_list):
         logging.info(f"y_value: {y_value}")
