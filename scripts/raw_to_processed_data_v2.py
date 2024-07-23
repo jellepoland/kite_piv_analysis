@@ -16,9 +16,6 @@ from matplotlib.cm import ScalarMappable, get_cmap
 import matplotlib.ticker as mticker
 
 
-# print(sys.executable)
-
-
 def read_dat_file(
     file_path: str,
     labbook_path: str,
@@ -173,8 +170,6 @@ def read_dat_file(
     if "flipped" in case_name_davis:
         y = -y
         y += y_traverse
-    # if ("Y3") in case_name_davis:
-    #     x += 600
 
     u_x_mesh_global = griddata(
         np.array([x, y]).T,
@@ -188,83 +183,136 @@ def read_dat_file(
     logging.info(f"x-range: {np.min(x)}, {np.max(x)}")
     logging.info(f"y-range: {np.min(y)}, {np.max(y)}")
     print(f" ")
-    return u_x_mesh_global
+    output = [case_name_davis, u_x_mesh_global]
+    return output
 
 
 def process_all_dat_files(
-    dat_file_path: str, labbook_path: str, aoa_value
-) -> xr.Dataset:
-    all_datasets = []
-    all_datasets_std = []
-    logging.debug(f"Processing all .dat files in directory: {dat_file_path}")
+    input_directory,
+    lab_book_path,
+    save_plots_folder,
+    aoa_value,
+    vw,
+    plot_type=".png",
+    min_cbar_value=0.75,
+    max_cbar_value=1.25,
+):
+
+    logging.info(f"Processing all .dat files in directory: {input_directory}")
 
     x_global = np.arange(-300, 900, 1)
     y_global = np.arange(-300, 500, 1)
     x_meshgrid_global, y_meshgrid_global = np.meshgrid(x_global, y_global)
 
-    u_x_mesh_global_list = []
-    for root, _, files in os.walk(dat_file_path):
+    output_list = []
+    for root, _, files in os.walk(input_directory):
         for file in files:
+            # Only consider normal values, and not standard deviation
             if file.endswith("1.dat"):
+                print(f"Processing file: {file}")
                 file_path = os.path.join(root, file)
-                u_x_mesh_global = read_dat_file(
+                output = read_dat_file(
                     file_path,
-                    labbook_path,
+                    lab_book_path,
                     aoa_value,
                     x_meshgrid_global,
                     y_meshgrid_global,
                 )
-                # print(f"u_x_mesh_global: {np.nanmin(u_x_mesh_global)}")
-                # print(f"u_x_mesh_global: {np.nanmax(u_x_mesh_global)}")
-                u_x_mesh_global_list.append(u_x_mesh_global)
+                output_list.append(output)
 
-    sum_top = 0
-    sum_bottom = 0
-    for ux in u_x_mesh_global_list:
-        ux_uinf = ux / 15.0
-        mask = (ux != 0).astype(int)
-        sum_top = sum_top + ux_uinf * mask
-        sum_bottom = sum_bottom + mask
+    # grouping the data on spanwise position (y-values)
+    y1_data_list = ["Y1"]
+    y2_data_list = ["Y2"]
+    y3_data_list = ["Y3"]
+    y4_data_list = ["Y4"]
+    y5_data_list = ["Y5"]
+    y6_data_list = ["Y6"]
+    y7_data_list = ["Y7"]
+    for output in output_list:
+        case_name_davis = str(output[0])
+        logging.info(f"--- case_name_davis: {case_name_davis}")
+        if "Y1" in case_name_davis:
+            y1_data_list.append(output[:])
+        elif "Y2" in case_name_davis:
+            y2_data_list.append(output[:])
+        elif "Y3" in case_name_davis:
+            y3_data_list.append(output[:])
+        elif "Y4" in case_name_davis:
+            y4_data_list.append(output[:])
+        elif "Y5" in case_name_davis:
+            y5_data_list.append(output[:])
+        elif "Y6" in case_name_davis:
+            y6_data_list.append(output[:])
+        elif "Y7" in case_name_davis:
+            y7_data_list.append(output[:])
 
-    # sum_bottom = np.where(sum_bottom == 0, 1, sum_bottom)
-    ux_mean_uinf = sum_top / sum_bottom
+    y_grouped_data = [
+        y1_data_list,
+        y2_data_list,
+        y3_data_list,
+        y4_data_list,
+        y5_data_list,
+        y6_data_list,
+        y7_data_list,
+    ]
+    y_grouped_filtered_data = []
+    for y_data in y_grouped_data:
+        if len(y_data) > 1:
+            y_grouped_filtered_data.append(y_data)
 
-    min_cbar_value = 0.75
-    max_cbar_value = 1.25
-    # Mask the data to the color ranges
-    ux_mean_uinf = np.ma.masked_where(ux_mean_uinf > max_cbar_value, ux_mean_uinf)
-    ux_mean_uinf = np.ma.masked_where(ux_mean_uinf < min_cbar_value, ux_mean_uinf)
-    # ux_mean_uinf = np.clip(ux_mean_uinf, min_cbar_value, max_cbar_value)
-    fig, ax = plt.subplots()
-    cax = plt.contourf(
-        x_meshgrid_global,
-        y_meshgrid_global,
-        ux_mean_uinf,
-        cmap="RdBu",
-        levels=50,
-        extend="both",
-        vmin=min_cbar_value,
-        vmax=max_cbar_value,
-    )
+    # averaging the data
+    for y_data in y_grouped_filtered_data:
+        logging.debug(f"y_data: {y_data}")
+        y_num = y_data[0]
+        ux_list = y_data[1:]
+        logging.info(f"y_num: {y_num}")
 
-    mid_cbar_value = np.mean([min_cbar_value, max_cbar_value])
-    cbar = fig.colorbar(
-        cax,
-        ticks=[
-            min_cbar_value,
-            mid_cbar_value,
-            max_cbar_value,
-        ],
-        format=mticker.FixedFormatter(
-            [f"< {min_cbar_value}", f"{mid_cbar_value}", f"> {max_cbar_value}"]
-        ),
-        extend="both",
-    )
-    labels = cbar.ax.get_yticklabels()
-    labels[0].set_verticalalignment("top")
-    labels[-1].set_verticalalignment("bottom")
-    cbar.set_label("Ux/Uinf", rotation=0)
-    plt.show()
+        sum_top = 0
+        sum_bottom = 0
+        for ux in ux_list:
+            ux = ux[1]
+            ux_uinf = ux / float(vw)
+            mask = (ux != 0).astype(int)
+            sum_top = sum_top + ux_uinf * mask
+            sum_bottom = sum_bottom + mask
+
+        sum_bottom = np.where(sum_bottom == 0, 1, sum_bottom)
+        ux_mean_uinf = sum_top / sum_bottom
+
+        # Mask the data to the color ranges
+        ux_mean_uinf = np.ma.masked_where(ux_mean_uinf > max_cbar_value, ux_mean_uinf)
+        ux_mean_uinf = np.ma.masked_where(ux_mean_uinf < min_cbar_value, ux_mean_uinf)
+        # ux_mean_uinf = np.clip(ux_mean_uinf, min_cbar_value, max_cbar_value)
+        fig, ax = plt.subplots()
+        cax = plt.contourf(
+            x_meshgrid_global,
+            y_meshgrid_global,
+            ux_mean_uinf,
+            cmap="RdBu",
+            levels=50,
+            extend="both",
+            vmin=min_cbar_value,
+            vmax=max_cbar_value,
+        )
+
+        mid_cbar_value = np.mean([min_cbar_value, max_cbar_value])
+        cbar = fig.colorbar(
+            cax,
+            ticks=[
+                min_cbar_value,
+                mid_cbar_value,
+                max_cbar_value,
+            ],
+            format=mticker.FixedFormatter(
+                [f"< {min_cbar_value}", f"{mid_cbar_value}", f"> {max_cbar_value}"]
+            ),
+            extend="both",
+        )
+        labels = cbar.ax.get_yticklabels()
+        labels[0].set_verticalalignment("top")
+        labels[-1].set_verticalalignment("bottom")
+        cbar.set_label("Ux/Uinf", rotation=0)
+        plt.savefig(save_plots_folder + y_num + plot_type)
 
 
 if __name__ == "__main__":
@@ -298,45 +346,14 @@ if __name__ == "__main__":
     # row 118               Comment Z3 to Z2 was corrected
     # row 140               Added a line of X's to separate the different measurement sets
 
-    ### defining paths
-    input_directory = sys.path[0] + "/data/test_y1/"
-    lab_book_path = sys.path[0] + "/data/labbook_cleaned.csv"
-    save_plots_folder = sys.path[0] + "/results/aoa_13/seperate_planes/"
-
     # Process all .dat files
-    aoa_value = 13.0
-    process_all_dat_files(input_directory, lab_book_path, aoa_value)
-    # combined_dataset, combined_dataset_std = process_all_dat_files(
-    #     input_directory, lab_book_path, aoa_value
-    # )
-    # size = combined_dataset.sizes.get("file")
-    # datapoint_list = [combined_dataset.isel(file=i) for i in range(size)]
-    # print(f" ")
-    # print(f"--- PLOTTING --- ")
-    # print(f" ")
-    # for datapoint in datapoint_list:
-    #     case_name_davis = str(datapoint.case_name_davis.values)
-    #     logging.info(f"file_name: {datapoint['file_name'].values}")
-    #     plot_quiver(
-    #         datapoint.data.sel(variable="x").values,
-    #         datapoint.data.sel(variable="y").values,
-    #         datapoint.data.sel(variable="vel_u").values,
-    #         datapoint.data.sel(variable="vel_v").values,
-    #         color_values=datapoint.data.sel(variable="ux_uinf").values,
-    #         u_inf=datapoint["vw"].values,
-    #         colorbar_label=r"$\frac{U_x}{U_\infty}$",
-    #         title=case_name_davis,
-    #         save_path=save_plots_folder + case_name_davis + ".png",
-    #         subsample=10,  # Adjust subsample factor as needed
-    #         is_show_plot=False,
-    #     )
-
-    # # Save the processed data (B0001.dat)
-    # file_name = "combined_piv_data"
-    # processed_data_path = sys.path[0] + f"/processed_data/{file_name}.nc"
-    # combined_dataset.to_netcdf(processed_data_path)
-
-    # # Save the STANDARD DEVIATION (B0002.dat) processed data
-    # file_name = "combined_piv_data_std"
-    # processed_data_path = sys.path[0] + f"/processed_data/{file_name}.nc"
-    # combined_dataset_std.to_netcdf(processed_data_path)
+    process_all_dat_files(
+        input_directory=sys.path[0] + "/data/aoa_13/",
+        lab_book_path=sys.path[0] + "/data/labbook_cleaned.csv",
+        save_plots_folder=sys.path[0] + "/results/aoa_13/all_planes/",
+        aoa_value=13.0,
+        vw=15.0,
+        min_cbar_value=0.75,
+        max_cbar_value=1.25,
+        plot_type=".png",
+    )
