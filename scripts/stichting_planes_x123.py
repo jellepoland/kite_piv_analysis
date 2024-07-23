@@ -85,6 +85,21 @@ def create_populated_dataset_x123(
     logging.debug(f"empty_data slice shape: {empty_data[x123_slice, :, :].shape}")
     empty_data[x123_slice, :, :] = xr_dataset_x3.data.values[x3_slice, :, :]
 
+    variables_edited = ["x", "y", "vel_u", "vel_v"]
+    for k, variable in enumerate(variables_edited):
+        print(f" ")
+        logging.info(f"Variable: {variable}")
+        for data_i in [xr_dataset_x1, xr_dataset_x2, xr_dataset_x3]:
+            mid_index = 100
+            logging.info(f"{data_i.case_name_davis.values}")
+            logging.info(f"NEW (first row): {empty_data[0, :5, k]}")
+            logging.info(f"origial (first row): {data_i.data.values[0, :5, k]}")
+            logging.info(f"NEW (mid row): {empty_data[mid_index, :5, k]}")
+            logging.info(f"original (mid row): {data_i.data.values[mid_index, :5, k]}")
+            logging.info(f"NEW (last row): {empty_data[-1, :5, k]}")
+            logging.info(f"original (last row): {data_i.data.values[-1, :5, k]}")
+
+    breakpoint()
     ### Create DataArray
     logging.debug(f"empty_data.shape: {empty_data.shape}")
     logging.debug(f"xr_dataset_x1.variables_edited: {xr_dataset_x1.variables_edited}")

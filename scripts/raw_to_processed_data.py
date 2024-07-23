@@ -6,6 +6,10 @@ import logging
 import re
 import sys
 import openpyxl
+from copy import deepcopy
+from plotting import plot_quiver
+from scipy.interpolate import griddata
+from mpl_toolkits.mplot3d import Axes3D
 
 print(sys.executable)
 
@@ -14,6 +18,7 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
     # Extract the case name and file name from the file path
     case_name_davis = os.path.basename(os.path.dirname(file_path))
     file_name_davis = os.path.basename(file_path)
+    logging.info(f"case_name_davis: {case_name_davis}")
 
     ### Loading in the .dat file
     # Read the header information
@@ -50,47 +55,141 @@ def read_dat_file(file_path: str, labbook_path: str, aoa_value: float) -> xr.Dat
 
     # Load the data
     data = np.genfromtxt(file_path, skip_header=4)
-    logging.debug(f"Data shape: {data.shape},type: {type(data)}")
+    data_matrix = data.reshape((i_value, j_value, -1))
 
+    # David Part
+    x = data[:, 0]
+    y = data[:, 1]
+    u_x = data[:, 2]
+    x_range = np.max(x) - np.min(x)
+    x_res = x_range / len(x)
+    y_range = np.max(y) - np.min(y)
+    y_res = y_range / len(y)
+    x_unique = np.unique(x)
+    y_unique = np.unique(y)
+    x_meshgrid, y_meshgrid = np.meshgrid(x_unique, y_unique)
+
+    buffer_size = 5e2
+    x_global = np.arange(np.min(x) - buffer_size, np.max(x) + buffer_size, 1)
+    y_global = np.arange(np.min(y) - buffer_size, np.max(y) + buffer_size, 1)
+    x_meshgrid_global, y_meshgrid_global = np.meshgrid(x_global, y_global)
+
+    # print(f"x_meshgrid: {x_meshgrid_global}" f"y_meshgrid: {y_meshgrid_global}")
+    # x_meshgrid, y_meshgrid = np.meshgrid(
+    #     np.arange(np.min(x), np.max(x) + x_res, x_res),
+    #     np.arange(np.min(y), np.max(y) + y_res, y_res),
+    # )
+    points = np.array([x, y]).T
+    values = np.array(u_x)
+    u_x_mesh = griddata(points, values, (x_meshgrid, y_meshgrid), method="linear")
+    u_x_mesh = np.where(u_x_mesh == 0, np.nan, u_x_mesh)
+
+    u_x_mesh_global = griddata(
+        points, values, (x_meshgrid_global, y_meshgrid_global), method="linear"
+    )
+    u_x_mesh_global = np.where(u_x_mesh_global == 0, np.nan, u_x_mesh_global)
+
+    # plotting
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots()
+    # plt.contourf(x_meshgrid, y_meshgrid, u_x_mesh, cmap="jet")
+    plt.contourf(x_meshgrid_global, y_meshgrid_global, u_x_mesh_global, cmap="jet")
+    plt.show()
+
+    # ax = plt.axes(projection="3d")
+    # ax.plot_surface(x_meshgrid, y_meshgrid, u_x_mesh, cmap="jet")
+
+    print(f"u_x_mesh: {u_x_mesh}")
+
+    logging.info(f"Data shape: {data.shape},type: {type(data)}")
+    print(data)
+
+    breakpoint()
     # Reshape the data into matrix form (i by j)
     data_matrix = data.reshape((i_value, j_value, -1))
-    logging.debug(f"data_matrix.shape: {data_matrix.shape}")
-    logging.debug(f"data_matrix type: {type(data_matrix)}")
-    logging.debug(f"variables_edited: {variables_edited}")
-    logging.debug(
-        f"data_matrix x_range: {data_matrix[:,:,0].min()} to {data_matrix[:,:,0].max()}"
-    )
-    logging.debug(
-        f"data_matrix y_range: {data_matrix[:,:,1].min()} to {data_matrix[:,:,1].max()}"
-    )
+
+    def flipping_the_data(data_matrix, variables_edited):
+        data_matrix_new = deepcopy(data_matrix)
+
+        # ### 1. Changing signs
+        data_matrix_new[:, :, 1] = -data_matrix_new[:, :, 1]
+        data_matrix_new[:, :, 3] = -data_matrix_new[:, :, 3]
+
+        # # ### As changing signs, changes the order from top-to-bottom to bottom-top, we need to flip the data
+        # j_value = data_matrix_new.shape[1]
+        # for k, variable in enumerate(variables_edited):
+        #     for i in range(data_matrix_new.shape[0]):
+        #         for j in range(j_value):
+        #             data_matrix_new[i, j, k] = data_matrix[i, (j_value - 1) - j, k]
+
+        logging.info(f"j_range: {data_matrix_new.shape[1]}")
+
+        # Log a sample of before and after for each variable
+        for k, variable in enumerate(variables_edited):
+            mid_index = 100
+            logging.info(f"Variable: {variable}")
+            logging.info(f"Original (first row): {data_matrix[0, :5, k]}")
+            logging.info(f"Flipped (first row): {data_matrix_new[0, :5, k]}")
+            logging.info(f"Original (mid row): {data_matrix[mid_index, :5, k]}")
+            logging.info(f"Flipped (mid row): {data_matrix_new[mid_index, :5, k]}")
+            logging.info(f"Original (last row): {data_matrix[-1, :5, k]}")
+            logging.info(f"Flipped (last row): {data_matrix_new[-1, :5, k]}")
+
+        return data_matrix_new
+
     # flipping the data_matrix if is a "flipped" case
     if "flipped" in str(case_name_davis):
-        logging.debug(
+        logging.info(
             f"----Flipping the data_matrix, case_name_davis: {case_name_davis}"
         )
-        data_matrix = np.flip(data_matrix, axis=1)
-        ### after flipping the data points, y containing values also need a sign change
-        # defining variables that need sign change
-        variables_needing_sign_change = [
-            # "y",
-            "vel_v",
-            "du_dy",
-            "dv_dy",
-            "dw_dy",
-            "vorticity_jw_z",
-        ]
-        ### changing sign for those variables
-        for variable in variables_needing_sign_change:
-            index = variables_edited.index(variable)
-            data_matrix[:, :, index] = -data_matrix[:, :, index]
+        data_matrix = flipping_the_data(data_matrix, variables_edited)
 
-    logging.debug(f"data_matrix.shape: {data_matrix.shape}")
-    logging.debug(
+    print(f"---- after flipping the data_matrix")
+    print(
+        f"first_item (i:0,j:0): x: {data_matrix[0,0,0]}, y: {data_matrix[0,0,1]}, vel_u: {data_matrix[0,0,2]}"
+    )
+    print(
+        f"last_item (i:0,j:-1) x: {data_matrix[0,-1,0]}, y: {data_matrix[0,-1,1]}, vel_u: {data_matrix[0,-1,2]}"
+    )
+
+    logging.info(f"data_matrix.shape: {data_matrix.shape}")
+    logging.info(
         f"data_matrix x_range: {data_matrix[:,:,0].min()} to {data_matrix[:,:,0].max()}"
     )
-    logging.debug(
+    logging.info(
         f"data_matrix y_range: {data_matrix[:,:,1].min()} to {data_matrix[:,:,1].max()}"
     )
+
+    ### correcting the x and y-values to start nicely at 0
+    def correct_x_and_y_coordinates(data_matrix):
+        # creating a copy to make sure we don't modify the original
+        new_data_matrix = data_matrix.copy()
+        # x-plane
+        x_min = -new_data_matrix[:, :, 0].min()
+        new_data_matrix[:, :, 0] = new_data_matrix[:, :, 0] + x_min
+        # y-plane
+        y_min = -new_data_matrix[:, :, 1].min()
+        new_data_matrix[:, :, 1] = new_data_matrix[:, :, 1] + y_min
+        return new_data_matrix
+
+    data_matrix = correct_x_and_y_coordinates(data_matrix)
+    logging.info(f"data_matrix.shape: {data_matrix.shape}")
+    logging.info(f"data_matrix type: {type(data_matrix)}")
+    logging.info(f"variables_edited: {variables_edited}")
+    logging.info(
+        f"data_matrix x_range: {data_matrix[:,:,0].min()} to {data_matrix[:,:,0].max()}"
+    )
+    logging.info(
+        f"data_matrix y_range: {data_matrix[:,:,1].min()} to {data_matrix[:,:,1].max()}"
+    )
+    print(
+        f"first_item: x: {data_matrix[0,0,0]}, y: {data_matrix[0,0,1]}, vel_u: {data_matrix[0,0,2]}"
+    )
+    print(
+        f"last_item: x: {data_matrix[0,-1,0]}, y: {data_matrix[0,-1,1]}, vel_u: {data_matrix[0,-1,2]}"
+    )
+
     ### Loading labbook
     labbook_dict = {}
     labbook_df = pd.read_csv(labbook_path)
@@ -305,19 +404,37 @@ if __name__ == "__main__":
     # row 118               Comment Z3 to Z2 was corrected
     # row 140               Added a line of X's to separate the different measurement sets
 
-    # Process all .dat files
+    ### defining paths
     input_directory = sys.path[0] + "/data/aoa_13_test/"
     lab_book_path = sys.path[0] + "/data/labbook_cleaned.csv"
+    save_plots_folder = sys.path[0] + "/results/aoa_13/seperate_planes/"
+
+    # Process all .dat files
     aoa_value = 13.0
     combined_dataset, combined_dataset_std = process_all_dat_files(
         input_directory, lab_book_path, aoa_value
     )
     size = combined_dataset.sizes.get("file")
     datapoint_list = [combined_dataset.isel(file=i) for i in range(size)]
-    logging.info(f" ")
+    print(f" ")
+    print(f"--- PLOTTING --- ")
+    print(f" ")
     for datapoint in datapoint_list:
-        logging.info(f"processsed file_names: {datapoint.file_name.values}")
-    # logging.info(f"Combined dataset: {combined_dataset}")
+        case_name_davis = str(datapoint.case_name_davis.values)
+        logging.info(f"file_name: {datapoint['file_name'].values}")
+        plot_quiver(
+            datapoint.data.sel(variable="x").values,
+            datapoint.data.sel(variable="y").values,
+            datapoint.data.sel(variable="vel_u").values,
+            datapoint.data.sel(variable="vel_v").values,
+            color_values=datapoint.data.sel(variable="ux_uinf").values,
+            u_inf=datapoint["vw"].values,
+            colorbar_label=r"$\frac{U_x}{U_\infty}$",
+            title=case_name_davis,
+            save_path=save_plots_folder + case_name_davis + ".png",
+            subsample=10,  # Adjust subsample factor as needed
+            is_show_plot=False,
+        )
 
     # Save the processed data (B0001.dat)
     file_name = "combined_piv_data"

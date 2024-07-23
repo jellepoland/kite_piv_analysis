@@ -4,6 +4,7 @@ import xarray as xr
 import logging
 import re
 import sys
+from copy import deepcopy
 from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
@@ -289,7 +290,7 @@ if __name__ == "__main__":
     # logging.info(f"Data attrs: {loaded_dataset.attrs}")
     datapoint_list = [loaded_dataset.isel(file=i) for i in range(size)]
 
-    for datapoint in datapoint_list:
+    for datapoint in datapoint_list[0:1]:
         case_name_davis = datapoint.case_name_davis.values
         # logging.info(f"datapoint.data_vars: {datapoint.data_vars}")
         # logging.info(f"data, {datapoint.variables_edited}")
@@ -300,6 +301,16 @@ if __name__ == "__main__":
         # logging.info(datapoint.data_vars)
         # logging.info(f" ----")
         logging.info(f"file_name: {datapoint['file_name'].values}")
+        # j_slice = slice(0, 10)
+
+        data_matrix = datapoint.data.values
+        # ## setting the ymin to 0
+        # y_min = -datapoint.data.sel(variable="y").min().values
+        # logging.info(f"y_min: {y_min}")
+        # data_matrix[:, :, 1] = data_matrix[:, :, 1] + y_min
+        logging.info(
+            f"Data matrix ymin: {np.nanmin(data_matrix[:, :, 1])}, ymax: {np.nanmax(data_matrix[:, :, 1])}"
+        )
 
         plot_quiver(
             datapoint.data.sel(variable="x").values,
@@ -309,7 +320,7 @@ if __name__ == "__main__":
             color_values=datapoint.data.sel(variable="ux_uinf").values,
             u_inf=datapoint["vw"].values,
             colorbar_label=r"$\frac{U_x}{U_\infty}$",
-            title="Vector Field Example",
+            title=case_name_davis,
             save_path=sys.path[0]
             + f"/results/aoa_13/seperate_planes/{case_name_davis}.png",
             subsample=10,  # Adjust subsample factor as needed
