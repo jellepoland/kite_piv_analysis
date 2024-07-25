@@ -287,10 +287,12 @@ def saving_a_plot(
     plot_type,
     min_cbar_value,
     max_cbar_value,
+    max_mask_value,
+    min_mask_value,
     title,
-    countour_levels=50,
+    countour_levels=40,
     is_with_quiver=True,
-    subsample=6,
+    subsample=12,
     u_inf=15.0,
     width_arrow=0.02,
     scale_arrow=9,
@@ -298,20 +300,37 @@ def saving_a_plot(
 ):
 
     # Mask the data to the color ranges
-    color_data = np.ma.masked_where(color_data > max_cbar_value, color_data)
-    color_data = np.ma.masked_where(color_data < min_cbar_value, color_data)
+    color_data = np.ma.masked_where(color_data > max_mask_value, color_data)
+    color_data = np.ma.masked_where(color_data < min_mask_value, color_data)
+    # color_data = np.ma.filled(color_data, np.nan)
     # ux_mean_uinf = np.clip(ux_mean_uinf, min_cbar_value, max_cbar_value)
     fig, ax = plt.subplots()
+
+    subsample_color = 1
+    x_mesh_sub = x_meshgrid_global[::subsample_color, ::subsample_color]
+    y_mesh_sub = y_meshgrid_global[::subsample_color, ::subsample_color]
+    color_data_sub = color_data[::subsample_color, ::subsample_color]
+
     cax = plt.contourf(
-        x_meshgrid_global,
-        y_meshgrid_global,
-        color_data,
+        x_mesh_sub,
+        y_mesh_sub,
+        color_data_sub,
         cmap=cmap,
         levels=countour_levels,
         extend="both",
         vmin=min_cbar_value,
         vmax=max_cbar_value,
     )
+    # cax = plt.contourf(
+    #     x_meshgrid_global,
+    #     y_meshgrid_global,
+    #     color_data,
+    #     cmap=cmap,
+    #     levels=countour_levels,
+    #     extend="both",
+    #     vmin=min_cbar_value,
+    #     vmax=max_cbar_value,
+    # )
 
     mid_cbar_value = np.mean([min_cbar_value, max_cbar_value])
     cbar = fig.colorbar(
@@ -365,26 +384,17 @@ def saving_a_plot(
         vel_mag_sub = vel_mag[::subsample, ::subsample]
         # color_values_sub = color_data[::subsample, ::subsample]
 
-        ax.quiver(x_sub, y_sub, u_sub, v_sub, color="k", angles="xy")
-
-        # # Plot the quiver arrows on top in black, with transparency for zero values
-        # for i in range(x_sub.shape[0]):
-        #     for j in range(y_sub.shape[1]):
-        #         scale_param = subsample * (vel_mag_sub[i, j] / u_inf)
-        #         print(f"scale_param: {scale_param}")
-        #         if scale_param != 0:
-        #             # if color_values_sub[i, j] != 0:
-        #             ax.quiver(
-        #                 x_sub[i, j],
-        #                 y_sub[i, j],
-        #                 u_sub[i, j],
-        #                 v_sub[i, j],
-        #                 color="k",
-        #                 scale=scale_arrow * (1 / scale_param),
-        #                 scale_units="xy",
-        #                 angles="xy",
-        #                 width=width_arrow * (1 / scale_param),
-        # )
+        ax.quiver(
+            x_sub,
+            y_sub,
+            u_sub,
+            v_sub,
+            color="k",
+            angles="xy",
+            scale=0.9,
+            scale_units="xy",
+            width=0.0025,
+        )
 
     plt.savefig(save_plots_folder + title + plot_type)
 
@@ -435,6 +445,8 @@ if __name__ == "__main__":
         plot_type=".pdf",
         min_cbar_value=0.75,
         max_cbar_value=1.25,
+        max_mask_value=1.25,
+        min_mask_value=0.75,
         title=file_name,
     )
 
