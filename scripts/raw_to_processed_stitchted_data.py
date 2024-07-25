@@ -22,6 +22,7 @@ def read_dat_file(
     aoa_value: float,
     x_meshgrid_global,
     y_meshgrid_global,
+    variables_edited,
 ):
     # Extract the case name and file name from the file path
     case_name_davis = os.path.basename(os.path.dirname(file_path))
@@ -35,27 +36,6 @@ def read_dat_file(
 
     # Extract the variable names
     variables_raw = re.findall(r'"([^"]*)"', header[1])
-
-    # Hardcoding the variable names, to match required format
-    variables_edited = [
-        "x",
-        "y",
-        "vel_u",
-        "vel_v",
-        "vel_w",
-        "vel_mag",
-        "du_dx",
-        "du_dy",
-        "dv_dx",
-        "dv_dy",
-        "dw_dx",
-        "dw_dy",
-        "vorticity_jw_z",
-        "vorticity_jmag",
-        "divergence_2d",
-        "swirling_strength_2d",
-        "is_valid",
-    ]
 
     # Extract the i and j values
     i_value = int(re.search(r"I=(\d+)", header[2]).group(1))
@@ -166,30 +146,71 @@ def read_dat_file(
     # David Part
     x = data[:, 0] - x_traverse
     y = data[:, 1]
+
+    # calculate resolutions mm per point
+    x_range = np.max(x) - np.min(x)
+    num_points_x = len(np.unique(x))
+    num_points_x = 182
+    x_resolution = x_range / (num_points_x)
+    y_range = np.max(y) - np.min(y)
+    num_points_y = len(np.unique(y))
+    num_points_y = 207
+    y_resolution = y_range / (num_points_y)
+    logging.info(f"{x_range}, {num_points_y / y_range}")
+    logging.info(f"x_resolution: {x_resolution}")
+    logging.info(f"y_resolution: {y_resolution}")
+
     # travering the y-values when needed
     if "flipped" in case_name_davis:
         y = -y
         y += y_traverse
 
-    u_x_mesh_global = griddata(
-        np.array([x, y]).T,
-        np.array(data[:, 2]),
-        (x_meshgrid_global, y_meshgrid_global),
-        method="linear",
-    )
-    u_x_mesh_global = np.nan_to_num(u_x_mesh_global, nan=0)
+    output = [case_name_davis]
+    for k in range(2, len(variables_edited)):
+        print("var:", variables_edited[k])
+        # Mapping the data onto the global mesh grid
+        data_k = griddata(
+            np.array([x, y]).T,
+            np.array(data[:, k]),
+            (x_meshgrid_global, y_meshgrid_global),
+            method="linear",
+        )
+        # turning nans into 0s
+        data_k = np.nan_to_num(data_k)
+        # appending to output
+        output.append(data_k)
 
     # logging
     logging.info(f"x-range: {np.min(x)}, {np.max(x)}")
     logging.info(f"y-range: {np.min(y)}, {np.max(y)}")
     print(f" ")
-    output = [case_name_davis, u_x_mesh_global]
+
     return output
 
 
+def save_meshgrid_data_csv(all_data, variable_names, save_path):
+    # Create X and Y coordinates based on the shape of the data
+    y, x = np.mgrid[0 : all_data[0].shape[0], 0 : all_data[0].shape[1]]
+
+    # Create a dictionary to hold all the data
+    data_dict = {"X": x.flatten(), "Y": y.flatten()}
+
+    # Add each variable's data to the dictionary
+    for data, var_name in zip(all_data, variable_names):
+        data_dict[var_name] = data.flatten()
+
+    # Create a DataFrame and save as CSV
+    df = pd.DataFrame(data_dict)
+    df.to_csv(save_path, index=False)
+
+    print(f"Data saved to {save_path}")
+
+
 def process_all_dat_files(
+    variables_edited,
     input_directory,
     lab_book_path,
+    save_processed_folder,
     save_plots_folder,
     aoa_value,
     vw,
@@ -200,8 +221,9 @@ def process_all_dat_files(
 
     logging.info(f"Processing all .dat files in directory: {input_directory}")
 
-    x_global = np.arange(-300, 900, 1)
-    y_global = np.arange(-300, 500, 1)
+    # the x and y ranges are arbitrarly set, and resolution is calculated in the beginning
+    x_global = np.arange(-210, 840, 2.4810164835164836)
+    y_global = np.arange(-205, 405, 2.4810164835164836)
     x_meshgrid_global, y_meshgrid_global = np.meshgrid(x_global, y_global)
 
     output_list = []
@@ -217,6 +239,7 @@ def process_all_dat_files(
                     aoa_value,
                     x_meshgrid_global,
                     y_meshgrid_global,
+                    variables_edited,
                 )
                 output_list.append(output)
 
@@ -256,63 +279,79 @@ def process_all_dat_files(
         y7_data_list,
     ]
     y_grouped_filtered_data = []
-    for y_data in y_grouped_data:
-        if len(y_data) > 1:
-            y_grouped_filtered_data.append(y_data)
+    for all_y_data in y_grouped_data:
+        if len(all_y_data) > 1:
+            y_grouped_filtered_data.append(all_y_data)
 
     # averaging the data
-    for y_data in y_grouped_filtered_data:
-        logging.debug(f"y_data: {y_data}")
-        y_num = y_data[0]
-        ux_list = y_data[1:]
+    index_of_is_valid = variables_edited.index("is_valid") - 2
+    print(f"index_of_is_valid:{index_of_is_valid}")
+    for all_y_data in y_grouped_filtered_data:
+        logging.info(f"all_y_data len: {len(all_y_data)}")
+        y_num = all_y_data[0]
         logging.info(f"y_num: {y_num}")
+        all_6_plane_data = all_y_data[1:]
+        logging.info(f"all_6_plane_data len: {len(all_6_plane_data)}")
 
-        sum_top = 0
-        sum_bottom = 0
-        for ux in ux_list:
-            ux = ux[1]
-            ux_uinf = ux / float(vw)
-            mask = (ux != 0).astype(int)
-            sum_top = sum_top + ux_uinf * mask
-            sum_bottom = sum_bottom + mask
+        k_num = len(all_6_plane_data[0][1:])
+        variables_processed = variables_edited[2 : 2 + k_num]
+        logging.info(f"k_num: {k_num}")
+        logging.info(f"variables_processed: {variables_processed}")
 
-        sum_bottom = np.where(sum_bottom == 0, 1, sum_bottom)
-        ux_mean_uinf = sum_top / sum_bottom
+        all_6_plane_data_mean_overlap_k_list = []
+        sum_bottom_k_list = []
+        for k in range(k_num):
+            sum_top = 0
+            sum_bottom = 0
+            for plane_idx, plane_data in enumerate(all_6_plane_data):
+                logging.info(f"plane_idx: {plane_idx}, k:{k}")
+                case_name = plane_data[0]
+                logging.info(f"case_name: {case_name}")
+                plane_data = plane_data[1:]
+                logging.info(f"plane_data shape: {np.array(plane_data).shape}")
+                data_k = plane_data[k]
+                logging.info(f"data_k shape: {data_k.shape}")
+                # Use the is_valid from .dat file to mask the data
+                # the astype int, ensure that it uses 0 and 1 as values
+                mask = (data_k != 0).astype(int)
+                # Use the mask, to find only that data that is valid
+                sum_top = sum_top + data_k * mask
+                # Use the mask to sum the number of valid data points
+                # each datapoint will thus be either 0,1,2,3,4 (max overlap)
+                sum_bottom = sum_bottom + mask
 
-        # Mask the data to the color ranges
-        ux_mean_uinf = np.ma.masked_where(ux_mean_uinf > max_cbar_value, ux_mean_uinf)
-        ux_mean_uinf = np.ma.masked_where(ux_mean_uinf < min_cbar_value, ux_mean_uinf)
-        # ux_mean_uinf = np.clip(ux_mean_uinf, min_cbar_value, max_cbar_value)
-        fig, ax = plt.subplots()
-        cax = plt.contourf(
-            x_meshgrid_global,
-            y_meshgrid_global,
-            ux_mean_uinf,
-            cmap="RdBu",
-            levels=50,
-            extend="both",
-            vmin=min_cbar_value,
-            vmax=max_cbar_value,
+            print(f"      --- variable: {variables_processed[k]} --- ")
+            # calculting mean, when not the is_valid column
+            if k != index_of_is_valid:
+                # Avoid division by zero, by setting all zeros to 1
+                # this is not a problem as the sum top will be zero where sum_bottom is zero
+                sum_bottom = np.where(sum_bottom == 0, 1, sum_bottom)
+                plane_data_mean_overlap = sum_top / sum_bottom
+            # if is_valid column, don't take mean, simply take the is_valid counter
+            else:
+                plane_data_mean_overlap = sum_bottom
+            logging.info(
+                f"plane_data_mean_overlap: {plane_data_mean_overlap.shape}, max: {np.max(plane_data_mean_overlap)}, min: {np.min(plane_data_mean_overlap)}"
+            )
+            sum_bottom_k_list.append(sum_bottom)
+            all_6_plane_data_mean_overlap_k_list.append(plane_data_mean_overlap)
+
+        logging.info(
+            f"all_6_plane_data_mean_overlap_k_list: {np.array(all_6_plane_data_mean_overlap_k_list).shape}"
         )
 
-        mid_cbar_value = np.mean([min_cbar_value, max_cbar_value])
-        cbar = fig.colorbar(
-            cax,
-            ticks=[
-                min_cbar_value,
-                mid_cbar_value,
-                max_cbar_value,
-            ],
-            format=mticker.FixedFormatter(
-                [f"< {min_cbar_value}", f"{mid_cbar_value}", f"> {max_cbar_value}"]
-            ),
-            extend="both",
-        )
-        labels = cbar.ax.get_yticklabels()
-        labels[0].set_verticalalignment("top")
-        labels[-1].set_verticalalignment("bottom")
-        cbar.set_label("Ux/Uinf", rotation=0)
-        plt.savefig(save_plots_folder + y_num + plot_type)
+        # Saving the data
+        save_path = save_processed_folder + f"{y_num}.csv"
+        data_dict = {"x": x_global, "y": y_global}
+        # Add each MEANED variable's data to the dictionary
+        for data, var_name in zip(
+            all_6_plane_data_mean_overlap_k_list, variables_processed
+        ):
+            data_dict[var_name] = data.flatten()
+
+        # Create a DataFrame and save as CSV
+        df = pd.DataFrame(data_dict)
+        df.to_csv(save_path, index=False)
 
 
 if __name__ == "__main__":
@@ -345,15 +384,37 @@ if __name__ == "__main__":
     # row 25                Comment to change Davis Filenames
     # row 118               Comment Z3 to Z2 was corrected
     # row 140               Added a line of X's to separate the different measurement sets
+    # Hardcoding the variable names, to match required format
+    variables_edited = [
+        "x",
+        "y",
+        "vel_u",
+        "vel_v",
+        "vel_w",
+        "vel_mag",
+        "du_dx",
+        "du_dy",
+        "dv_dx",
+        "dv_dy",
+        "dw_dx",
+        "dw_dy",
+        "vorticity_jw_z",
+        "vorticity_jmag",
+        "divergence_2d",
+        "swirling_strength_2d",
+        "is_valid",
+    ]
 
     # Process all .dat files
     process_all_dat_files(
-        input_directory=sys.path[0] + "/data/aoa_13/",
+        variables_edited,
+        input_directory=sys.path[0] + "/data/test_y3/",
         lab_book_path=sys.path[0] + "/data/labbook_cleaned.csv",
+        save_processed_folder=sys.path[0] + "/processed_data/",
         save_plots_folder=sys.path[0] + "/results/aoa_13/all_planes/",
         aoa_value=13.0,
         vw=15.0,
-        min_cbar_value=0.75,
-        max_cbar_value=1.25,
+        min_cbar_value=5,
+        max_cbar_value=20,
         plot_type=".png",
     )
