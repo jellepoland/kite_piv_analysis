@@ -7,7 +7,6 @@ import re
 import sys
 import openpyxl
 from copy import deepcopy
-from plotting import plot_quiver
 from scipy.interpolate import griddata
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -164,19 +163,39 @@ def read_dat_file(
     if "flipped" in case_name_davis:
         y = -y
         y += y_traverse
+        variables_needing_flipping = ["vel_v", "du_dy", "dv_dy", "dw_dy"]
+    else:
+        variables_needing_flipping = []
 
+    sign = 1
     output = [case_name_davis]
     for k in range(2, len(variables_edited)):
-        print("var:", variables_edited[k])
-        # Mapping the data onto the global mesh grid
+        if variables_edited[k] in variables_needing_flipping:
+            sign = -1
+            logging.info(f"flipped: {variables_edited[k]}")
+        else:
+            logging.info(f"Not flipped var: {variables_edited[k]}")
+            sign = 1
         data_k = griddata(
             np.array([x, y]).T,
-            np.array(data[:, k]),
+            sign * np.array(data[:, k]),
             (x_meshgrid_global, y_meshgrid_global),
             method="linear",
         )
         # turning nans into 0s
         data_k = np.nan_to_num(data_k)
+
+        logging.debug(f"mean of data_k {np.max(data_k)}, var: {variables_edited[k]}")
+        # Correcting for density shifts
+        if k < len(variables_edited) - 1:
+            logging.debug(
+                f"---density correction --- k: {k}, var: {variables_edited[k]}"
+            )
+            data_k = data_k * labbook_dict["density"] / 1.225
+        logging.debug(
+            f"--post-- mean of data_k {np.max(data_k)}, var: {variables_edited[k]}"
+        )
+
         # appending to output
         output.append(data_k)
 
@@ -313,19 +332,129 @@ def process_all_dat_files(
                 logging.info(f"data_k shape: {data_k.shape}")
                 # Use the is_valid from .dat file to mask the data
                 # the astype int, ensure that it uses 0 and 1 as values
-                mask = (data_k != 0).astype(int)
+                mask = (plane_data[index_of_is_valid] != 0).astype(int)
                 # Use the mask, to find only that data that is valid
                 sum_top = sum_top + data_k * mask
                 # Use the mask to sum the number of valid data points
                 # each datapoint will thus be either 0,1,2,3,4 (max overlap)
                 sum_bottom = sum_bottom + mask
 
+                # new_data_k = data_k * mask
+                # # find where the data overlaps
+                # np.where(sum_bottom == 2, , 0)
+
             print(f"      --- variable: {variables_processed[k]} --- ")
             # calculting mean, when not the is_valid column
             if k != index_of_is_valid:
+                print(f"-- handling stichting for k: {k} --")
                 # Avoid division by zero, by setting all zeros to 1
                 # this is not a problem as the sum top will be zero where sum_bottom is zero
-                sum_bottom = np.where(sum_bottom == 0, 1, sum_bottom)
+
+                # TODO: this is an alternative approach
+                # would allow you to smoothen things better
+                # plane_data_mean_overlap = np.zeros(sum_bottom.shape)
+                # for i in range(sum_bottom.shape[0]):
+                #     for j in range(sum_bottom.shape[1]):
+                #         if sum_bottom[i, j] == 0:
+                #             plane_data_mean_overlap[i, j] = np.nan
+                #         elif sum_bottom[i, j] == 1:
+                #             plane_data_mean_overlap[i, j] = sum_top[i, j]
+                #         elif sum_bottom[i, j] == 2:
+                #             plane_data_mean_overlap[i, j] = sum_top[i, j] / 2
+                #         elif sum_bottom[i, j] == 3:
+                #             plane_data_mean_overlap[i, j] = sum_top[i, j] / 3
+                #         elif sum_bottom[i, j] == 4:
+                #             plane_data_mean_overlap[i, j] = sum_top[i, j] / 4
+                #         else:
+                #             raise ValueError(
+                #                 f"to many datapoints here sum_bottom[i, j]: {sum_bottom[i, j]}"
+                #             )
+
+                # TODO: FAILED , to memory intensive attempt at radial basis function interpolation
+                # def radialbasisfunction_interpolation(sum_top, sum_bottom):
+                #     from scipy.interpolate import Rbf
+
+                #     # Determine the dimensions of the data
+                #     rows, cols = sum_bottom.shape
+
+                #     # Create grid coordinates
+                #     x, y = np.indices((rows, cols))
+
+                #     # Flatten the arrays and select valid points
+                #     x_flat = x.flatten()
+                #     y_flat = y.flatten()
+                #     sum_top_flat = sum_top.flatten()
+                #     sum_bottom_flat = sum_bottom.flatten()
+
+                #     # Identify valid points where sum_bottom is not zero
+                #     valid_indices = sum_bottom_flat > 0
+                #     x_valid = x_flat[valid_indices]
+                #     y_valid = y_flat[valid_indices]
+                #     z_valid = (
+                #         sum_top_flat[valid_indices] / sum_bottom_flat[valid_indices]
+                #     )
+
+                #     # Create the RBF interpolator
+                #     rbf = Rbf(x_valid, y_valid, z_valid, function="linear")
+
+                #     # Generate the grid of coordinates for interpolation
+                #     xi, yi = np.indices((rows, cols))
+
+                #     # Interpolate the data over the full grid
+                #     plane_data_mean_overlap = rbf(xi, yi)
+
+                #     # plane_data_mean_overlap now contains the interpolated values
+
+                #     # To handle the areas where sum_bottom was zero, you may want to keep these as NaN or some default value.
+                #     plane_data_mean_overlap[sum_bottom == 0] = np.nan
+
+                #     return plane_data_mean_overlap
+
+                # plane_data_mean_overlap = radialbasisfunction_interpolation(
+                #     sum_top, sum_bottom
+                # )
+
+                # TODO: attempt at nearest neighbour interpolation
+                # def nearestneighbour_interpolation(sum_bottom, sum_top):
+                #     # Determine the dimensions of the data
+                #     rows, cols = sum_bottom.shape
+
+                #     # Create grid coordinates
+                #     x, y = np.indices((rows, cols))
+
+                #     # Flatten the arrays and select valid points
+                #     x_flat = x.flatten()
+                #     y_flat = y.flatten()
+                #     sum_top_flat = sum_top.flatten()
+                #     sum_bottom_flat = sum_bottom.flatten()
+
+                #     # Identify valid points where sum_bottom is not zero
+                #     valid_indices = sum_bottom_flat > 0
+                #     points = np.column_stack(
+                #         (x_flat[valid_indices], y_flat[valid_indices])
+                #     )
+                #     values = (
+                #         sum_top_flat[valid_indices] / sum_bottom_flat[valid_indices]
+                #     )
+
+                #     # Interpolation grid
+                #     xi, yi = np.indices((rows, cols))
+
+                #     # Perform Nearest Neighbour interpolation
+                #     plane_data_mean_overlap = griddata(
+                #         points, values, (xi, yi), method="nearest"
+                #     )
+
+                #     # Set areas where there was no valid data to NaN
+                #     plane_data_mean_overlap[sum_bottom == 0] = np.nan
+                #     return plane_data_mean_overlap
+
+                # plane_data_mean_overlap = nearestneighbour_interpolation(
+                #     sum_bottom, sum_top
+                # )
+
+                # print(f"shape bottom: {sum_bottom.shape}, shape top: {sum_top.shape}")
+                sum_bottom = np.where(sum_bottom == 0, np.nan, sum_bottom)
                 plane_data_mean_overlap = sum_top / sum_bottom
             # if is_valid column, don't take mean, simply take the is_valid counter
             else:
@@ -342,7 +471,7 @@ def process_all_dat_files(
 
         # Saving the data
         save_path = save_processed_folder + f"{y_num}.csv"
-        data_dict = {"x": x_global, "y": y_global}
+        data_dict = {"x": x_meshgrid_global.flatten(), "y": y_meshgrid_global.flatten()}
         # Add each MEANED variable's data to the dictionary
         for data, var_name in zip(
             all_6_plane_data_mean_overlap_k_list, variables_processed
@@ -408,7 +537,7 @@ if __name__ == "__main__":
     # Process all .dat files
     process_all_dat_files(
         variables_edited,
-        input_directory=sys.path[0] + "/data/test_y3/",
+        input_directory=sys.path[0] + "/data/test_y2/",
         lab_book_path=sys.path[0] + "/data/labbook_cleaned.csv",
         save_processed_folder=sys.path[0] + "/processed_data/",
         save_plots_folder=sys.path[0] + "/results/aoa_13/all_planes/",
