@@ -550,9 +550,9 @@ if __name__ == "__main__":
     # Process all .dat files
     process_all_dat_files(
         variables_edited,
-        input_directory=sys.path[0] + "/data/test_y2/",
+        input_directory=sys.path[0] + "/data/y3/",
         lab_book_path=sys.path[0] + "/data/labbook_cleaned.csv",
-        save_processed_folder=sys.path[0] + "/processed_data/y1_testing_for_edge_bug/",
+        save_processed_folder=sys.path[0] + "/processed_data/",
         # save_processed_folder=sys.path[0] + "/processed_data/",
         save_plots_folder=sys.path[0] + "/results/aoa_13/all_planes/",
         aoa_value=13.0,

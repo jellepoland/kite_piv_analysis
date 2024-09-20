@@ -417,29 +417,29 @@ if __name__ == "__main__":
     file_name = f"Y{y_num}"
     processed_data_path = sys.path[0] + f"/processed_data/{file_name}.csv"
     loaded_data = pd.read_csv(processed_data_path)
-    w_z_davis = griddata(
-        np.array([x_meshgrid_global.flatten(), y_meshgrid_global.flatten()]).T,
-        np.array(loaded_data["voriticity_jw_z"].values),
-        (x_meshgrid_global, y_meshgrid_global),
-        method="linear",
-    )
+    # w_z_davis = griddata(
+    #     np.array([x_meshgrid_global.flatten(), y_meshgrid_global.flatten()]).T,
+    #     np.array(loaded_data["voriticity_jw_z"].values),
+    #     (x_meshgrid_global, y_meshgrid_global),
+    #     method="linear",
+    # )
 
-    # Load the processed data
-    y_num = "3"
-    file_name = f"vorticity_jw_z/Y{y_num}"
-    processed_data_path = sys.path[0] + f"/processed_data/{file_name}.csv"
-    loaded_data = pd.read_csv(processed_data_path)
-    logging.debug(f"loaded_data:{loaded_data}")
+    # # Load the processed data
+    # y_num = "1"
+    # file_name = f"vorticity_jw_z/Y{y_num}"
+    # processed_data_path = sys.path[0] + f"/processed_data/{file_name}.csv"
+    # loaded_data = pd.read_csv(processed_data_path)
+    # logging.debug(f"loaded_data:{loaded_data}")
 
-    # Finding the difference in vorticity
-    w_z_calculated = griddata(
-        np.array([x_meshgrid_global.flatten(), y_meshgrid_global.flatten()]).T,
-        np.array(loaded_data["voriticity_jw_z"].values),
-        (x_meshgrid_global, y_meshgrid_global),
-        method="linear",
-    )
+    # # Finding the difference in vorticity
+    # w_z_calculated = griddata(
+    #     np.array([x_meshgrid_global.flatten(), y_meshgrid_global.flatten()]).T,
+    #     np.array(loaded_data["voriticity_jw_z"].values),
+    #     (x_meshgrid_global, y_meshgrid_global),
+    #     method="linear",
+    # )
 
-    print(f"Differences in vorticity: {np.nanmax(w_z_calculated - w_z_davis)}")
+    # print(f"Differences in vorticity: {np.nanmax(w_z_calculated - w_z_davis)}")
 
     for i in loaded_data.columns:
         logging.info(f"Column: {i}")
@@ -462,7 +462,7 @@ if __name__ == "__main__":
 
     # Create a PDF to save the plots
     save_plots_folder = sys.path[0] + "/results/aoa_13/"
-    plot_filename = "Y3_all_variables_new.pdf"
+    plot_filename = f"Y{y_num}_all_variables.pdf"
     pdf_path = save_plots_folder + plot_filename
 
     with PdfPages(pdf_path) as pdf:

@@ -65,7 +65,7 @@ def read_single_dat_file(
     if row.empty:
         labbook_dict["is_last_measurement"] = False
     else:
-        logging.info(
+        logging.debug(
             f"labbook: {row['file_name_labbook']}, case_name_davis: {case_name_davis}"
         )
         labbook_dict["is_last_measurement"] = True
@@ -109,8 +109,8 @@ def read_single_dat_file(
             value = float(aoa_value)
 
         if key == "vw" and value == "":
-            logging.info(f" -------------")
-            logging.info(f"case_name_davis: {case_name_davis}" f"Setting vw to 15.0")
+            logging.debug(f" -------------")
+            logging.debug(f"case_name_davis: {case_name_davis}" f"Setting vw to 15.0")
             value = 15.0
         # Convert the values to floats if they are supposed to be floats
         elif key in keys_that_are_floats and not value == "":
@@ -121,7 +121,7 @@ def read_single_dat_file(
         # appending the data to the dict
         labbook_dict[key] = value
 
-        logging.info(f"Adding key: {key}, value: {value}")
+        logging.debug(f"Adding key: {key}, value: {value}")
 
         # Stop after the z_plane_number key
         if key == "z_plane_number":
@@ -154,9 +154,9 @@ def read_single_dat_file(
     num_points_y = len(np.unique(y))
     num_points_y = 207
     y_resolution = y_range / (num_points_y)
-    logging.info(f"{x_range}, {num_points_y / y_range}")
-    logging.info(f"x_resolution: {x_resolution}")
-    logging.info(f"y_resolution: {y_resolution}")
+    logging.debug(f"{x_range}, {num_points_y / y_range}")
+    logging.debug(f"x_resolution: {x_resolution}")
+    logging.debug(f"y_resolution: {y_resolution}")
 
     # travering the y-values when needed
     if "flipped" in case_name_davis:
@@ -174,9 +174,9 @@ def read_single_dat_file(
     for k in range(2, len(variables_edited)):
         if variables_edited[k] in variables_needing_flipping:
             sign = -1
-            logging.info(f"flipped: {variables_edited[k]}")
+            logging.debug(f"flipped: {variables_edited[k]}")
         else:
-            logging.info(f"Not flipped var: {variables_edited[k]}")
+            logging.debug(f"Not flipped var: {variables_edited[k]}")
             sign = 1
 
         ##TODO: recalculating vorticity_jw_z
@@ -185,7 +185,7 @@ def read_single_dat_file(
             vorticity_before = data[:, k]
             data[:, k] = data[:, 8] - data[:, 7]
             vorticity_after = data[:, k]
-            print(f"difference: {np.max(vorticity_before - vorticity_after)}")
+            logging.debug(f"difference: {np.max(vorticity_before - vorticity_after)}")
 
         data_k = griddata(
             np.array([x, y]).T,
@@ -211,8 +211,8 @@ def read_single_dat_file(
         output.append(data_k)
 
     # logging
-    logging.info(f"x-range: {np.min(x)}, {np.max(x)}")
-    logging.info(f"y-range: {np.min(y)}, {np.max(y)}")
+    logging.debug(f"x-range: {np.min(x)}, {np.max(x)}")
+    logging.debug(f"y-range: {np.min(y)}, {np.max(y)}")
     print(f" ")
 
     return output
@@ -273,11 +273,13 @@ def process_planes(input_directory, lab_book_path, aoa_value, variables_edited):
 
     # loop through all the files in the input_directory, and read the 6 planes
     output_list = []
+    output_list_dat2 = []
+
     for root, _, files in os.walk(input_directory):
         for file in files:
             # Only consider normal values, and not standard deviation
             if file.endswith("1.dat"):
-                print(f"Processing file: {file}")
+                print(f"Processing file: {file}, dir: {root}")
                 file_path = os.path.join(root, file)
                 output = read_single_dat_file(
                     file_path,
@@ -286,11 +288,22 @@ def process_planes(input_directory, lab_book_path, aoa_value, variables_edited):
                     variables_edited,
                 )
                 output_list.append(output)
-    return output_list
+            if file.endswith("2.dat"):
+                print(f"Processing file: {file}, dir: {root}")
+                file_path = os.path.join(root, file)
+                output = read_single_dat_file(
+                    file_path,
+                    lab_book_path,
+                    aoa_value,
+                    variables_edited,
+                )
+                output_list_dat2.append(output)
+    return output_list, output_list_dat2
 
 
 def stitch_planes(
     y_grouped_filtered_data,
+    y_grouped_filtered_data_dat2,
     variables_edited,
     save_processed_folder,
 ):
@@ -298,7 +311,9 @@ def stitch_planes(
     # averaging the data
     index_of_is_valid = variables_edited.index("is_valid") - 2
     print(f"index_of_is_valid:{index_of_is_valid}")
-    for all_y_data in y_grouped_filtered_data:
+    print(f"len(y_grouped_filtered_data): {len(y_grouped_filtered_data)}")
+    print(f"len(y_grouped_filtered_data_dat2): {len(y_grouped_filtered_data_dat2)}")
+    for y_index, all_y_data in enumerate(y_grouped_filtered_data):
 
         y_num = all_y_data[0]
         all_6_plane_data = all_y_data[1:]
@@ -313,20 +328,42 @@ def stitch_planes(
         logging.info(f"k_num: {k_num}")
         logging.info(f"variables_processed: {variables_processed}")
 
+        # dealing with 2nd dat
+        all_6_plane_data_dat2 = y_grouped_filtered_data_dat2[y_index][1:]
+        logging.info(f"--> len(all_6_plane_data): {len(all_6_plane_data)}")
+        logging.info(f"--> len(all_6_plane_data_dat2): {len(all_6_plane_data_dat2)}")
+
         # looping through each variable k (that was present in the .dat file)
         for k in range(k_num):
             sum_top = 0
-            sum_bottom = 0
+            n_valid_points = 0
+            print(f"\n --- processing variable: {variables_processed[k]}, k: {k} --- ")
             # loop through each plane of data
-            for plane_idx, plane_data in enumerate(all_6_plane_data):
+            for plane_idx, (plane_data, plane_data_dat2) in enumerate(
+                zip(all_6_plane_data, all_6_plane_data_dat2)
+            ):
                 case_name = plane_data[0]
-                plane_data = plane_data[1:]
-                data_k = plane_data[k]
+                plane_data_filtered = plane_data[1:]
+                data_k = plane_data_filtered[k]
+
+                # for row in data_k:
+                #     print(f"row: {row}")
 
                 # Use the is_valid from .dat file to mask the data
-                # The is_valid column tells you whether a particular data point is valid or not (likely represented by non-zero values).
-                # the astype int, converts the boolean mask (True/False) to an integer mask (1 for valid data, 0 for invalid data).
-                mask = (plane_data[index_of_is_valid] != 0).astype(int)
+                #   The is_valid column tells you whether a particular data point is valid or not (likely represented by non-zero values).
+                #   the astype int, converts the boolean mask (True/False) to an integer mask (1 for valid data, 0 for invalid data).
+                mask = (plane_data_filtered[index_of_is_valid] != 0).astype(int)
+
+                # Using the standard deviations present in data_k_dat2 to further mask the data
+                plane_data_dat2_filtered = plane_data_dat2[1:]
+                mask = mask * (plane_data_dat2_filtered[k] < 1).astype(int)
+                # if variables_processed[k] == "vel_u":
+                #     mask = mask * (data_k[k] < 10).astype(int)
+                # elif variables_processed[k] == "vel_v":
+                #     mask = mask * (data_k[k] < 1).astype(int)
+
+                # if k < len(plane_data_dat2_filtered):
+                #     print(f"--> plane_data_dat2: {plane_data_dat2_filtered[k]}")
 
                 # Use the mask, to find only that data that is valid
                 #   For valid data points (where mask == 1), multiply the data_k values by the mask.
@@ -339,37 +376,135 @@ def stitch_planes(
                 #   so sum_bottom will contain the total number of valid data points for each position
                 #   the number of valid data points will be either 0,1,2,3,4 (max overlap)
                 #   This tracks how many planes have valid data at each data point (used later for averaging).
-                sum_bottom = sum_bottom + mask
+                n_valid_points += mask
 
                 # logging
                 logging.info(f"plane_idx: {plane_idx}, k:{k}")
-                logging.info(f"case_name: {case_name}")
-                logging.info(f"plane_data shape: {np.array(plane_data).shape}")
-                logging.info(f"data_k shape: {data_k.shape}")
+                # logging.info(f"case_name: {case_name}")
+                # logging.info(f"plane_data shape: {np.array(plane_data_filtered).shape}")
+                # logging.info(f"data_k shape: {data_k.shape}")
 
-            print(f"      --- variable: {variables_processed[k]} --- ")
             # calculting mean, when is not the is_valid variable (or column)
             if k != index_of_is_valid:
-                print(f"-- handling stichting for k: {k} --")
+                # print(f" --- handling stichting for k: {k} ---")
                 # Avoid division by zero, by setting all zeros to 1
                 #   this is not a problem as the sum top will be zero where sum_bottom is zero
                 #   Replacing zeros in sum_bottom with nan values
-                sum_bottom = np.where(sum_bottom == 0, np.nan, sum_bottom)
+                # n_valid_points = np.where(n_valid_points == 0, np.nan, n_valid_points)
 
                 # Calculate the mean overlap / average value
                 #   valid data divided by the number of valid data points
-                plane_data_mean_overlap = sum_top / sum_bottom
+                #   plane_data_mean_overlap = sum_top / n_valid_points
+                # plane_data_mean_overlap = sum_top
+
+                #### NEW CODE ####
+                from scipy.interpolate import NearestNDInterpolator
+                from scipy.spatial import cKDTree
+                import numpy as np
+
+                def nearest_neighbor_interpolation(
+                    x_mesh, y_mesh, z_values, valid_mask, num_neighbors=10
+                ):
+                    """
+                    Perform nearest neighbor interpolation on the grid.
+                    x_mesh, y_mesh: Meshgrid points (2D arrays)
+                    z_values: Values at the points (2D array)
+                    valid_mask: Boolean mask where values are valid (2D array)
+                    """
+                    # Flatten the meshgrid and values arrays
+                    x_flat = x_mesh.flatten()
+                    y_flat = y_mesh.flatten()
+                    z_flat = z_values.flatten()
+                    valid_mask_flat = valid_mask.flatten()
+
+                    # Get the valid points (x, y) and their corresponding values
+                    valid_points = np.column_stack(
+                        (x_flat[valid_mask_flat], y_flat[valid_mask_flat])
+                    )  # shape (n_valid_points, 2)
+                    valid_values = z_flat[valid_mask_flat]  # shape (n_valid_points,)
+
+                    # Build a k-d tree for fast neighbor lookup
+                    tree = cKDTree(valid_points)
+
+                    # Prepare for interpolating locally
+                    interpolated_values = (
+                        z_flat.copy()
+                    )  # Initialize with existing values
+
+                    # Loop over all points where valid_mask is False (i.e., where we need interpolation)
+                    for idx in np.where(~valid_mask_flat)[
+                        0
+                    ]:  # Iterate over indices where valid_mask_flat is False
+                        point = np.array([x_flat[idx], y_flat[idx]])
+
+                        # Find the `num_neighbors` nearest valid points to this point
+                        distances, neighbors_idx = tree.query(point, k=num_neighbors)
+
+                        # Get the values at these neighbors
+                        neighbor_points = valid_points[neighbors_idx]
+                        neighbor_values = valid_values[neighbors_idx]
+
+                        # Perform nearest neighbor interpolation using the `num_neighbors` closest points
+                        interpolator = NearestNDInterpolator(
+                            neighbor_points, neighbor_values
+                        )
+                        interpolated_values[idx] = interpolator(point)
+
+                    # Reshape interpolated values back to the original grid shape
+                    interpolated_values = interpolated_values.reshape(x_mesh.shape)
+
+                    return interpolated_values
+
+                # Initialize final mean overlap result
+                plane_data_mean_overlap = np.zeros_like(sum_top)
+
+                # Define mask for where n_valid_points is zero (i.e., no valid points)
+                mask_zero = n_valid_points == 0
+                plane_data_mean_overlap[mask_zero] = (
+                    np.nan
+                )  # Set to NaN or another flag for invalid data
+
+                # Define mask for where n_valid_points is 1 (i.e., only one valid point)
+                mask_one = n_valid_points == 1
+                plane_data_mean_overlap[mask_one] = sum_top[
+                    mask_one
+                ]  # Take the sum_top directly (since only one valid point)
+
+                # Define mask for where n_valid_points is > 1 (i.e., multiple valid points)
+                mask_more_than_one = (n_valid_points > 1).astype(int)
+
+                # Apply nearest neighbor interpolation for areas where n_valid_points > 1
+                if np.any(mask_more_than_one):
+                    x_meshgrid_global, y_meshgrid_global = define_global_mesh_grid()
+                    # Get the (x, y) points where the mask is True
+                    x_valid = x_meshgrid_global[mask_more_than_one]
+                    y_valid = y_meshgrid_global[mask_more_than_one]
+
+                    # Perform interpolation at these points only
+                    interpolated_values = nearest_neighbor_interpolation(
+                        x_meshgrid_global,
+                        y_meshgrid_global,
+                        sum_top,
+                        mask_more_than_one,
+                    )
+
+                    # Assign the interpolated values only to the masked locations
+                    plane_data_mean_overlap[mask_more_than_one] = interpolated_values[
+                        mask_more_than_one
+                    ]
+
+                ### ABOVE IS NEW CODE ###
 
             # if is_valid column, don't take mean, simply take the is_valid counter
             else:
-                plane_data_mean_overlap = sum_bottom
-            logging.info(
+                plane_data_mean_overlap = n_valid_points
+            logging.debug(
                 f"plane_data_mean_overlap: {plane_data_mean_overlap.shape}, max: {np.max(plane_data_mean_overlap)}, min: {np.min(plane_data_mean_overlap)}"
             )
 
             all_6_plane_data_mean_overlap_k_list.append(plane_data_mean_overlap)
 
-        logging.info(
+        logging.debug(
             f"all_6_plane_data_mean_overlap_k_list: {np.array(all_6_plane_data_mean_overlap_k_list).shape}"
         )
 
@@ -449,23 +584,29 @@ if __name__ == "__main__":
     aoa_value = 13
 
     # # Process the data
-    # output_list = process_planes(
+    # output_list, output_list_dat2 = process_planes(
     #     input_directory, lab_book_path, aoa_value, variables_edited
     # )
     # # Group the data on y-values
     # y_grouped_filtered_data = get_y_grouped_filtered_data(output_list)
+    # y_grouped_filtered_data_dat2 = get_y_grouped_filtered_data(output_list_dat2)
 
     # # save the data using pickle
     # with open(save_processed_folder + "y_grouped_filtered_data.pkl", "wb") as f:
     #     pickle.dump(y_grouped_filtered_data, f)
+    # with open(save_processed_folder + "y_grouped_filtered_data_dat2.pkl", "wb") as f:
+    #     pickle.dump(y_grouped_filtered_data_dat2, f)
 
     # load the data using pickle
     with open(save_processed_folder + "y_grouped_filtered_data.pkl", "rb") as f:
         y_grouped_filtered_data = pickle.load(f)
+    with open(save_processed_folder + "y_grouped_filtered_data_dat2.pkl", "rb") as f:
+        y_grouped_filtered_data_dat2 = pickle.load(f)
 
     # Stich the data together
     df_stichted = stitch_planes(
         y_grouped_filtered_data,
+        y_grouped_filtered_data_dat2,
         variables_edited,
         save_processed_folder,
     )
@@ -502,7 +643,9 @@ if __name__ == "__main__":
         plot_type=".pdf",
         min_cbar_value=0.75,
         max_cbar_value=1.25,
-        max_mask_value=1.75,
-        min_mask_value=0.75,
+        max_mask_value=5,  # 1.75,
+        min_mask_value=0.05,  # 0.75,
         title="y2_testing_for_edge_bug",
+        cmap="viridis",
     )
+    plt.show()
