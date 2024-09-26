@@ -279,6 +279,7 @@ def process_all_dat_files(
     y5_data_list = ["Y5"]
     y6_data_list = ["Y6"]
     y7_data_list = ["Y7"]
+    y8_data_list = ["Y8"]
     for output in output_list:
         case_name_davis = str(output[0])
         logging.info(f"--- case_name_davis: {case_name_davis}")
@@ -296,6 +297,8 @@ def process_all_dat_files(
             y6_data_list.append(output[:])
         elif "Y7" in case_name_davis:
             y7_data_list.append(output[:])
+        elif "Y8" in case_name_davis:
+            y7_data_list.append(output[:])
 
     y_grouped_data = [
         y1_data_list,
@@ -305,6 +308,7 @@ def process_all_dat_files(
         y5_data_list,
         y6_data_list,
         y7_data_list,
+        y8_data_list,
     ]
     y_grouped_filtered_data = []
     for all_y_data in y_grouped_data:
@@ -550,7 +554,7 @@ if __name__ == "__main__":
     # Process all .dat files
     process_all_dat_files(
         variables_edited,
-        input_directory=sys.path[0] + "/data/y3/",
+        input_directory=sys.path[0] + "/data/y8/",
         lab_book_path=sys.path[0] + "/data/labbook_cleaned.csv",
         save_processed_folder=sys.path[0] + "/processed_data/",
         # save_processed_folder=sys.path[0] + "/processed_data/",

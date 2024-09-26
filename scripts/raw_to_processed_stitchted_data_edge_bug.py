@@ -394,106 +394,106 @@ def stitch_planes(
 
                 # Calculate the mean overlap / average value
                 #   valid data divided by the number of valid data points
-                #   plane_data_mean_overlap = sum_top / n_valid_points
+                plane_data_mean_overlap = sum_top / n_valid_points
                 # plane_data_mean_overlap = sum_top
 
-                #### NEW CODE ####
-                from scipy.interpolate import NearestNDInterpolator
-                from scipy.spatial import cKDTree
-                import numpy as np
+                # #### NEW CODE ####
+                # from scipy.interpolate import NearestNDInterpolator
+                # from scipy.spatial import cKDTree
+                # import numpy as np
 
-                def nearest_neighbor_interpolation(
-                    x_mesh, y_mesh, z_values, valid_mask, num_neighbors=10
-                ):
-                    """
-                    Perform nearest neighbor interpolation on the grid.
-                    x_mesh, y_mesh: Meshgrid points (2D arrays)
-                    z_values: Values at the points (2D array)
-                    valid_mask: Boolean mask where values are valid (2D array)
-                    """
-                    # Flatten the meshgrid and values arrays
-                    x_flat = x_mesh.flatten()
-                    y_flat = y_mesh.flatten()
-                    z_flat = z_values.flatten()
-                    valid_mask_flat = valid_mask.flatten()
+                # def nearest_neighbor_interpolation(
+                #     x_mesh, y_mesh, z_values, valid_mask, num_neighbors=10
+                # ):
+                #     """
+                #     Perform nearest neighbor interpolation on the grid.
+                #     x_mesh, y_mesh: Meshgrid points (2D arrays)
+                #     z_values: Values at the points (2D array)
+                #     valid_mask: Boolean mask where values are valid (2D array)
+                #     """
+                #     # Flatten the meshgrid and values arrays
+                #     x_flat = x_mesh.flatten()
+                #     y_flat = y_mesh.flatten()
+                #     z_flat = z_values.flatten()
+                #     valid_mask_flat = valid_mask.flatten()
 
-                    # Get the valid points (x, y) and their corresponding values
-                    valid_points = np.column_stack(
-                        (x_flat[valid_mask_flat], y_flat[valid_mask_flat])
-                    )  # shape (n_valid_points, 2)
-                    valid_values = z_flat[valid_mask_flat]  # shape (n_valid_points,)
+                #     # Get the valid points (x, y) and their corresponding values
+                #     valid_points = np.column_stack(
+                #         (x_flat[valid_mask_flat], y_flat[valid_mask_flat])
+                #     )  # shape (n_valid_points, 2)
+                #     valid_values = z_flat[valid_mask_flat]  # shape (n_valid_points,)
 
-                    # Build a k-d tree for fast neighbor lookup
-                    tree = cKDTree(valid_points)
+                #     # Build a k-d tree for fast neighbor lookup
+                #     tree = cKDTree(valid_points)
 
-                    # Prepare for interpolating locally
-                    interpolated_values = (
-                        z_flat.copy()
-                    )  # Initialize with existing values
+                #     # Prepare for interpolating locally
+                #     interpolated_values = (
+                #         z_flat.copy()
+                #     )  # Initialize with existing values
 
-                    # Loop over all points where valid_mask is False (i.e., where we need interpolation)
-                    for idx in np.where(~valid_mask_flat)[
-                        0
-                    ]:  # Iterate over indices where valid_mask_flat is False
-                        point = np.array([x_flat[idx], y_flat[idx]])
+                #     # Loop over all points where valid_mask is False (i.e., where we need interpolation)
+                #     for idx in np.where(~valid_mask_flat)[
+                #         0
+                #     ]:  # Iterate over indices where valid_mask_flat is False
+                #         point = np.array([x_flat[idx], y_flat[idx]])
 
-                        # Find the `num_neighbors` nearest valid points to this point
-                        distances, neighbors_idx = tree.query(point, k=num_neighbors)
+                #         # Find the `num_neighbors` nearest valid points to this point
+                #         distances, neighbors_idx = tree.query(point, k=num_neighbors)
 
-                        # Get the values at these neighbors
-                        neighbor_points = valid_points[neighbors_idx]
-                        neighbor_values = valid_values[neighbors_idx]
+                #         # Get the values at these neighbors
+                #         neighbor_points = valid_points[neighbors_idx]
+                #         neighbor_values = valid_values[neighbors_idx]
 
-                        # Perform nearest neighbor interpolation using the `num_neighbors` closest points
-                        interpolator = NearestNDInterpolator(
-                            neighbor_points, neighbor_values
-                        )
-                        interpolated_values[idx] = interpolator(point)
+                #         # Perform nearest neighbor interpolation using the `num_neighbors` closest points
+                #         interpolator = NearestNDInterpolator(
+                #             neighbor_points, neighbor_values
+                #         )
+                #         interpolated_values[idx] = interpolator(point)
 
-                    # Reshape interpolated values back to the original grid shape
-                    interpolated_values = interpolated_values.reshape(x_mesh.shape)
+                #     # Reshape interpolated values back to the original grid shape
+                #     interpolated_values = interpolated_values.reshape(x_mesh.shape)
 
-                    return interpolated_values
+                #     return interpolated_values
 
-                # Initialize final mean overlap result
-                plane_data_mean_overlap = np.zeros_like(sum_top)
+                # # Initialize final mean overlap result
+                # plane_data_mean_overlap = np.zeros_like(sum_top)
 
-                # Define mask for where n_valid_points is zero (i.e., no valid points)
-                mask_zero = n_valid_points == 0
-                plane_data_mean_overlap[mask_zero] = (
-                    np.nan
-                )  # Set to NaN or another flag for invalid data
+                # # Define mask for where n_valid_points is zero (i.e., no valid points)
+                # mask_zero = n_valid_points == 0
+                # plane_data_mean_overlap[mask_zero] = (
+                #     np.nan
+                # )  # Set to NaN or another flag for invalid data
 
-                # Define mask for where n_valid_points is 1 (i.e., only one valid point)
-                mask_one = n_valid_points == 1
-                plane_data_mean_overlap[mask_one] = sum_top[
-                    mask_one
-                ]  # Take the sum_top directly (since only one valid point)
+                # # Define mask for where n_valid_points is 1 (i.e., only one valid point)
+                # mask_one = n_valid_points == 1
+                # plane_data_mean_overlap[mask_one] = sum_top[
+                #     mask_one
+                # ]  # Take the sum_top directly (since only one valid point)
 
-                # Define mask for where n_valid_points is > 1 (i.e., multiple valid points)
-                mask_more_than_one = (n_valid_points > 1).astype(int)
+                # # Define mask for where n_valid_points is > 1 (i.e., multiple valid points)
+                # mask_more_than_one = (n_valid_points > 1).astype(int)
 
-                # Apply nearest neighbor interpolation for areas where n_valid_points > 1
-                if np.any(mask_more_than_one):
-                    x_meshgrid_global, y_meshgrid_global = define_global_mesh_grid()
-                    # Get the (x, y) points where the mask is True
-                    x_valid = x_meshgrid_global[mask_more_than_one]
-                    y_valid = y_meshgrid_global[mask_more_than_one]
+                # # Apply nearest neighbor interpolation for areas where n_valid_points > 1
+                # if np.any(mask_more_than_one):
+                #     x_meshgrid_global, y_meshgrid_global = define_global_mesh_grid()
+                #     # Get the (x, y) points where the mask is True
+                #     x_valid = x_meshgrid_global[mask_more_than_one]
+                #     y_valid = y_meshgrid_global[mask_more_than_one]
 
-                    # Perform interpolation at these points only
-                    interpolated_values = nearest_neighbor_interpolation(
-                        x_meshgrid_global,
-                        y_meshgrid_global,
-                        sum_top,
-                        mask_more_than_one,
-                    )
+                #     # Perform interpolation at these points only
+                #     interpolated_values = nearest_neighbor_interpolation(
+                #         x_meshgrid_global,
+                #         y_meshgrid_global,
+                #         sum_top,
+                #         mask_more_than_one,
+                #     )
 
-                    # Assign the interpolated values only to the masked locations
-                    plane_data_mean_overlap[mask_more_than_one] = interpolated_values[
-                        mask_more_than_one
-                    ]
+                #     # Assign the interpolated values only to the masked locations
+                #     plane_data_mean_overlap[mask_more_than_one] = interpolated_values[
+                #         mask_more_than_one
+                #     ]
 
-                ### ABOVE IS NEW CODE ###
+                # ### ABOVE IS NEW CODE ###
 
             # if is_valid column, don't take mean, simply take the is_valid counter
             else:
