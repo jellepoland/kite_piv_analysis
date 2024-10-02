@@ -156,11 +156,85 @@ from vtk.util import numpy_support
 import numpy as np
 
 
+def map_headers(data_dict, points):
+    """Map OpenFOAM headers to desired format and reorganize data accordingly."""
+    new_data = {}
+
+    # Velocity components
+    if "U" in data_dict:
+        new_data["vel_u"] = data_dict["U"][:, 0]
+        new_data["vel_v"] = data_dict["U"][:, 1]
+        new_data["vel_w"] = data_dict["U"][:, 2]
+        # Calculate velocity magnitude
+        new_data["vel_mag"] = np.sqrt(np.sum(data_dict["U"] ** 2, axis=1))
+
+    # Velocity gradients
+    if "grad(U)" in data_dict:
+        grad_u = data_dict["grad(U)"].reshape(-1, 3, 3)
+        new_data["du_dx"] = grad_u[:, 0, 0]
+        new_data["du_dy"] = grad_u[:, 0, 1]
+        new_data["dv_dx"] = grad_u[:, 1, 0]
+        new_data["dv_dy"] = grad_u[:, 1, 1]
+        new_data["dw_dx"] = grad_u[:, 2, 0]
+        new_data["dw_dy"] = grad_u[:, 2, 1]
+
+    # Vorticity
+    if "vorticity" in data_dict:
+        new_data["vorticity_jw_z"] = data_dict["vorticity"][:, 2]
+        new_data["vorticity_jmag"] = np.sqrt(
+            np.sum(data_dict["vorticity"] ** 2, axis=1)
+        )
+
+    # Define the desired order of headers
+    header_order = [
+        "x",
+        "y",
+        "z",
+        "vel_u",
+        "vel_v",
+        "vel_w",
+        "vel_mag",
+        "du_dx",
+        "du_dy",
+        "dv_dx",
+        "dv_dy",
+        "dw_dx",
+        "dw_dy",
+        "vorticity_jw_z",
+        "vorticity_jmag",
+    ]
+
+    # Create the final data array in the correct order
+    data_columns = [points[:, 0], points[:, 1], points[:, 2]]  # x, y, z
+    final_headers = ["x", "y", "z"]
+
+    for header in header_order[3:]:  # Skip x, y, z as they're already added
+        if header in new_data:
+            data_columns.append(new_data[header])
+            final_headers.append(header)
+
+    return np.column_stack(data_columns), final_headers
+
+
 def scale_data(points, scale_factor=6.5):
     """Scale spatial dimensions by the given factor."""
     scaled_points = points.copy()
     scaled_points *= scale_factor
     return scaled_points
+
+
+def scaling_velocity(data_array, headers, vel_scaling=15):
+    """Scale velocity components in the data array by the given factor, ignoring x, y, z columns."""
+
+    # Find the indices of velocity-related columns (anything except 'x', 'y', 'z')
+    velocity_indices = [
+        i for i, header in enumerate(headers) if header not in ["x", "y", "z"]
+    ]
+
+    # Scale the velocity components by the given factor
+    data_array[:, velocity_indices] *= vel_scaling
+
+    return data_array
 
 
 def filter_data(points, data_dict, x_range=(-3, 10), y_range=(-3.5, 3.5)):
@@ -176,7 +250,7 @@ def filter_data(points, data_dict, x_range=(-3, 10), y_range=(-3.5, 3.5)):
     return filtered_points, filtered_data_dict
 
 
-def extract_data(file_path, save_dir, z_plane_origin=1):
+def extract_data(file_path, save_dir, z_plane_origin=1e-8):
     # Load OpenFOAM case
     foam_case = OpenFOAMReader(FileName=file_path)
     foam_case.UpdatePipeline()
@@ -235,50 +309,40 @@ def extract_data(file_path, save_dir, z_plane_origin=1):
                 scale_points, data_dict
             )
 
-            # Save filtered data
-            save_path = Path(save_dir)
-            save_path.mkdir(parents=True, exist_ok=True)
+    # printing variable_names from filtered_data_dict
+    print(filtered_data_dict.keys())
 
-            # Create the header dynamically based on variable dimensions
-            header = ["x", "y", "z"]
-            data_columns = [scaled_filtered_points]
+    # After filtering data, but before saving:
+    mapped_data, mapped_headers = map_headers(
+        filtered_data_dict, scaled_filtered_points
+    )
 
-            for var_name, data in filtered_data_dict.items():
-                if data.ndim == 1:  # Scalar field
-                    header.append(var_name)
-                    data_columns.append(data)
-                elif data.ndim == 2:  # Vector or tensor field
-                    for i in range(data.shape[1]):
-                        header.append(f"{var_name}_component{i}")
-                    data_columns.append(data)
+    # scaling velocity components
+    mapped_data = scaling_velocity(mapped_data, mapped_headers)
 
-            save_points = np.column_stack(data_columns)
+    # Save as CSV files with comma delimiter
+    np.savetxt(
+        save_dir / "filtered_slice_data.csv",
+        mapped_data,
+        delimiter=",",  # Use comma delimiter to match the working CSV format
+        header=",".join(mapped_headers),  # Use commas in the header as well
+        comments="",  # This ensures the header is written without a # symbol
+    )
 
-            # Save as CSV files
-            np.savetxt(
-                save_path / "filtered_slice_data.csv",
-                save_points,
-                delimiter=",",
-                header=",".join(header),
-            )
+    print(f"Data extracted, scaled, and filtered successfully!")
+    print(f"Scaling factor applied: 6.5")
+    print(f"Number of points before filtering: {len(points)}")
+    print(f"Number of points after filtering: {len(scaled_filtered_points)}")
+    print(f"Filtered data saved to: {save_dir / 'filtered_slice_data.csv'}")
 
-            print(f"Data extracted, scaled, and filtered successfully!")
-            print(f"Scaling factor applied: 6.5")
-            print(f"Number of points before filtering: {len(points)}")
-            print(f"Number of points after filtering: {len(scaled_filtered_points)}")
-            print(f"Filtered data saved to: {save_path / 'filtered_slice_data.csv'}")
-
-            return scaled_filtered_points, filtered_data_dict
-
-    print("No valid data found in the slice.")
-    return None, None
+    return scaled_filtered_points, filtered_data_dict
 
 
 if __name__ == "__main__":
     file_path = "/home/jellepoland/ownCloud/phd/data/V3A/Lebesque_folder/results/1e6/6/foam.foam"
 
     # Go back to root folder
-    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     sys.path.insert(0, root_path)
     save_dir = Path(root_path) / "processed_data" / "CFD"
 

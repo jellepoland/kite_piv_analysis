@@ -407,12 +407,16 @@ if __name__ == "__main__":
     # Set up logging
     logging.basicConfig(level=logging.INFO)
 
-    # Load the processed data
+    save_dir = sys.path[0] + f"/results/aoa_13/"
+
+    # # Load the processed data
     y_num = "3"
     file_name = f"Y{y_num}"
     processed_data_path = sys.path[0] + f"/processed_data/{file_name}.csv"
     loaded_data = pd.read_csv(processed_data_path)
     logging.info(f"loaded_data:{loaded_data}")
+    logging.info(f"loaded_data.keys: {loaded_data.keys()}")
+
     x_global = np.arange(-210, 840, 2.4810164835164836)
     y_global = np.arange(-205, 405, 2.4810164835164836)
     x_meshgrid_global, y_meshgrid_global = np.meshgrid(x_global, y_global)
@@ -430,22 +434,197 @@ if __name__ == "__main__":
         method="linear",
     )
 
-    saving_a_plot(
-        x_meshgrid_global=x_meshgrid_global,
-        y_meshgrid_global=y_meshgrid_global,
-        u_for_quiver=vel_u_on_meshgrid_global,
-        v_for_quiver=vel_v_on_meshgrid_global,
-        color_data=vel_u_on_meshgrid_global / 15.0,
-        save_plots_folder=sys.path[0] + "/results/aoa_13/",
-        plot_type=".pdf",
-        min_cbar_value=0.75,
-        max_cbar_value=1.25,
-        max_mask_value=1.75,
-        min_mask_value=0.75,
-        title=file_name,
+    vel_u_values = loaded_data["vel_u"].values
+    vel_v_values = loaded_data["vel_v"].values
+    # omitting the nan values
+    vel_u_values = vel_u_values[~np.isnan(vel_u_values)]
+    vel_v_values = vel_v_values[~np.isnan(vel_v_values)]
+    logging.info(
+        f"vel_u | average: {np.average(vel_u_values)} min: {np.min(vel_u_values)}, max: {np.max(vel_u_values)}"
+    )
+    logging.info(
+        f"vel_v | average: {np.average(vel_v_values)} min: {np.min(vel_v_values)}, max: {np.max(vel_v_values)}"
     )
 
-    print(f"len(x_meshgrid_global): {len(x_global)*len(y_global)}")
+    # # ### For OPENFOAM
+    save_dir = sys.path[0] + f"/results/"
+    file_name = "CFD/y0"
+    processed_data_path = sys.path[0] + f"/processed_data/CFD/y0_paraview_corrected.csv"
+    loaded_data = pd.read_csv(processed_data_path)
+
+    # Changing from m to mm
+    # loaded_data["x"] = loaded_data["x"] * 100
+    # loaded_data["y"] = loaded_data["y"] * 100
+    x_global = np.arange(-210, 840, 2.4810164835164836) / 1000
+    y_global = np.arange(-205, 405, 2.4810164835164836) / 1000
+    x_meshgrid_global, y_meshgrid_global = np.meshgrid(x_global, y_global)
+
+    # Extract x and y values from the loaded data
+    x_loaded = loaded_data["x"].values
+    y_loaded = loaded_data["y"].values
+
+    # Create a meshgrid from x and y in loaded_data
+    points_loaded = np.array([x_loaded, y_loaded]).T  # Create an array of points
+
+    # Ensure the values you're interpolating are valid (no NaNs)
+    vel_u_values = loaded_data["vel_u"].values
+    vel_v_values = loaded_data["vel_v"].values
+
+    # Scatter plot of vel_u with x and y positions
+    plt.figure(figsize=(10, 6))
+    scatter = plt.scatter(
+        x_loaded, y_loaded, c=loaded_data["vel_mag"], cmap="viridis", vmin=10, vmax=20
+    )
+
+    plt.colorbar(scatter, label="Velocity (u)")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title("Scatter plot of velocity (u) with x and y positions")
+    plt.show()
+
+    logging.info(
+        f"vel_u | average: {np.average(vel_u_values)} min: {np.min(vel_u_values)}, max: {np.max(vel_u_values)}"
+    )
+    logging.info(
+        f"vel_v | average: {np.average(vel_v_values)} min: {np.min(vel_v_values)}, max: {np.max(vel_v_values)}"
+    )
+
+    plt.figure(figsize=(10, 6))
+    plt.hist2d(x_loaded, y_loaded, bins=50)
+    plt.colorbar(label="Point density")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title("Distribution of input points")
+    plt.show()
+
+    # # Perform interpolation onto the global meshgrid
+    # vel_u_on_meshgrid_global = griddata(
+    #     points_loaded,
+    #     vel_u_values,
+    #     (x_meshgrid_global, y_meshgrid_global),  # Global meshgrid
+    #     method="linear",
+    # )
+
+    # vel_v_on_meshgrid_global = griddata(
+    #     points_loaded,
+    #     vel_v_values,
+    #     (x_meshgrid_global, y_meshgrid_global),  # Global meshgrid
+    #     method="linear",
+    # )
+
+    def fast_interpolate(
+        loaded_data,
+        x_meshgrid_global,
+        y_meshgrid_global,
+        method="linear",
+        reduce_resolution=True,
+    ):
+        # Extract data
+        x_loaded = loaded_data["x"].values
+        y_loaded = loaded_data["y"].values
+        points_loaded = np.array([x_loaded, y_loaded]).T
+
+        # Calculate velocity magnitude
+        vel_u_values = loaded_data["vel_u"].values
+        vel_v_values = loaded_data["vel_v"].values
+        vel_mag = np.sqrt(vel_u_values**2 + vel_v_values**2)
+
+        # Optionally reduce meshgrid resolution for faster interpolation
+        if reduce_resolution:
+            x_reduced = np.linspace(
+                x_meshgrid_global.min(), x_meshgrid_global.max(), 100
+            )
+            y_reduced = np.linspace(
+                y_meshgrid_global.min(), y_meshgrid_global.max(), 100
+            )
+            x_mesh_reduced, y_mesh_reduced = np.meshgrid(x_reduced, y_reduced)
+        else:
+            x_mesh_reduced, y_mesh_reduced = x_meshgrid_global, y_meshgrid_global
+
+        # Perform interpolation
+        print(f"points_loaded: {points_loaded.shape}")
+        print(f"vel_mag: {vel_mag.shape}")
+        print(f"x_mesh_reduced: {x_mesh_reduced.shape}")
+        vel_mag_interp = griddata(
+            points_loaded, vel_mag, (x_mesh_reduced, y_mesh_reduced), method=method
+        )
+
+        # Plot original and interpolated data
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+
+        # Original scatter plot
+        scatter1 = ax1.scatter(
+            x_loaded, y_loaded, c=vel_mag, cmap="viridis", vmin=10, vmax=20
+        )
+        ax1.set_title("Original Data")
+        plt.colorbar(scatter1, ax=ax1)
+
+        # Interpolated plot
+        im = ax2.pcolormesh(
+            x_mesh_reduced,
+            y_mesh_reduced,
+            vel_mag_interp,
+            cmap="viridis",
+            vmin=10,
+            vmax=20,
+        )
+        ax2.set_title(f"Interpolated Data ({method})")
+        plt.colorbar(im, ax=ax2)
+
+        plt.tight_layout()
+        plt.show()
+
+        return x_mesh_reduced, y_mesh_reduced, vel_mag_interp
+
+    # Example usage
+    from scipy.interpolate import (
+        griddata,
+        LinearNDInterpolator,
+        CloughTocher2DInterpolator,
+    )
+
+    interpolation_methods = {
+        "linear": griddata,
+        "cubic": griddata,
+        "nearest": griddata,
+        "linear_nd": LinearNDInterpolator,
+        "clough_tocher": CloughTocher2DInterpolator,
+    }
+    x_interp, y_interp, vel_interp = fast_interpolate(
+        loaded_data,
+        x_meshgrid_global,
+        y_meshgrid_global,
+        method="linear",  # Try 'nearest' if 'linear' is too slow
+        reduce_resolution=False,
+    )
+
+    # from scipy.interpolate import Rbf
+
+    # rbf_u = Rbf(x_loaded, y_loaded, vel_u_values, function="multiquadric")
+    # rbf_v = Rbf(x_loaded, y_loaded, vel_v_values, function="multiquadric")
+
+    # vel_u_rbf = rbf_u(x_meshgrid_global, y_meshgrid_global)
+    # vel_v_rbf = rbf_v(x_meshgrid_global, y_meshgrid_global)
+
+    # vel_u_on_meshgrid_global = vel_u_rbf
+    # vel_v_on_meshgrid_global = vel_v_rbf
+
+    # saving_a_plot(
+    #     x_meshgrid_global=x_meshgrid_global,
+    #     y_meshgrid_global=y_meshgrid_global,
+    #     u_for_quiver=vel_u_on_meshgrid_global,
+    #     v_for_quiver=vel_v_on_meshgrid_global,
+    #     color_data=vel_u_on_meshgrid_global / 15.0,
+    #     save_plots_folder=save_dir,
+    #     plot_type=".pdf",
+    #     min_cbar_value=0.75,
+    #     max_cbar_value=1.25,
+    #     max_mask_value=1.75,
+    #     min_mask_value=0.75,
+    #     title=file_name,
+    # )
+
+    # print(f"len(x_meshgrid_global): {len(x_global)*len(y_global)}")
 
     # plot_quiver(
     #     loaded_data["x"].values,

@@ -40,6 +40,8 @@ def plot_slice_data(csv_file):
 
     # Plot normalized u-component
     ax1 = fig.add_subplot(221)
+    mask = (u_norm > 0.8) & (u_norm < 1.2)
+    u_norm = u_norm[mask]
     u_contour = ax1.tricontourf(
         x, y, u_norm, levels=20, cmap="coolwarm", vmin=u_norm.min(), vmax=u_norm.max()
     )
@@ -62,14 +64,16 @@ def plot_slice_data(csv_file):
 
     # Plot velocity magnitude
     ax3 = fig.add_subplot(223)
+    velocity_magnitude = velocity_magnitude / np.average(velocity_magnitude)
+    mask = (velocity_magnitude > 0.9) & (velocity_magnitude < 1.1)
     magnitude_contour = ax3.tricontourf(
-        x,
-        y,
-        velocity_magnitude,
-        levels=20,
+        x[mask],
+        y[mask],
+        velocity_magnitude[mask],
+        levels=200,
         cmap="viridis",
-        vmin=velocity_magnitude.min(),
-        vmax=velocity_magnitude.max(),
+        # vmin=0.9,  # velocity_magnitude.min(),
+        # vmax=1.1,  # velocity_magnitude.max(),
     )
     plt.colorbar(magnitude_contour, ax=ax3, label="Velocity Magnitude")
     ax3.set_title("Velocity Magnitude")
@@ -96,7 +100,7 @@ def plot_slice_data(csv_file):
 
 
 if __name__ == "__main__":
-    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     sys.path.insert(0, root_path)
     save_dir = Path(root_path) / "processed_data" / "CFD" / "filtered_slice_data.csv"
     plot_slice_data(save_dir)
