@@ -29,9 +29,23 @@ def plot_airfoil(
         x_pos = 0.015
         y_pos = 0.13
     elif y_num == 2:
-        x_pos = 11
-        y_pos = 12
-    # Add more Y-number cases as needed
+        x_pos = 0.015
+        y_pos = 0.13
+    elif y_num == 3:
+        x_pos = 0.015
+        y_pos = 0.13
+    elif y_num == 4:
+        x_pos = 0.015
+        y_pos = 0.13
+    elif y_num == 5:
+        x_pos = 0.015
+        y_pos = 0.13
+    elif y_num == 6:
+        x_pos = 0.015
+        y_pos = 0.13
+    elif y_num == 7:
+        x_pos = 0.015
+        y_pos = 0.13
     else:
         raise ValueError(f"Y{y_num} is not defined with an x and y position")
 
@@ -236,4 +250,4 @@ def main(
 
 if __name__ == "__main__":
     project_dir = "/home/jellepoland/ownCloud/phd/code/kite_piv_analysis"
-    main(y_num=1, alpha=6, project_dir=project_dir)
+    main(y_num=7, alpha=6, project_dir=project_dir)
