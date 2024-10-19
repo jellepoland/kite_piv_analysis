@@ -6,6 +6,102 @@ import matplotlib.ticker as mticker
 from matplotlib.colors import Normalize
 from pathlib import Path
 import pandas as pd
+import os
+from io import StringIO
+
+
+def overlay_raw_image(
+    y_num: int,
+    alpha: int,
+    project_dir: Path,
+    ax,
+    d_alpha_rod: float,
+    overlay_alpha: float = 0.1,
+    subsample_factor: int = 500,
+    intensity_lower_bound: int = 10000,
+):
+    # Defining the folder
+    raw_image_dir = Path(project_dir) / "data" / "raw_images"
+    # Find the folder with the specific conditions
+    matched_folder = None
+    for folder_name in os.listdir(raw_image_dir):
+        print(f"folder_name: {folder_name}")
+        if (
+            folder_name.startswith(f"normal_aoa_{int(alpha+d_alpha_rod)}")
+            and f"Y{y_num}" in folder_name
+        ):
+            matched_folder = folder_name
+            break
+
+    # If no folder is found, raise an error
+    if matched_folder is None:
+        raise FileNotFoundError(
+            f"No matching folder found for alpha={alpha} and Y{y_num}"
+        )
+    else:
+        print(f'Found folder "{matched_folder}"')
+
+    # Construct the path to the B0001.dat file
+    dat_file_path = Path(raw_image_dir) / matched_folder / "B0001.dat"
+
+    def read_correct_camera_data(dat_file_path):
+        with open(dat_file_path, "r") as f:
+            content = f.read().strip().split("\n\n")  # Split content by double newline
+
+        df_list = []
+        for content_i in content:
+            df = pd.read_csv(
+                StringIO(content_i),
+                sep="\s+",
+                skiprows=5,  # Skip header rows
+                names=["x [mm]", "y [mm]", "Intensity [counts]", "isValid"],
+                on_bad_lines="skip",
+            )
+            df_list.append(df)
+
+        df = pd.concat(df_list)
+        return df
+
+    # Read the B0001.dat file
+    df = read_correct_camera_data(dat_file_path)
+
+    # Drop rows with invalid data
+    df = df[df["isValid"] == 1]
+
+    # Drop rows with intensity values below a threshold
+    df = df[df["Intensity [counts]"] > intensity_lower_bound]
+
+    # Use .loc[] to modify the "x [mm]" column safely
+    df["x [mm]"] = pd.to_numeric(df["x [mm]"], errors="coerce")
+    df["y [mm]"] = pd.to_numeric(df["y [mm]"], errors="coerce")
+    df["Intensity [counts]"] = pd.to_numeric(df["Intensity [counts]"], errors="coerce")
+
+    # Subsample the data
+    df_subsampled = df.iloc[::subsample_factor, :]
+
+    # change x-locations
+    df_subsampled.loc[:, "x [mm]"] += 300
+
+    # change y-locations
+    # Assuming 'y [mm]' is the column name for y-values
+    ymin = df_subsampled["y [mm]"].min()
+    ymax = df_subsampled["y [mm]"].max()
+    ymid = (ymin + ymax) / 2
+    print(f"ymin: {ymin}, ymax: {ymax}, ymid: {ymid}")
+    df_subsampled.loc[:, "y [mm]"] -= ymid
+
+    # Plot the intensity values as an overlay
+    sc = ax.scatter(
+        df_subsampled["x [mm]"] / 1e3,
+        df_subsampled["y [mm]"] / 1e3,
+        c=df_subsampled["Intensity [counts]"],
+        cmap="gray",
+        alpha=overlay_alpha,
+        s=0.1,  # Adjust point size if needed
+    )
+
+    # # Add a colorbar for intensity values
+    plt.colorbar(sc, ax=ax, label="Intensity [counts]")
 
 
 def plot_airfoil(
@@ -26,8 +122,8 @@ def plot_airfoil(
     """
     # Set predefined x and y positions for airfoil placement
     if y_num == 1:
-        x_pos = 0.015
-        y_pos = 0.13
+        x_pos = 0  # 0.016
+        y_pos = 0.14
     elif y_num == 2:
         x_pos = 0.015
         y_pos = 0.13
@@ -67,6 +163,7 @@ def plot_airfoil(
     airfoil_y_shifted = airfoil_y + y_pos
 
     # Rotate airfoil
+    # alpha += 7.25
     alpha_rad = -np.radians(alpha)
     airfoil_x_rotated = airfoil_x_shifted * np.cos(
         alpha_rad
@@ -79,7 +176,7 @@ def plot_airfoil(
     ax.plot(airfoil_x_rotated, airfoil_y_rotated, color="black")
 
     # Optionally, close the airfoil by connecting last point to the first
-    ax.fill(airfoil_x_rotated, airfoil_y_rotated, "black", alpha=0.3)
+    ax.fill(airfoil_x_rotated, airfoil_y_rotated, "black", alpha=1)
 
 
 def saving_a_plot(
@@ -98,11 +195,11 @@ def saving_a_plot(
     subsample_quiver: int,
     u_inf: int,
     cmap: str,
-    d_alpha_rods: float,
+    d_alpha_rod: float,
 ):
 
     # importing data
-    aoa_rod = round(alpha + d_alpha_rods, 0)
+    aoa_rod = round(alpha + d_alpha_rod, 0)
     csv_file_path = (
         Path(project_dir)
         / "data"
@@ -196,6 +293,17 @@ def saving_a_plot(
     ## Plotting the airfoil
     plot_airfoil(y_num, alpha, project_dir, ax)
 
+    ## Overlaying with raw_image
+    overlay_raw_image(
+        y_num=1,
+        alpha=6,
+        project_dir=Path(project_dir),
+        ax=ax,
+        d_alpha_rod=d_alpha_rod,
+        overlay_alpha=0.4,
+        subsample_factor=200,
+    )
+
     ## Saving the plot
     if title is None:
         title = rf"Y{y_num} | $\alpha$ = {alpha} | {int(u_inf)}m/s"
@@ -226,7 +334,7 @@ def main(
     subsample_quiver=10,
     u_inf=15,
     cmap: str = "RdBu",
-    d_alpha_rods: float = 7.25,
+    d_alpha_rod: float = 7.25,
 ):
     saving_a_plot(
         y_num,
@@ -244,10 +352,10 @@ def main(
         subsample_quiver,
         u_inf,
         cmap,
-        d_alpha_rods,
+        d_alpha_rod,
     )
 
 
 if __name__ == "__main__":
     project_dir = "/home/jellepoland/ownCloud/phd/code/kite_piv_analysis"
-    main(y_num=7, alpha=6, project_dir=project_dir)
+    main(y_num=1, alpha=6, project_dir=project_dir)
