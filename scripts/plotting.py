@@ -7,6 +7,7 @@ from matplotlib.colors import Normalize
 from pathlib import Path
 import pandas as pd
 import os
+from utils import project_dir
 from io import StringIO
 
 
@@ -69,60 +70,60 @@ def overlay_raw_image(
     intensity_lower_bound: int,
 ):
     # Defining the folder
-    raw_image_dir = (
-        Path(project_dir)
-        / "data"
-        / "raw_images"
-        / f"aoa_{int(alpha+d_alpha_rod)}"
-        / f"Y{y_num}"
+    folder_dir = (
+        "/run/media/jellepoland/HSL-Drive-001/Jelle_Poland_KiteOJF_20240420/PIV_raw"
     )
+    raw_image_dir = (
+        Path(folder_dir) / "raw_images" / f"aoa_{int(alpha+d_alpha_rod)}" / f"Y{y_num}"
+    )
+
+    # raw_image_dir = (
+    #     Path(project_dir)
+    #     / "data"
+    #     / "raw_images"
+    #     / f"aoa_{int(alpha+d_alpha_rod)}"
+    #     / f"Y{y_num}"
+    # )
     for folder_name in os.listdir(raw_image_dir):
+
+        # reading X value from folder name, last character
+        x_num = int(folder_name[-1])
+
+        # Reading config type
+        if "flipped" in folder_name:
+            is_flipped = True
+            cmap = "viridis"
+            label = "flipped"
+            overlay_alpha = 0.3
+        else:
+            is_flipped = False
+            cmap = "gray"
+            label = "normal"
+            overlay_alpha = 0.1
+
+        # reading the csv file with the translation values as df
+        df = pd.read_csv(
+            Path(project_dir) / "data" / "planes_location.csv",
+            index_col=0,
+        )
+
+        # filter on alpha, y_num, x_num, config
+        df = df[df["alpha"] == alpha]
+        df = df[df["Y"] == y_num]
+        df = df[df["X"] == x_num]
+        df = df[df["config"] == label]
+
+        # Get out the x and y position
+        delta_x = df["delta_x"].values[0]
+        delta_y = df["delta_y"].values[0]
+
         # reading out the subsampled .csv file
         dat_file_path = Path(raw_image_dir) / folder_name / "B0001_subsampled.csv"
-        df = pd.read_csv(dat_file_path)
-
-        if alpha == 6:
-            if "X1" in folder_name:
-                delta_x = 0
-            elif "X2" in folder_name:
-                delta_x = 300
-
-            if "flipped" in folder_name:
-                is_flipped = True
-                cmap = "viridis"
-                label = "flipped"
-                delta_y = 201
-                delta_x += 20
-                overlay_alpha = 0.3
-            else:
-                is_flipped = False
-                cmap = "gray"
-                label = "normal"
-                delta_y = 0
-                overlay_alpha = 0.1
-
-        elif alpha == 16:
-            if "X1" in folder_name:
-                delta_x = 0
-            elif "X2" in folder_name:
-                delta_x = 300
-
-            if "flipped" in folder_name:
-                is_flipped = True
-                cmap = "viridis"
-                label = "flipped"
-                delta_y = 185
-                delta_x += 0
-            else:
-                is_flipped = False
-                cmap = "gray"
-                label = "normal"
-                delta_y = 0
-                overlay_alpha = 0.05
+        df_raw_image = pd.read_csv(dat_file_path)
 
         displacing_subsampling_plotting(
             ax,
-            df,
+            df_raw_image,
             intensity_lower_bound,
             subsample_factor_raw_images,
             delta_x=delta_x,
@@ -221,13 +222,19 @@ def plot_airfoil(
     ) + airfoil_y_shifted * np.cos(alpha_rad)
 
     # Plot the airfoil as a black enclosed area
-    ax.plot(airfoil_x_rotated, airfoil_y_rotated, color="black")
+    ax.plot(
+        airfoil_x_rotated,
+        airfoil_y_rotated,
+        color="black",
+        linewidth=0.4,
+    )
 
     # Optionally, close the airfoil by connecting last point to the first
     ax.fill(airfoil_x_rotated, airfoil_y_rotated, "black", alpha=airfoil_transparency)
 
 
 def saving_a_plot(
+    is_CFD: Path,
     y_num: int,
     alpha: float,
     project_dir: Path,
@@ -244,21 +251,31 @@ def saving_a_plot(
     u_inf: int,
     cmap: str,
     d_alpha_rod: float,
+    is_with_overlay: bool,
     overlay_alpha: float,
+    is_with_airfoil: bool,
     airfoil_transparency: float,
     subsample_factor_raw_images: int,
     intensity_lower_bound: int,
 ):
-
     # importing data
-    aoa_rod = round(alpha + d_alpha_rod, 0)
-    csv_file_path = (
-        Path(project_dir)
-        / "data"
-        / "stichted_planes_erik"
-        / f"aoa_{int(aoa_rod)}"
-        / f"aoa_{int(aoa_rod)}_Y{int(y_num)}_stitched.csv"
-    )
+    if is_CFD:
+        csv_file_path = (
+            Path(project_dir)
+            / "processed_data"
+            / "CFD"
+            / f"Y{y_num}_paraview_corrected.csv"
+        )
+    else:
+        aoa_rod = round(alpha + d_alpha_rod, 0)
+        csv_file_path = (
+            Path(project_dir)
+            / "processed_data"
+            / "stichted_planes_erik"
+            / f"aoa_{int(aoa_rod)}"
+            / f"aoa_{int(aoa_rod)}_Y{int(y_num)}_stitched.csv"
+        )
+
     df = pd.read_csv(csv_file_path)
 
     # Convert x, y coordinates to meshgrid
@@ -343,19 +360,21 @@ def saving_a_plot(
         )
 
     ## Plotting the airfoil
-    plot_airfoil(y_num, alpha, project_dir, ax, airfoil_transparency)
+    if is_with_airfoil:
+        plot_airfoil(y_num, alpha, project_dir, ax, airfoil_transparency)
 
-    ## Overlaying with raw_image
-    overlay_raw_image(
-        y_num=y_num,
-        alpha=alpha,
-        project_dir=Path(project_dir),
-        ax=ax,
-        d_alpha_rod=d_alpha_rod,
-        overlay_alpha=overlay_alpha,
-        subsample_factor_raw_images=subsample_factor_raw_images,
-        intensity_lower_bound=intensity_lower_bound,
-    )
+    if is_with_overlay:
+        ## Overlaying with raw_image
+        overlay_raw_image(
+            y_num=y_num,
+            alpha=alpha,
+            project_dir=Path(project_dir),
+            ax=ax,
+            d_alpha_rod=d_alpha_rod,
+            overlay_alpha=overlay_alpha,
+            subsample_factor_raw_images=subsample_factor_raw_images,
+            intensity_lower_bound=intensity_lower_bound,
+        )
 
     ## Saving the plot
     if title is None:
@@ -364,7 +383,14 @@ def saving_a_plot(
     plt.title(title)
 
     # defining saving folder
-    save_plots_folder = Path(project_dir) / "results" / f"alpha_{int(alpha)}"
+    if is_CFD:
+        save_plots_folder = (
+            Path(project_dir) / "results" / f"alpha_{int(alpha)}" / "CFD"
+        )
+    else:
+        save_plots_folder = (
+            Path(project_dir) / "results" / f"alpha_{int(alpha)}" / "PIV"
+        )
     save_plots_folder.mkdir(parents=True, exist_ok=True)
 
     plt.savefig(save_plots_folder / f"Y{y_num}{plot_type}")
@@ -372,13 +398,14 @@ def saving_a_plot(
 
 
 def main(
+    is_CFD: bool,
     y_num: int,
     alpha: float,
     project_dir: Path,
     plot_type=".pdf",
     title=None,
     color_data_col_name: str = "V",
-    cbar_value_factor_of_std: float = 1,
+    cbar_value_factor_of_std: float = 2,
     min_cbar_value=None,
     max_cbar_value=None,
     subsample_color: int = 1,
@@ -388,12 +415,16 @@ def main(
     u_inf=15,
     cmap: str = "RdBu",
     d_alpha_rod: float = 7.25,
+    is_with_overlay: bool = True,
     overlay_alpha: float = 0.4,
-    airfoil_transparency: float = 0.1,
+    is_with_airfoil: bool = True,
+    airfoil_transparency: float = 0.3,
     subsample_factor_raw_images: int = 1,
     intensity_lower_bound: int = 10000,
 ):
+
     saving_a_plot(
+        is_CFD,
         y_num,
         alpha,
         project_dir,
@@ -410,7 +441,9 @@ def main(
         u_inf,
         cmap,
         d_alpha_rod,
+        is_with_overlay,
         overlay_alpha,
+        is_with_airfoil,
         airfoil_transparency,
         subsample_factor_raw_images,
         intensity_lower_bound,
@@ -418,5 +451,12 @@ def main(
 
 
 if __name__ == "__main__":
-    project_dir = "/home/jellepoland/ownCloud/phd/code/kite_piv_analysis"
-    main(y_num=1, alpha=6, project_dir=project_dir)
+    main(
+        is_CFD=False,
+        y_num=5,
+        alpha=6,
+        project_dir=project_dir,
+        is_with_overlay=True,
+        is_with_airfoil=True,
+        airfoil_transparency=0.1,
+    )

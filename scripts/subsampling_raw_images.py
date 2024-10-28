@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import os
 from io import StringIO
+from utils import project_dir
 
 
 def subsample_and_save_dat(dat_file_path, subsample_factor):
@@ -46,26 +47,24 @@ def subsample_and_save_dat(dat_file_path, subsample_factor):
     df_subsampled.to_csv(output_path, index=False)
 
 
-def main():
-    project_dir = "/home/jellepoland/ownCloud/phd/code/kite_piv_analysis"
-    aoa = 13
-    y_num = 1
+def main(alpha: int, y_num: int, subsample_factor: int = 75):
     x_num_list = [1, 2]
-    subsample_factor = 75
-    dat_file_dir = (
-        Path(project_dir) / "data" / "raw_images" / f"aoa_{aoa}" / f"Y{y_num}"
-    )
+    # dat_file_dir = (
+    #     Path(project_dir) / "data" / "raw_images" / f"aoa_{int(aoa+7)}" / f"Y{y_num}"
+    # )
+    folder_dir = "/run/media/jellepoland/HSL-Drive-001/Jelle_Poland_KiteOJF_20240420/PIV_raw/raw_images/"
+    dat_file_dir = Path(folder_dir) / f"aoa_{int(alpha+7)}" / f"Y{y_num}"
 
     for x_num in x_num_list:
         subsample_and_save_dat(
-            Path(dat_file_dir) / f"flipped_Y{y_num}_X{x_num}" / "B0001.dat",
+            Path(dat_file_dir) / f"flipped_X{x_num}" / "B0001.dat",
             subsample_factor,
         )
         subsample_and_save_dat(
-            Path(dat_file_dir) / f"normal_Y{y_num}_X{x_num}" / "B0001.dat",
+            Path(dat_file_dir) / f"normal_X{x_num}" / "B0001.dat",
             subsample_factor,
         )
 
 
 if __name__ == "__main__":
-    main()
+    main(alpha=6, y_num=5, subsample_factor=75)
