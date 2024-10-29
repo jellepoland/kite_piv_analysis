@@ -276,6 +276,16 @@ def saving_a_plot(
             / f"aoa_{int(aoa_rod)}_Y{int(y_num)}_stitched.csv"
         )
 
+    fig, ax = plt.subplots()
+    # TODO: remove hardcoded path
+    csv_file_path = (
+        Path(project_dir)
+        / "processed_data"
+        / "stichted_planes_erik"
+        / f"aoa_{int(aoa_rod)}"
+        / f"aoa_{int(aoa_rod)}_Y{int(1)}_stitched.csv"
+    )
+
     df = pd.read_csv(csv_file_path)
 
     # Convert x, y coordinates to meshgrid
@@ -293,7 +303,6 @@ def saving_a_plot(
         min_cbar_value = mean_val - cbar_value_factor_of_std * std_val
         max_cbar_value = mean_val + cbar_value_factor_of_std * std_val
 
-    fig, ax = plt.subplots()
     # subsampling the color
     x_mesh_sub = x_meshgrid_global[::subsample_color, ::subsample_color]
     y_mesh_sub = y_meshgrid_global[::subsample_color, ::subsample_color]
@@ -423,6 +432,8 @@ def main(
     intensity_lower_bound: int = 10000,
 ):
 
+    print(f"\n--> Plotting for Y{y_num} at alpha = {alpha} degrees")
+
     saving_a_plot(
         is_CFD,
         y_num,
@@ -453,10 +464,11 @@ def main(
 if __name__ == "__main__":
     main(
         is_CFD=False,
-        y_num=5,
+        y_num=3,
         alpha=6,
         project_dir=project_dir,
         is_with_overlay=True,
         is_with_airfoil=True,
         airfoil_transparency=0.1,
+        intensity_lower_bound=10000,
     )

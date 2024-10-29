@@ -471,7 +471,7 @@ def main(alpha=6):
         processed_df = process_csv(
             input_path,
             output_path,
-            spatial_scale=2.59,
+            spatial_scale=2.584,
             velocity_scale=15,
             y_num=y_num,
             alpha=alpha,

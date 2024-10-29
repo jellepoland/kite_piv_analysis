@@ -67,4 +67,4 @@ def main(alpha: int, y_num: int, subsample_factor: int = 75):
 
 
 if __name__ == "__main__":
-    main(alpha=6, y_num=5, subsample_factor=75)
+    main(alpha=6, y_num=3, subsample_factor=75)
