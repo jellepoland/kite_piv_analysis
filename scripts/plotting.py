@@ -9,6 +9,7 @@ import pandas as pd
 import os
 from utils import project_dir
 from io import StringIO
+from defining_bound_volume import boundary_ellipse, boundary_rectangle
 
 
 def displacing_subsampling_plotting(
@@ -184,7 +185,8 @@ def plot_airfoil(
 
     # reading the csv file with the translation values as df
     df = pd.read_csv(
-        Path(project_dir) / "data" / "airfoils" / "translation_values.csv", index_col=0
+        Path(project_dir) / "data" / "airfoils" / "airfoil_translation_values.csv",
+        index_col=0,
     )
     # filter on alpha
     df = df[df["alpha"] == alpha]
@@ -257,6 +259,7 @@ def saving_a_plot(
     airfoil_transparency: float,
     subsample_factor_raw_images: int,
     intensity_lower_bound: int,
+    is_with_bound: bool,
 ):
     # importing data
     if is_CFD:
@@ -264,6 +267,7 @@ def saving_a_plot(
             Path(project_dir)
             / "processed_data"
             / "CFD"
+            / f"alpha_{int(alpha)}"
             / f"Y{y_num}_paraview_corrected.csv"
         )
     else:
@@ -277,16 +281,14 @@ def saving_a_plot(
         )
 
     fig, ax = plt.subplots()
-    # TODO: remove hardcoded path
-    csv_file_path = (
-        Path(project_dir)
-        / "processed_data"
-        / "stichted_planes_erik"
-        / f"aoa_{int(aoa_rod)}"
-        / f"aoa_{int(aoa_rod)}_Y{int(1)}_stitched.csv"
-    )
-
+    plt.gca().set_aspect("equal", adjustable="box")
     df = pd.read_csv(csv_file_path)
+
+    # Apply mask
+    # df = masking_the_data(df)
+    # df = df[np.abs(df["v"]) > 5]
+    # df = df[np.abs(df["w"]) > 5]
+    ##TODO: standard-deviation w mask
 
     # Convert x, y coordinates to meshgrid
     x_unique = df["x"].unique()
@@ -368,10 +370,11 @@ def saving_a_plot(
             scale_units="xy",
         )
 
-    ## Plotting the airfoil
+    ### Airfoil
     if is_with_airfoil:
         plot_airfoil(y_num, alpha, project_dir, ax, airfoil_transparency)
 
+    ### Overlay
     if is_with_overlay:
         ## Overlaying with raw_image
         overlay_raw_image(
@@ -385,6 +388,34 @@ def saving_a_plot(
             intensity_lower_bound=intensity_lower_bound,
         )
 
+    ### Bound Volume
+    if is_with_bound:
+        d1centre = np.array([0.3, 0.15])
+        drot = 0
+        dLx = 0.7
+        dLy = 0.4
+        iP = 27  # 9, 15, 21,  119
+        d2curve = boundary_ellipse(d1centre, drot, dLx, dLy, iP)
+        ax.plot(
+            d2curve[:, 0],  # x-coordinates of the boundary
+            d2curve[:, 1],  # y-coordinates of the boundary
+            color="black",  # Boundary color (e.g., red)
+            linestyle="--",  # Dashed line for visibility
+            linewidth=1,  # Line width for boundary
+            alpha=0.5,
+        )
+        print(f"ELLIPSE volume plotted, len(d2curve): {len(d2curve)}")
+        d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
+        ax.plot(
+            d2curve[:, 0],  # x-coordinates of the boundary
+            d2curve[:, 1],  # y-coordinates of the boundary
+            color="black",  # Boundary color (e.g., red)
+            linestyle="-",  # Dashed line for visibility
+            linewidth=1,  # Line width for boundary
+            alpha=0.5,
+            # marker="o",
+        )
+        print(f"RECTANGLE volume plotted, len(d2curve): {len(d2curve)}")
     ## Saving the plot
     if title is None:
         title = rf"Y{y_num} | $\alpha$ = {alpha} | {int(u_inf)}m/s"
@@ -430,6 +461,7 @@ def main(
     airfoil_transparency: float = 0.3,
     subsample_factor_raw_images: int = 1,
     intensity_lower_bound: int = 10000,
+    is_with_bound: bool = True,
 ):
 
     print(f"\n--> Plotting for Y{y_num} at alpha = {alpha} degrees")
@@ -458,17 +490,18 @@ def main(
         airfoil_transparency,
         subsample_factor_raw_images,
         intensity_lower_bound,
+        is_with_bound,
     )
 
 
 if __name__ == "__main__":
     main(
-        is_CFD=False,
-        y_num=3,
+        is_CFD=True,
+        y_num=1,
         alpha=6,
         project_dir=project_dir,
-        is_with_overlay=True,
         is_with_airfoil=True,
-        airfoil_transparency=0.1,
+        airfoil_transparency=1.0,
+        is_with_overlay=False,
         intensity_lower_bound=10000,
     )

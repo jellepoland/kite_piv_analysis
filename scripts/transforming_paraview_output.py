@@ -157,19 +157,18 @@ def rotate_data(points, data_dict, angle_deg):
 def filter_data(points, data_dict, y_num, alpha):
     """Filter data based on specified x and y ranges, then translate back to reference x and y ranges."""
 
-    # Define ranges based on y_num
-    if y_num in [1, 2, 3, 4]:
-        x_offset = 0.038
-        y_offset = 0.145
-    elif y_num == 5:
-        x_offset = 0.05
-        y_offset = 0.15
-    elif y_num == 6:
-        x_offset = 0.05
-        y_offset = 0.25
-    elif y_num == 7:
-        x_offset = 0.05
-        y_offset = 0.35
+    # reading the csv file with the translation values as df
+    df = pd.read_csv(
+        Path(project_dir) / "data" / "CFD_slices" / "CFD_translation_values.csv",
+        index_col=0,
+    )
+    # filter on alpha
+    df = df[df["alpha"] == alpha]
+    # filter on y_num
+    df = df[df["Y"] == y_num]
+    # Get out the x and y position
+    x_offset = df["x"].values[0]
+    y_offset = df["y"].values[0]
 
     # Rotate the data
     rotated_points, rotated_data_dict = rotate_data(points, data_dict, angle_deg=alpha)
@@ -448,7 +447,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         print(f"An error occurred: {str(e)}")
 
 
-def main(alpha=6):
+def main(alpha: int):
 
     import plotting
 
@@ -466,6 +465,7 @@ def main(alpha=6):
             Path(project_dir)
             / "processed_data"
             / "CFD"
+            / f"alpha_{alpha}"
             / f"Y{y_num}_paraview_corrected.csv"
         )
         processed_df = process_csv(
@@ -480,7 +480,7 @@ def main(alpha=6):
         plotting.main(
             is_CFD=True,
             y_num=y_num,
-            alpha=6,
+            alpha=alpha,
             project_dir=project_dir,
             is_with_overlay=False,
             is_with_airfoil=True,
@@ -490,4 +490,4 @@ def main(alpha=6):
 
 # Example usage
 if __name__ == "__main__":
-    main(alpha=6)
+    main(alpha=16)

@@ -2,7 +2,7 @@
 data/
 processed_data/
 results/
-
+ALL_ERIK_FILES/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
