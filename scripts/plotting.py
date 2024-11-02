@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.cm import ScalarMappable, get_cmap
 import matplotlib.ticker as mticker
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import Normalize
 from pathlib import Path
 import pandas as pd
@@ -73,6 +74,12 @@ class PlotParams(TypedDict):
     mu: float
     is_with_maximim_vorticity_location_correction: bool
 
+    # Mask settings
+    is_with_mask: bool
+    column_to_mask: str
+    mask_lower_bound: float
+    mask_upper_bound: float
+
 
 def load_data(plot_params: dict) -> tuple:
     """Load and process data from either CFD or PIV sources."""
@@ -119,10 +126,7 @@ def load_data(plot_params: dict) -> tuple:
 
 def apply_mask(
     df: pd.DataFrame,
-    column: str,
-    lower: float,
-    upper: float,
-    csv_file_path_std: Path,
+    plot_params: dict,
     columns_to_mask: list = [
         "u",
         "v",
@@ -161,6 +165,11 @@ def apply_mask(
         A new DataFrame with specified columns set to NaN for rows where the target
         column's values are outside the specified bounds.
     """
+    column = plot_params["column_to_mask"]
+    lower = plot_params["mask_lower_bound"]
+    upper = plot_params["mask_upper_bound"]
+    csv_file_path_std = plot_params["csv_file_path_std"]
+
     # Create a copy of the DataFrame
     df_to_return = df.copy()
 
@@ -212,43 +221,31 @@ def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
             mean_val + plot_params["cbar_value_factor_of_std"] * std_val
         )
 
+    # ### USING PCOLORMESH
+    # cax = ax.pcolormesh(
+    #     x_mesh_sub,
+    #     y_mesh_sub,
+    #     color_data_sub,
+    #     # shading="auto",
+    #     cmap=plot_params["cmap"],
+    #     vmin=plot_params["min_cbar_value"],
+    #     vmax=plot_params["max_cbar_value"],
+    # )  # 'shading' set to 'auto' to avoid warning
+
+    #### USING CONTOURF
     cax = ax.contourf(
         x_mesh_sub,
         y_mesh_sub,
         color_data_sub,
-        cmap=plot_params["cmap"],
         levels=plot_params["countour_levels"],
-        extend="both",
+        cmap=plot_params["cmap"],
         vmin=plot_params["min_cbar_value"],
         vmax=plot_params["max_cbar_value"],
     )
-    return cax
 
+    plot_params["cax"] = cax
 
-def add_colorbar(fig, cax, plot_params):
-    mid_cbar_value = np.mean(
-        [plot_params["min_cbar_value"], plot_params["max_cbar_value"]]
-    )
-    cbar = fig.colorbar(
-        cax,
-        ticks=[
-            plot_params["min_cbar_value"],
-            mid_cbar_value,
-            plot_params["max_cbar_value"],
-        ],
-        format=mticker.FixedFormatter(
-            [
-                f'< {plot_params["min_cbar_value"]:.2f}',
-                f"{mid_cbar_value:.2f}",
-                f'> {plot_params["max_cbar_value"]:.2f}',
-            ]
-        ),
-        extend="both",
-    )
-    labels = cbar.ax.get_yticklabels()
-    labels[0].set_verticalalignment("top")
-    labels[-1].set_verticalalignment("bottom")
-    cbar.set_label(plot_params["color_data_col_name"], rotation=0)
+    return plot_params
 
 
 def add_quiver(ax, df, x_meshgrid, y_meshgrid, plot_params):
@@ -605,24 +602,9 @@ def add_circulation_analysis(
         f"  |  NOCA --> $F_n$: {force_normal_rectangle:.2f} N, $F_t$: {force_tangential_rectangle:.2f} N"
     )
 
-    ### OLD
-    # Place the text below the plot area
-    # fig.text(
-    #     0.5,
-    #     -0.15,
-    #     text,
-    #     horizontalalignment="center",
-    #     verticalalignment="top",
-    #     fontsize=6,
-    #     transform=ax.transAxes,
-    #     wrap=True,
-    # )
-    # Get the bounding box of the axis in figure coordinates
-    # bbox = ax.get_position()
-
     ax.text(
         0.5,
-        0.05,
+        0.1,
         text,
         horizontalalignment="center",
         verticalalignment="top",
@@ -641,19 +623,16 @@ def plotting_on_ax(
     plot_params: dict,
 ) -> None:
 
-    plt.title(
-        f'Y_{plot_params["y_num"]} | α = {plot_params["alpha"]}° | {plot_params["u_inf"]}m/s'
-    )
+    ax.set_aspect("equal", adjustable="box")
 
-    if plot_params.get("is_with_mask", False):
-        csv_file_path_std = plot_params["csv_file_path_std"]
-        df = apply_mask(df, "V_std", -10, 10, csv_file_path_std)
+    if plot_params.get("is_with_mask", False) and not plot_params["is_CFD"]:
+        df = apply_mask(df, plot_params)
 
-    cax = plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params)
+    plot_params = plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params)
 
-    # Add optional elements
-    if plot_params.get("is_with_cbar", False):
-        add_colorbar(fig, cax, plot_params)
+    # # Add optional elements
+    # if plot_params.get("is_with_cbar", False):
+    #     add_colorbar(fig, plot_params)
 
     if plot_params.get("is_with_quiver", False):
         add_quiver(ax, df, x_meshgrid, y_meshgrid, plot_params)
@@ -672,6 +651,52 @@ def plotting_on_ax(
                 fig, ax, df, plot_params, d2curve_ellipse, d2curve_rectangle
             )
 
+    ax.set_xlabel("x [m]")
+    ax.set_xlim(-0.2, 0.8)
+    if plot_params["is_CFD"] or not plot_params["is_CFD_PIV_comparison"]:
+        ax.set_ylabel("y [m]")
+    ax.set_ylim(-0.2, 0.4)
+
+    return plot_params
+
+
+def add_colorbar(fig, ax, plot_params):
+
+    cax = plot_params["cax"]
+    vmin = plot_params["min_cbar_value"]
+    vmax = plot_params["max_cbar_value"]
+    ### USING PCOLORMESH
+    # Create a horizontal color bar for the figure
+    # cbar = fig.colorbar(
+    #     cax,
+    #     ax=ax,
+    #     orientation="horizontal",
+    #     fraction=0.02,
+    #     pad=0.1,
+    # )
+    # cbar.set_label(plot_params["color_data_col_name"])
+
+    ### USING CONTOURF
+    divider = make_axes_locatable(ax)
+    divider_ax = divider.append_axes("top", size="5%", pad=0.3)
+    cbar = plt.colorbar(
+        ScalarMappable(norm=cax.norm, cmap=cax.cmap),
+        cax=divider_ax,
+        ticks=np.linspace(int(vmin), int(vmax), 10),
+        orientation="horizontal",
+    )
+    # adjust tick labels
+    cbar.ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
+
+    # Adjust label alignment
+    # labels = cbar.ax.get_yticklabels()
+    # Set the ticks to appear on top of the color bar
+    cbar.ax.xaxis.set_ticks_position("top")  # Move ticks to the top
+    cbar.ax.xaxis.set_label_position("top")  # Move label to the top
+    # labels[0].set_verticalalignment("top")
+    # labels[-1].set_verticalalignment("bottom")
+    cbar.set_label(plot_params["color_data_col_name"], rotation=0, fontsize=8)
+
 
 def save_plot(
     fig: plt.Figure,
@@ -684,13 +709,20 @@ def save_plot(
     plot_type = plot_params["plot_type"]
     color_data_col_name = plot_params["color_data_col_name"]
 
-    ##TODO: add new folder structure to direct to single or double plots
-    save_plots_folder = (
-        Path(project_dir)
-        / "results"
-        / f"alpha_{int(alpha)}"
-        / ("CFD" if is_CFD else "PIV")
-    )
+    if plot_params["is_CFD_PIV_comparison"]:
+        save_plots_folder = (
+            Path(project_dir) / "results" / f"alpha_{int(alpha)}" / "CFD_PIV"
+        )
+    else:
+        if is_CFD:
+            save_plots_folder = (
+                Path(project_dir) / "results" / f"alpha_{int(alpha)}" / "CFD"
+            )
+        else:
+            save_plots_folder = (
+                Path(project_dir) / "results" / f"alpha_{int(alpha)}" / "PIV"
+            )
+
     save_plots_folder.mkdir(parents=True, exist_ok=True)
     fig.savefig(save_plots_folder / f"Y{y_num}_{color_data_col_name}{plot_type}")
     plt.close()
@@ -699,34 +731,46 @@ def save_plot(
 def plotting_single(plot_params: dict) -> None:
     """Create a single plot with the specified parameters."""
     fig, ax = plt.subplots()
-    plt.gca().set_aspect("equal", adjustable="box")
+    plt.title(
+        f'Y_{plot_params["y_num"]} | α = {plot_params["alpha"]}° | {plot_params["u_inf"]}m/s'
+    )
 
     # Load, plot and save
     df, x_meshgrid, y_meshgrid, plot_params = load_data(plot_params)
-    plotting_on_ax(fig, ax, df, x_meshgrid, y_meshgrid, plot_params)
+    plot_params = plotting_on_ax(fig, ax, df, x_meshgrid, y_meshgrid, plot_params)
+
+    if plot_params["is_with_cbar"]:
+        add_colorbar(fig, ax, plot_params)
+
     save_plot(fig, plot_params)
 
 
 def plotting_CFD_PIV_comparison(plot_params: dict) -> None:
     """Create a side-by-side comparison of CFD and PIV data."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-    plt.suptitle(
+    plt.title(
         rf'Y{plot_params["y_num"]} | α = {plot_params["alpha"]}° | V_inf = {plot_params["u_inf"]}m/s'
     )
 
     # Load and plot CFD data
+    print(f"Plotting CFD")
     df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params = load_data(
         plot_params | {"is_CFD": True}
     )
-    plotting_on_ax(fig, ax1, df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params)
+    plot_params = plotting_on_ax(fig, ax1, df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params)
     ax1.set_title("CFD")
+    if plot_params["is_with_cbar"]:
+        add_colorbar(fig, ax1, plot_params)
 
     # Load and plot PIV data
+    print(f"Plotting PIV")
     df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
         plot_params | {"is_CFD": False}
     )
-    plotting_on_ax(fig, ax2, df_piv, x_mesh_piv, y_mesh_piv, plot_params)
+    plot_params = plotting_on_ax(fig, ax2, df_piv, x_mesh_piv, y_mesh_piv, plot_params)
     ax2.set_title("PIV")
+    if plot_params["is_with_cbar"]:
+        add_colorbar(fig, ax2, plot_params)
 
     save_plot(fig, plot_params)
 
@@ -742,14 +786,14 @@ if __name__ == "__main__":
 
     plot_params: PlotParams = {
         # Basic configuration
-        "is_CFD": True,
+        "is_CFD": False,
         "y_num": 1,
-        "alpha": 6.0,
+        "alpha": 6,
         "project_dir": project_dir,
         "plot_type": ".pdf",
         "title": None,
-        "is_CFD_PIV_comparison": True,
-        "color_data_col_name": "V",
+        "is_CFD_PIV_comparison": False,
+        "color_data_col_name": "u",
         # Color and contour settings
         "is_with_cbar": True,
         "cbar_value_factor_of_std": 2.0,
@@ -757,7 +801,7 @@ if __name__ == "__main__":
         "max_cbar_value": None,
         "subsample_color": 1,
         "countour_levels": 100,
-        "cmap": "RdBu",
+        "cmap": "viridis",
         # Quiver settings
         "is_with_quiver": False,
         "subsample_quiver": 10,
@@ -785,9 +829,22 @@ if __name__ == "__main__":
         "bound_linewidth": 1.0,
         "bound_alpha": 0.5,
         # Circulation analysis
-        "is_with_circulation_analysis": True,
+        "is_with_circulation_analysis": False,
         "rho": 1.225,
         "mu": 1.7894e-5,
         "is_with_maximim_vorticity_location_correction": True,
+        # Mask settings
+        "is_with_mask": True,
+        "column_to_mask": "V_std",
+        "mask_lower_bound": -5,
+        "mask_upper_bound": 5,
     }
     main(plot_params)
+    if plot_params["is_CFD_PIV_comparison"]:
+        type_label = "CFD_PIV"
+    else:
+        type_label = "CFD" if plot_params["is_CFD"] else "PIV"
+
+    print(
+        f'{type_label} plot with color = {plot_params["color_data_col_name"]} | Y{plot_params["y_num"]} | α = {plot_params["alpha"]}°'
+    )
