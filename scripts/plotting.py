@@ -220,6 +220,9 @@ def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
         plot_params["max_cbar_value"] = (
             mean_val + plot_params["cbar_value_factor_of_std"] * std_val
         )
+        print(
+            f'color min,max determined at {plot_params["cbar_value_factor_of_std"]} time the std from the mean: {mean_val:.2f}'
+        )
 
     # ### USING PCOLORMESH
     # cax = ax.pcolormesh(
@@ -710,21 +713,40 @@ def save_plot(
     color_data_col_name = plot_params["color_data_col_name"]
 
     if plot_params["is_CFD_PIV_comparison"]:
-        save_plots_folder = (
-            Path(project_dir) / "results" / f"alpha_{int(alpha)}" / "CFD_PIV"
+        save_path = (
+            Path(project_dir)
+            / "results"
+            / f"alpha_{int(alpha)}"
+            / "CFD_PIV"
+            / f"Y{y_num}_{color_data_col_name}{plot_type}"
+        )
+    elif plot_params["is_CFD_PIV_comparison_multicomponent_masked"]:
+        save_path = (
+            Path(project_dir)
+            / "results"
+            / f"alpha_{int(alpha)}"
+            / "CFD_PIV_uvwV"
+            / f"Y{y_num}{plot_type}"
         )
     else:
         if is_CFD:
-            save_plots_folder = (
-                Path(project_dir) / "results" / f"alpha_{int(alpha)}" / "CFD"
+            save_path = (
+                Path(project_dir)
+                / "results"
+                / f"alpha_{int(alpha)}"
+                / "CFD"
+                / f"Y{y_num}_{color_data_col_name}{plot_type}"
             )
         else:
-            save_plots_folder = (
-                Path(project_dir) / "results" / f"alpha_{int(alpha)}" / "PIV"
+            save_path = (
+                Path(project_dir)
+                / "results"
+                / f"alpha_{int(alpha)}"
+                / "PIV"
+                / f"Y{y_num}_{color_data_col_name}{plot_type}"
             )
 
-    save_plots_folder.mkdir(parents=True, exist_ok=True)
-    fig.savefig(save_plots_folder / f"Y{y_num}_{color_data_col_name}{plot_type}")
+    fig.savefig(save_path)
     plt.close()
 
 
@@ -775,9 +797,86 @@ def plotting_CFD_PIV_comparison(plot_params: dict) -> None:
     save_plot(fig, plot_params)
 
 
+def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None:
+    """Create a 4x3 comparison of CFD and PIV data, with PIV masked/unmasked."""
+    fig, axes = plt.subplots(4, 3, figsize=(18, 20))
+    fig.suptitle(
+        rf'Y{plot_params["y_num"]} | α = {plot_params["alpha"]}° | V_inf = {plot_params["u_inf"]}m/s'
+    )
+
+    data_labels = ["u", "v", "w", "V"]
+
+    for i, label in enumerate(data_labels):
+
+        # Update color data label
+        plot_params["color_data_col_name"] = label
+
+        # CFD Data (First Column)
+        print(f"\nPlotting CFD for {label}")
+        df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params = load_data(
+            plot_params | {"is_CFD": True}
+        )
+        plot_params = plotting_on_ax(
+            fig, axes[i, 0], df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params
+        )
+        axes[i, 0].set_title(f"CFD ({label})")
+        if plot_params["is_with_cbar"]:
+            add_colorbar(fig, axes[i, 0], plot_params)
+
+        # PIV without Mask (Second Column)
+        print(f"Plotting PIV (unmasked) for {label}")
+        plot_params["is_with_mask"] = False
+        df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
+            plot_params | {"is_CFD": False}
+        )
+        plot_params = plotting_on_ax(
+            fig, axes[i, 1], df_piv, x_mesh_piv, y_mesh_piv, plot_params
+        )
+        axes[i, 1].set_title(f"PIV Unmasked ({label})")
+        if plot_params["is_with_cbar"]:
+            add_colorbar(fig, axes[i, 1], plot_params)
+
+        # PIV with Mask (Third Column)
+        print(f"Applying mask for PIV ({label})")
+        plot_params["is_with_mask"] = True
+        plot_params["column_to_mask"] = plot_params["column_to_mask_uvwV"][i]
+        plot_params["mask_lower_bound"] = plot_params["mask_lower_bound_uvwV"][i]
+        plot_params["mask_upper_bound"] = plot_params["mask_upper_bound_uvwV"][i]
+        df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
+            plot_params | {"is_CFD": False}
+        )
+        plot_params = plotting_on_ax(
+            fig, axes[i, 2], df_piv, x_mesh_piv, y_mesh_piv, plot_params
+        )
+        axes[i, 2].set_title(f"PIV Masked ({label})")
+        if plot_params["is_with_cbar"]:
+            add_colorbar(fig, axes[i, 2], plot_params)
+
+        # Reset color bounds to None
+        plot_params["min_cbar_value"] = None
+        plot_params["max_cbar_value"] = None
+
+    # Adjust layout and save the plot
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust for suptitle space
+    save_plot(fig, plot_params)
+
+
 def main(plot_params: dict) -> None:
-    if plot_params["is_CFD_PIV_comparison"]:
+    if plot_params["run_for_all_planes"]:
+        plot_params["alpha"] = 6
+        for y_num in range(1, 8):
+            plot_params["y_num"] = y_num
+            plot_params["is_CFD_PIV_comparison_multicomponent_masked"] = True
+            plotting_CFD_PIV_comparison_multicomponent_masked(plot_params)
+        plot_params["alpha"] = 16
+        for y_num in range(1, 5):
+            plot_params["y_num"] = y_num
+            plot_params["is_CFD_PIV_comparison_multicomponent_masked"] = True
+            plotting_CFD_PIV_comparison_multicomponent_masked(plot_params)
+    elif plot_params["is_CFD_PIV_comparison"]:
         plotting_CFD_PIV_comparison(plot_params)
+    elif plot_params["is_CFD_PIV_comparison_multicomponent_masked"]:
+        plotting_CFD_PIV_comparison_multicomponent_masked(plot_params)
     else:
         plotting_single(plot_params)
 
@@ -787,13 +886,15 @@ if __name__ == "__main__":
     plot_params: PlotParams = {
         # Basic configuration
         "is_CFD": False,
-        "y_num": 1,
+        "y_num": 3,
         "alpha": 6,
         "project_dir": project_dir,
         "plot_type": ".pdf",
         "title": None,
         "is_CFD_PIV_comparison": False,
         "color_data_col_name": "u",
+        "is_CFD_PIV_comparison_multicomponent_masked": True,
+        "run_for_all_planes": True,
         # Color and contour settings
         "is_with_cbar": True,
         "cbar_value_factor_of_std": 2.0,
@@ -838,6 +939,10 @@ if __name__ == "__main__":
         "column_to_mask": "V_std",
         "mask_lower_bound": -5,
         "mask_upper_bound": 5,
+        # Mask Multicomponent settings
+        "column_to_mask_uvwV": ["w", "w", "w", "w"],
+        "mask_lower_bound_uvwV": [-5, -5, -5, -5],
+        "mask_upper_bound_uvwV": [5, 5, 5, 5],
     }
     main(plot_params)
     if plot_params["is_CFD_PIV_comparison"]:
