@@ -449,7 +449,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
 
 def main(alpha: int):
 
-    import plotting
+    import scripts.plotting_old as plotting_old
 
     slices_folder = Path(project_dir) / "data" / "CFD_slices" / f"alpha_{alpha}"
     # f"/home/jellepoland/ownCloud/phd/data/V3A/Lebesque_folder/results/1e6/{alpha}/slices"
@@ -477,7 +477,7 @@ def main(alpha: int):
             alpha=alpha,
         )
 
-        plotting.main(
+        plotting_old.main(
             is_CFD=True,
             y_num=y_num,
             alpha=alpha,

@@ -292,10 +292,32 @@ def forceFromVelNoca2D_V3(
     return d1Fn, d1Ft
 
 
+def load_data(is_CFD: bool, alpha: int, y_num: int, alpha_d_rod: float = 7.25):
+
+    # load data
+    if is_CFD:
+        csv_path = csv_path = (
+            Path(project_dir)
+            / "processed_data"
+            / "CFD"
+            / f"alpha_{int(alpha)}"
+            / f"Y{y_num}_paraview_corrected.csv"
+        )
+    else:
+        csv_path = (
+            Path(project_dir)
+            / "processed_data"
+            / "stichted_planes_erik"
+            / f"aoa_{int(alpha+alpha_d_rod)}"
+            / f"aoa_{int(alpha+alpha_d_rod)}_Y{y_num}_stichted.csv"
+        )
+
+    df_1D = pd.read_csv(csv_path)
+    return df_1D
+
+
 def main(
-    alpha: int,
-    y_num: int,
-    is_CFD: bool = True,
+    df_1D: pd.DataFrame,
     is_ellipse: bool = True,
     d1centre: np.ndarray = np.array([0.27, 0.13]),
     drot: float = 0,
@@ -304,7 +326,6 @@ def main(
     iP: int = 50,
     mu: float = 1.8e-5,
     is_with_maximim_vorticity_location_correction: bool = True,
-    alpha_d_rod: float = 7.25,
 ):
 
     # create d2curve
@@ -314,26 +335,6 @@ def main(
     else:
         d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
         print(f"Running NOCA on Rectangle, will take a while...")
-
-    # load data
-    if is_CFD:
-        csv_path = csv_path = (
-            Path(project_dir)
-            / "processed_data"
-            / "CFD"
-            / f"alpha_{alpha}"
-            / f"Y{y_num}_paraview_corrected.csv"
-        )
-    else:
-        csv_path = (
-            Path(project_dir)
-            / "processed_data"
-            / "stichted_planes_erik"
-            / f"alpha_{alpha}"
-            / f"aoa_{int(alpha+alpha_d_rod)}_Y{y_num}_stichted.csv"
-        )
-
-    df_1D = pd.read_csv(csv_path)
 
     # reshape df
     df_2D = reshape_data(df_1D, "x", "y", "u", "v", "vort_z", "dudx", "dvdx")
@@ -358,10 +359,17 @@ def main(
 
 
 if __name__ == "__main__":
+
+    df_1D = load_data(is_CFD=True, alpha=6, y_num=1)
+
     main(
-        alpha=6,
-        y_num=1,
-        is_CFD=True,
+        df_1D,
         is_ellipse=True,
+        d1centre=np.array([0.27, 0.13]),
+        drot=0,
+        dLx=0.8,
+        dLy=0.4,
+        iP=50,
+        mu=1.8e-5,
         is_with_maximim_vorticity_location_correction=True,
     )

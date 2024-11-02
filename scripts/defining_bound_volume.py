@@ -83,10 +83,10 @@ def boundary_rectangle(
     n_points_right_vertical = int(np.round(iP * dLy / total_length))
     n_points_upper_horizontal = int(np.round(iP * dLx / total_length))
     n_points_left_vertical = int(np.round(iP * dLy / total_length))
-    print(f"---> n_points_lower_horizontal: {n_points_lower_horizontal}")
-    print(f"---> n_points_right_vertical: {n_points_right_vertical}")
-    print(f"---> n_points_upper_horizontal: {n_points_upper_horizontal}")
-    print(f"---> n_points_left_vertical: {n_points_left_vertical}")
+    # print(f"---> n_points_lower_horizontal: {n_points_lower_horizontal}")
+    # print(f"---> n_points_right_vertical: {n_points_right_vertical}")
+    # print(f"---> n_points_upper_horizontal: {n_points_upper_horizontal}")
+    # print(f"---> n_points_left_vertical: {n_points_left_vertical}")
 
     # Initialize an array to hold the boundary points
     d2curve = np.zeros((iP, 2))
