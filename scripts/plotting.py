@@ -4,6 +4,7 @@ from matplotlib.colors import ListedColormap, Normalize
 from matplotlib.cm import ScalarMappable, get_cmap
 import matplotlib.ticker as mticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.interpolate import griddata
 from matplotlib.colors import Normalize
 from pathlib import Path
 import pandas as pd
@@ -180,7 +181,8 @@ def apply_mask(
                 "Standard deviation masking requires a CSV file path, only available for PIV"
             )
         df_masked = pd.read_csv(csv_file_path_std)
-        column = column.split("_")[0]
+        # Remove "_std" from the column name for comparison
+        column = column.strip("_std")
     else:
         df_masked = df.copy()
 
@@ -220,9 +222,13 @@ def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
         plot_params["max_cbar_value"] = (
             mean_val + plot_params["cbar_value_factor_of_std"] * std_val
         )
-        print(
-            f'color min,max determined at {plot_params["cbar_value_factor_of_std"]} time the std from the mean: {mean_val:.2f}'
-        )
+        # print(
+        #     f'color min,max determined at {plot_params["cbar_value_factor_of_std"]} time the std from the mean: {mean_val:.2f}'
+        # )
+
+    if plot_params["color_data_col_name"] == "w":
+        plot_params["min_cbar_value"] = -4
+        plot_params["max_cbar_value"] = 4
 
     # ### USING PCOLORMESH
     # cax = ax.pcolormesh(
@@ -617,6 +623,143 @@ def add_circulation_analysis(
     )
 
 
+def interpolate_missing_data(
+    ax,
+    df,
+    interpolation_zone_i,
+    columns=[
+        "u",
+        "v",
+        "w",
+        "V",
+        "dudx",
+        "dudy",
+        "dvdx",
+        "dvdy",
+        "dwdx",
+        "dwdy",
+        "vort_z",
+    ],
+):
+
+    x_min, x_max, y_min, y_max = interpolation_zone_i["bounds"]
+    increase_weight_points_close = interpolation_zone_i["increase_weight_points_close"]
+    increase_weight_points_far = interpolation_zone_i["increase_weight_points_far"]
+    method = interpolation_zone_i["method"]
+
+    # Filter data within the expanded bounding box and non-NaN values for interpolation
+    subset = df[
+        (df["x"] >= x_min)
+        & (df["x"] <= x_max)
+        & (df["y"] >= y_min)
+        & (df["y"] <= y_max)
+    ]
+
+    # Get coordinates with available data for interpolation
+    valid_data = subset.dropna(subset=columns)
+    points = valid_data[["x", "y"]].values  # Points where data is known
+
+    # Dictionary to store interpolated values for each column
+    interpolated_values = {}
+
+    for col in columns:
+        # Values for known data points in the current column
+        values = valid_data[col].values
+
+        # Identify cells to interpolate (i.e., cells with NaN values within bounds)
+        nan_cells = df[
+            (df["x"] >= x_min)
+            & (df["x"] <= x_max)
+            & (df["y"] >= y_min)
+            & (df["y"] <= y_max)
+            & df[col].isna()
+        ]
+        nan_points = nan_cells[["x", "y"]].values  # Points needing interpolation
+
+        if increase_weight_points_close:
+            # Custom inverse distance weighting for interpolated values
+            interpolated_values[col] = inverse_distance_weighting(
+                points, values, nan_points
+            )
+        elif increase_weight_points_far:
+            # Custom distance weighting for interpolated values
+            interpolated_values[col] = distance_weighting(points, values, nan_points)
+        else:
+            # Use griddata for standard interpolation
+            interpolated_values[col] = griddata(
+                points, values, nan_points, method=method
+            )
+
+    # Fill the interpolated values into the dataframe
+    for col in columns:
+        df.loc[
+            (df["x"] >= x_min)
+            & (df["x"] <= x_max)
+            & (df["y"] >= y_min)
+            & (df["y"] <= y_max)
+            & df[col].isna(),
+            col,
+        ] = interpolated_values[col]
+
+    # plotting a rectangle around the interpolation zone
+    d1centre = x_min + (x_max - x_min) / 2, y_min + (y_max - y_min) / 2
+    drot = 0
+    dLx = x_max - x_min
+    dLy = y_max - y_min
+    iP = 25
+    d2curve_rectangle = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
+    ax.plot(
+        d2curve_rectangle[:, 0],  # x-coordinates of the boundary
+        d2curve_rectangle[:, 1],  # y-coordinates of the boundary
+        color="pink",  # Boundary color (e.g., red)
+        linestyle="--",  # Dashed line for visibility
+        linewidth=1,  # Line width for boundary
+        alpha=1,
+        # marker="o",
+    )
+
+    return df
+
+
+def inverse_distance_weighting(points, values, grid_points, power=2):
+    """
+    Performs inverse distance weighting (IDW) interpolation for specified grid points.
+    """
+    interpolated_values = []
+    for gp in grid_points:
+        # Calculate distances from the grid point to all known points
+        distances = np.linalg.norm(points - gp, axis=1)
+        weights = 1 / (
+            distances**power + 1e-6
+        )  # Add small value to avoid division by zero
+        weights /= weights.sum()  # Normalize weights
+        interpolated_value = np.dot(weights, values)
+        interpolated_values.append(interpolated_value)
+
+    return np.array(interpolated_values)
+
+
+def distance_weighting(points, values, grid_points, power=2):
+    """
+    Custom distance weighting interpolation where farther points have higher weight.
+    This assigns weights proportional to distance instead of the inverse of distance.
+    """
+    interpolated_values = []
+    for gp in grid_points:
+        # Calculate distances from the grid point to all known points
+        distances = np.linalg.norm(points - gp, axis=1)
+
+        # Weight proportional to distance (adding small constant to avoid zero weight at distance 0)
+        weights = distances**power + 1e-6  # Increase weight with distance
+        weights /= weights.sum()  # Normalize weights
+
+        # Calculate weighted sum for interpolated value
+        interpolated_value = np.dot(weights, values)
+        interpolated_values.append(interpolated_value)
+
+    return np.array(interpolated_values)
+
+
 def plotting_on_ax(
     fig,
     ax,
@@ -631,6 +774,13 @@ def plotting_on_ax(
     if plot_params.get("is_with_mask", False) and not plot_params["is_CFD"]:
         df = apply_mask(df, plot_params)
 
+    if plot_params.get("is_with_interpolation", False):
+        for interpolation_zone_i in plot_params["interpolation_zones"]:
+            df = interpolate_missing_data(
+                ax,
+                df,
+                interpolation_zone_i,
+            )
     plot_params = plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params)
 
     # # Add optional elements
@@ -649,7 +799,10 @@ def plotting_on_ax(
     if plot_params.get("is_with_bound", False):
         d2curve_ellipse, d2curve_rectangle = add_boundaries(ax, plot_params)
 
-        if plot_params.get("is_with_circulation_analysis", False):
+        if (
+            plot_params.get("is_with_circulation_analysis", False)
+            and plot_params["color_data_col_name"] == "V"
+        ):
             add_circulation_analysis(
                 fig, ax, df, plot_params, d2curve_ellipse, d2curve_rectangle
             )
@@ -659,6 +812,8 @@ def plotting_on_ax(
     if plot_params["is_CFD"] or not plot_params["is_CFD_PIV_comparison"]:
         ax.set_ylabel("y [m]")
     ax.set_ylim(-0.2, 0.4)
+
+    # ax.grid(True)
 
     return plot_params
 
@@ -799,11 +954,12 @@ def plotting_CFD_PIV_comparison(plot_params: dict) -> None:
 
 def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None:
     """Create a 4x3 comparison of CFD and PIV data, with PIV masked/unmasked."""
-    fig, axes = plt.subplots(4, 3, figsize=(18, 20))
+    fig, axes = plt.subplots(4, 4, figsize=(24, 20))
     fig.suptitle(
         rf'Y{plot_params["y_num"]} | α = {plot_params["alpha"]}° | V_inf = {plot_params["u_inf"]}m/s'
     )
 
+    is_with_circulation_analysis = plot_params["is_with_circulation_analysis"]
     data_labels = ["u", "v", "w", "V"]
 
     for i, label in enumerate(data_labels):
@@ -811,48 +967,115 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
         # Update color data label
         plot_params["color_data_col_name"] = label
 
-        # CFD Data (First Column)
-        print(f"\nPlotting CFD for {label}")
+        ### CFD
+        plot_params["is_with_bound"] = True
+        if is_with_circulation_analysis:
+            plot_params["is_with_circulation_analysis"] = True
         df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params = load_data(
             plot_params | {"is_CFD": True}
         )
         plot_params = plotting_on_ax(
-            fig, axes[i, 0], df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params
+            fig, axes[i, 3], df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params
         )
-        axes[i, 0].set_title(f"CFD ({label})")
+        axes[i, 3].set_title(f"CFD")
+        if plot_params["is_with_cbar"]:
+            add_colorbar(fig, axes[i, 3], plot_params)
+
+        ### PIV raw
+        plot_params["is_with_bound"] = False
+        plot_params["is_with_circulation_analysis"] = False
+        plot_params["is_with_mask"] = False
+        df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
+            plot_params | {"is_CFD": False}
+        )
+        plot_params = plotting_on_ax(
+            fig, axes[i, 0], df_piv, x_mesh_piv, y_mesh_piv, plot_params
+        )
+        axes[i, 0].set_title(f"PIV Raw")
         if plot_params["is_with_cbar"]:
             add_colorbar(fig, axes[i, 0], plot_params)
 
-        # PIV without Mask (Second Column)
-        print(f"Plotting PIV (unmasked) for {label}")
-        plot_params["is_with_mask"] = False
+        ### PIV Mask
+        plot_params["is_with_bound"] = False
+        plot_params["is_with_circulation_analysis"] = False
+        plot_params["is_with_mask"] = True
+        plot_params["column_to_mask"] = "w"
+        plot_params["mask_lower_bound"] = -2.5
+        plot_params["mask_upper_bound"] = 2.5
         df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
             plot_params | {"is_CFD": False}
         )
         plot_params = plotting_on_ax(
             fig, axes[i, 1], df_piv, x_mesh_piv, y_mesh_piv, plot_params
         )
-        axes[i, 1].set_title(f"PIV Unmasked ({label})")
+        axes[i, 1].set_title(
+            f'PIV Masked for {plot_params["column_to_mask"]} in bounds {plot_params["mask_lower_bound"]} to {plot_params["mask_upper_bound"]}'
+        )
         if plot_params["is_with_cbar"]:
             add_colorbar(fig, axes[i, 1], plot_params)
 
-        # PIV with Mask (Third Column)
-        print(f"Applying mask for PIV ({label})")
-        plot_params["is_with_mask"] = True
-        plot_params["column_to_mask"] = plot_params["column_to_mask_uvwV"][i]
-        plot_params["mask_lower_bound"] = plot_params["mask_lower_bound_uvwV"][i]
-        plot_params["mask_upper_bound"] = plot_params["mask_upper_bound_uvwV"][i]
+        ### 4 | PIV with Mask
+        # print(f"Applying mask for PIV ({label})")
+        # plot_params["is_with_mask"] = True
+        # plot_params["column_to_mask"] = "u_std"
+        # plot_params["mask_lower_bound"] = -3
+        # plot_params["mask_upper_bound"] = 3
+        # df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
+        #     plot_params | {"is_CFD": False}
+        # )
+        # plot_params = plotting_on_ax(
+        #     fig, axes[i, 3], df_piv, x_mesh_piv, y_mesh_piv, plot_params
+        # )
+        # axes[i, 3].set_title(
+        #     f'PIV Masked for {plot_params["column_to_mask"]} in bounds {plot_params["mask_lower_bound"]} to {plot_params["mask_upper_bound"]}'
+        # )
+        # if plot_params["is_with_cbar"]:
+        #     add_colorbar(fig, axes[i, 3], plot_params)
+
+        ### PIV Mask Reinterpolated
+        plot_params["is_with_bound"] = True
+        if is_with_circulation_analysis:
+            plot_params["is_with_circulation_analysis"] = True
+        plot_params["is_with_interpolation"] = True
+        plot_params["interpolation_zones"] = (
+            # {
+            #     "bounds": [0.43, 0.5, 0.14, 0.19],
+            #     "increase_weight_points_close": False,
+            #     "increase_weight_points_far": True,
+            #     "method": "linear",
+            # },
+            {
+                "bounds": [0.43, 0.55, 0.11, 0.21],
+                "increase_weight_points_close": False,
+                "increase_weight_points_far": True,
+                "method": "linear",
+            },
+            {
+                "bounds": [0.43, 0.55, -0.1, 0.04],
+                "increase_weight_points_close": False,
+                "increase_weight_points_far": True,
+                "method": "linear",
+            },
+            {
+                "bounds": [0.22, 0.3, -0.15, -0.07],
+                "increase_weight_points_close": False,
+                "increase_weight_points_far": True,
+                "method": "linear",
+            },
+        )
+        plot_params["interpolation_method"] = "nearest"
         df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
             plot_params | {"is_CFD": False}
         )
         plot_params = plotting_on_ax(
             fig, axes[i, 2], df_piv, x_mesh_piv, y_mesh_piv, plot_params
         )
-        axes[i, 2].set_title(f"PIV Masked ({label})")
+        axes[i, 2].set_title(f"PIV Masked Re-interpolated zones")
         if plot_params["is_with_cbar"]:
             add_colorbar(fig, axes[i, 2], plot_params)
 
-        # Reset color bounds to None
+        ### Reset things
+        plot_params["is_with_interpolation"] = False
         plot_params["min_cbar_value"] = None
         plot_params["max_cbar_value"] = None
 
@@ -863,16 +1086,15 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
 
 def main(plot_params: dict) -> None:
     if plot_params["run_for_all_planes"]:
-        plot_params["alpha"] = 6
-        for y_num in range(1, 8):
+        if plot_params["alpha"] == 6:
+            y_range = range(1, 8)
+        else:
+            y_range = range(1, 5)
+        for y_num in y_range:
             plot_params["y_num"] = y_num
             plot_params["is_CFD_PIV_comparison_multicomponent_masked"] = True
             plotting_CFD_PIV_comparison_multicomponent_masked(plot_params)
-        plot_params["alpha"] = 16
-        for y_num in range(1, 5):
-            plot_params["y_num"] = y_num
-            plot_params["is_CFD_PIV_comparison_multicomponent_masked"] = True
-            plotting_CFD_PIV_comparison_multicomponent_masked(plot_params)
+
     elif plot_params["is_CFD_PIV_comparison"]:
         plotting_CFD_PIV_comparison(plot_params)
     elif plot_params["is_CFD_PIV_comparison_multicomponent_masked"]:
@@ -886,15 +1108,16 @@ if __name__ == "__main__":
     plot_params: PlotParams = {
         # Basic configuration
         "is_CFD": False,
-        "y_num": 3,
+        "y_num": 1,
         "alpha": 6,
         "project_dir": project_dir,
         "plot_type": ".pdf",
         "title": None,
         "is_CFD_PIV_comparison": False,
-        "color_data_col_name": "u",
+        "color_data_col_name": "w",
         "is_CFD_PIV_comparison_multicomponent_masked": True,
-        "run_for_all_planes": True,
+        "run_for_all_planes": False,
+        "is_with_interpolation": False,
         # Color and contour settings
         "is_with_cbar": True,
         "cbar_value_factor_of_std": 2.0,
@@ -904,8 +1127,8 @@ if __name__ == "__main__":
         "countour_levels": 100,
         "cmap": "viridis",
         # Quiver settings
-        "is_with_quiver": False,
-        "subsample_quiver": 10,
+        "is_with_quiver": True,
+        "subsample_quiver": 5,
         "u_inf": 15.0,
         # PIV specific settings
         "d_alpha_rod": 7.25,
@@ -920,25 +1143,25 @@ if __name__ == "__main__":
         "intensity_lower_bound": 10000,
         # Boundary settings
         "is_with_bound": True,
-        "d1centre": np.array([0.27, 0.13]),
+        "d1centre": np.array([0.24, 0.13]),
         "drot": 0.0,
-        "dLx": 0.8,
+        "dLx": 0.57,
         "dLy": 0.4,
         "iP": 27,
-        "ellipse_color": "black",
-        "rectangle_color": "black",
+        "ellipse_color": "red",
+        "rectangle_color": "red",
         "bound_linewidth": 1.0,
-        "bound_alpha": 0.5,
+        "bound_alpha": 1.0,
         # Circulation analysis
-        "is_with_circulation_analysis": False,
+        "is_with_circulation_analysis": True,
         "rho": 1.225,
         "mu": 1.7894e-5,
         "is_with_maximim_vorticity_location_correction": True,
         # Mask settings
         "is_with_mask": True,
-        "column_to_mask": "V_std",
-        "mask_lower_bound": -5,
-        "mask_upper_bound": 5,
+        "column_to_mask": "w",
+        "mask_lower_bound": -3,
+        "mask_upper_bound": 3,
         # Mask Multicomponent settings
         "column_to_mask_uvwV": ["w", "w", "w", "w"],
         "mask_lower_bound_uvwV": [-5, -5, -5, -5],
