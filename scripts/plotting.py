@@ -620,6 +620,10 @@ def add_circulation_analysis(
         fontsize=6,
         transform=ax.transAxes,
         wrap=True,
+        color="red",
+        bbox=dict(
+            facecolor="white", edgecolor="black", boxstyle="round,pad=0.3", alpha=0.8
+        ),
     )
 
 
@@ -968,6 +972,7 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
         plot_params["color_data_col_name"] = label
 
         ### CFD
+        plot_params["is_with_interpolation"] = False
         plot_params["is_with_bound"] = True
         if is_with_circulation_analysis:
             plot_params["is_with_circulation_analysis"] = True
@@ -982,6 +987,7 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
             add_colorbar(fig, axes[i, 3], plot_params)
 
         ### PIV raw
+        plot_params["is_with_interpolation"] = False
         plot_params["is_with_bound"] = False
         plot_params["is_with_circulation_analysis"] = False
         plot_params["is_with_mask"] = False
@@ -996,6 +1002,7 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
             add_colorbar(fig, axes[i, 0], plot_params)
 
         ### PIV Mask
+        plot_params["is_with_interpolation"] = False
         plot_params["is_with_bound"] = False
         plot_params["is_with_circulation_analysis"] = False
         plot_params["is_with_mask"] = True
@@ -1075,7 +1082,6 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
             add_colorbar(fig, axes[i, 2], plot_params)
 
         ### Reset things
-        plot_params["is_with_interpolation"] = False
         plot_params["min_cbar_value"] = None
         plot_params["max_cbar_value"] = None
 
@@ -1086,6 +1092,7 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
 
 def main(plot_params: dict) -> None:
     if plot_params["run_for_all_planes"]:
+        print(f'Plotting for all planes with α = {plot_params["alpha"]}°')
         if plot_params["alpha"] == 6:
             y_range = range(1, 8)
         else:
@@ -1096,10 +1103,13 @@ def main(plot_params: dict) -> None:
             plotting_CFD_PIV_comparison_multicomponent_masked(plot_params)
 
     elif plot_params["is_CFD_PIV_comparison"]:
+        print(f'Plotting CFD-PIV comparison for α = {plot_params["alpha"]}°')
         plotting_CFD_PIV_comparison(plot_params)
     elif plot_params["is_CFD_PIV_comparison_multicomponent_masked"]:
+        print(f'Plotting CFD-PIV comparison for α = {plot_params["alpha"]}°')
         plotting_CFD_PIV_comparison_multicomponent_masked(plot_params)
     else:
+        print(f'Plotting single plot for α = {plot_params["alpha"]}°')
         plotting_single(plot_params)
 
 
@@ -1107,17 +1117,16 @@ if __name__ == "__main__":
 
     plot_params: PlotParams = {
         # Basic configuration
-        "is_CFD": False,
+        "is_CFD": True,
         "y_num": 1,
-        "alpha": 6,
+        "alpha": 16,
         "project_dir": project_dir,
         "plot_type": ".pdf",
         "title": None,
         "is_CFD_PIV_comparison": False,
-        "color_data_col_name": "w",
+        "color_data_col_name": "V",
         "is_CFD_PIV_comparison_multicomponent_masked": True,
         "run_for_all_planes": False,
-        "is_with_interpolation": False,
         # Color and contour settings
         "is_with_cbar": True,
         "cbar_value_factor_of_std": 2.0,
@@ -1145,9 +1154,16 @@ if __name__ == "__main__":
         "is_with_bound": True,
         "d1centre": np.array([0.24, 0.13]),
         "drot": 0.0,
-        "dLx": 0.57,
+        "dLx": 0.56,
         "dLy": 0.4,
-        "iP": 27,
+        "iP": 35,
+        # insert
+        # "d1centre": np.array([0.27, 0.13]),
+        # "drot": 0,
+        # "dLx": 0.8,
+        # "dLy": 0.4,
+        # "iP": 35,
+        ##
         "ellipse_color": "red",
         "rectangle_color": "red",
         "bound_linewidth": 1.0,
@@ -1158,14 +1174,10 @@ if __name__ == "__main__":
         "mu": 1.7894e-5,
         "is_with_maximim_vorticity_location_correction": True,
         # Mask settings
-        "is_with_mask": True,
+        "is_with_mask": False,
         "column_to_mask": "w",
         "mask_lower_bound": -3,
         "mask_upper_bound": 3,
-        # Mask Multicomponent settings
-        "column_to_mask_uvwV": ["w", "w", "w", "w"],
-        "mask_lower_bound_uvwV": [-5, -5, -5, -5],
-        "mask_upper_bound_uvwV": [5, 5, 5, 5],
     }
     main(plot_params)
     if plot_params["is_CFD_PIV_comparison"]:

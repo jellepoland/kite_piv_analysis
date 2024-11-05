@@ -2,7 +2,7 @@ import numpy as np
 from pathlib import Path
 import pandas as pd
 from scipy.signal import convolve2d
-from utils import project_dir, interp2d_jelle
+from utils import project_dir, interp2d_batch
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
 
 
@@ -91,9 +91,50 @@ def reshape_data(df, x_col="x", y_col="y", *data_cols):
     for col in data_cols:
         # Sort data by x and y columns to match the mesh grid
         sorted_data = df.sort_values(by=[y_col, x_col])[col].values
-        reshaped_data[col] = sorted_data.reshape(len(y_unique), len(x_unique))
+
+        # Reshape while maintaining NaN shape
+        reshaped = sorted_data.reshape(len(y_unique), len(x_unique))
+
+        # Handle NaN values: replace NaN with a specific value or leave them as NaN
+        reshaped[np.isnan(reshaped)] = 0  # Replace NaNs with 0, change as needed
+
+        reshaped_data[col] = reshaped
 
     return reshaped_data
+
+
+# def reshape_data(df, x_col="x", y_col="y", *data_cols):
+#     """
+#     Reshapes columns of data into 2D arrays based on unique x and y values.
+
+#     Parameters:
+#     - df: DataFrame containing the data.
+#     - x_col: str, the name of the x-coordinate column.
+#     - y_col: str, the name of the y-coordinate column.
+#     - data_cols: str, names of the columns to be reshaped.
+
+#     Returns:
+#     - reshaped_data: dict, with each column reshaped into 2D form.
+#     """
+#     # Identify unique x and y values and create mesh grid
+#     x_unique = np.sort(df[x_col].unique())
+#     y_unique = np.sort(df[y_col].unique())
+#     x_mesh, y_mesh = np.meshgrid(x_unique, y_unique)
+
+#     # Reshape each data column
+#     # Add x and y grids to the output dictionary
+#     reshaped_data = {"x": x_mesh, "y": y_mesh}
+#     for col in data_cols:
+#         # Sort data by x and y columns to match the mesh grid
+#         sorted_data = df.sort_values(by=[y_col, x_col])[col].values
+#         reshaped_data[col] = sorted_data.reshape(len(y_unique), len(x_unique))
+
+#     return reshaped_data
+
+
+def smooth_data(data, ismooth):
+    kernel = np.ones((ismooth, ismooth)) / (ismooth**2)
+    return conv2(data, kernel, mode="same")
 
 
 def forceFromVelNoca2D_V3(
@@ -111,6 +152,14 @@ def forceFromVelNoca2D_V3(
     # print(f"dmu {type(dmu)}")
     # print(f"bcorMaxVort {type(bcorMaxVort)}")
 
+    print(f"d2u: {np.mean(d2u)}")
+
+    # Checking for zeros
+    if d2dudt == 0:
+        d2dudt = np.zeros_like(d2u)
+    if d2dvdt == 0:
+        d2dvdt = np.zeros_like(d2v)
+
     # Initial value
     iN = 2
 
@@ -118,6 +167,12 @@ def forceFromVelNoca2D_V3(
     bsmooth = False
     ismooth = 9
     if bsmooth:
+        # d2u = smooth_data(d2u, ismooth)
+        # d2v = smooth_data(d2v, ismooth)
+        # d2vortZ = smooth_data(d2vortZ, ismooth)
+        # d2dudt = smooth_data(d2dudt, ismooth)
+        # d2dvdt = smooth_data(d2dvdt, ismooth)
+
         d2u = conv2(d2u, np.ones((ismooth, ismooth)) / (ismooth**2), mode="same")
         d2v = conv2(d2v, np.ones((ismooth, ismooth)) / (ismooth**2), mode="same")
         d2vortZ = conv2(
@@ -136,15 +191,31 @@ def forceFromVelNoca2D_V3(
     # Ensure inputs are NumPy arrays
     d2curve = np.asarray(d2curve)
 
-    # Calculate curve derivatives
-    d1nx = gradient(d2curve[:, 0])
-    d1ny = gradient(d2curve[:, 1])
+    ## OLD
+    # # Calculate curve derivatives
+    # d1nx = gradient(d2curve[:, 0])
+    # d1ny = gradient(d2curve[:, 1])
 
-    # Normalize the vectors
-    norm_factor = np.sqrt(d1ny**2 + d1nx**2)
-    d1ny /= norm_factor
-    d1nx /= norm_factor
-    d1ny = -d1ny  # Negative as per original MATLAB code
+    # # Normalize the vectors
+    # norm_factor = np.sqrt(d1ny**2 + d1nx**2)
+    # d1ny /= norm_factor
+    # d1nx /= norm_factor
+    # d1ny = -d1ny  # Negative as per original MATLAB code
+
+    # Normal vector calculation - MATLAB style
+    d1ny = -gradient(d2curve[:, 0]) / np.sqrt(
+        gradient(d2curve[:, 0]) ** 2 + gradient(d2curve[:, 1]) ** 2
+    )
+    d1nx = gradient(d2curve[:, 1]) / np.sqrt(
+        gradient(d2curve[:, 0]) ** 2 + gradient(d2curve[:, 1]) ** 2
+    )
+
+    ## this would be more efficient that the above
+    # dcurve_grad_x = gradient(d2curve[:, 0])
+    # dcurve_grad_y = gradient(d2curve[:, 1])
+    # norm_factor = np.sqrt(dcurve_grad_x ** 2 + dcurve_grad_y ** 2)
+    # d1ny = -dcurve_grad_x / norm_factor
+    # d1nx = dcurve_grad_y / norm_factor
 
     # Spatial gradients of first and second order
     ddx = d2x[1, 1] - d2x[0, 0]
@@ -160,26 +231,26 @@ def forceFromVelNoca2D_V3(
 
     # Vector fields interpolated along curve
     # Note: You'll need to implement interp2 equivalent function
-    d1u = interp2d_jelle(d2x, d2y, d2u, d2curve)
-    d1v = interp2d_jelle(d2x, d2y, d2v, d2curve)
-    d1vortZ = interp2d_jelle(d2x, d2y, d2vortZ, d2curve)
+    d1u = interp2d_batch(d2x, d2y, d2u, d2curve)
+    d1v = interp2d_batch(d2x, d2y, d2v, d2curve)
+    d1vortZ = interp2d_batch(d2x, d2y, d2vortZ, d2curve)
 
-    d1dudt = interp2d_jelle(d2x, d2y, d2dudt, d2curve)
-    d1dvdt = interp2d_jelle(d2x, d2y, d2dvdt, d2curve)
+    d1dudt = interp2d_batch(d2x, d2y, d2dudt, d2curve)
+    d1dvdt = interp2d_batch(d2x, d2y, d2dvdt, d2curve)
 
-    d1dudx = interp2d_jelle(d2x, d2y, d2dudx, d2curve)
-    d1dudy = interp2d_jelle(d2x, d2y, d2dudy, d2curve)
-    d1dvdx = interp2d_jelle(d2x, d2y, d2dvdx, d2curve)
-    d1dvdy = interp2d_jelle(d2x, d2y, d2dvdy, d2curve)
+    d1dudx = interp2d_batch(d2x, d2y, d2dudx, d2curve)
+    d1dudy = interp2d_batch(d2x, d2y, d2dudy, d2curve)
+    d1dvdx = interp2d_batch(d2x, d2y, d2dvdx, d2curve)
+    d1dvdy = interp2d_batch(d2x, d2y, d2dvdy, d2curve)
 
-    d1d2udx2 = interp2d_jelle(d2x, d2y, d2d2udx2, d2curve)
-    # d1d2udydx = interp2d_jelle(d2x, d2y, d2d2udydx, d2curve)
-    d1d2vdx2 = interp2d_jelle(d2x, d2y, d2d2vdx2, d2curve)
-    # d1d2vdydx = interp2d_jelle(d2x, d2y, d2d2vdydx, d2curve)
-    d1d2udxdy = interp2d_jelle(d2x, d2y, d2d2udxdy, d2curve)
-    d1d2udy2 = interp2d_jelle(d2x, d2y, d2d2udy2, d2curve)
-    d1d2vdxdy = interp2d_jelle(d2x, d2y, d2d2vdxdy, d2curve)
-    d1d2vdy2 = interp2d_jelle(d2x, d2y, d2d2vdy2, d2curve)
+    d1d2udx2 = interp2d_batch(d2x, d2y, d2d2udx2, d2curve)
+    d1d2udydx = interp2d_batch(d2x, d2y, d2d2udydx, d2curve)
+    d1d2vdx2 = interp2d_batch(d2x, d2y, d2d2vdx2, d2curve)
+    d1d2vdydx = interp2d_batch(d2x, d2y, d2d2vdydx, d2curve)
+    d1d2udxdy = interp2d_batch(d2x, d2y, d2d2udxdy, d2curve)
+    d1d2udy2 = interp2d_batch(d2x, d2y, d2d2udy2, d2curve)
+    d1d2vdxdy = interp2d_batch(d2x, d2y, d2d2vdxdy, d2curve)
+    d1d2vdy2 = interp2d_batch(d2x, d2y, d2d2vdy2, d2curve)
 
     # Test: Change coord frame to minimise impact of vorticity term
     if bcorMaxVort:
@@ -194,12 +265,19 @@ def forceFromVelNoca2D_V3(
         imaxVortZ = np.argmax(vort_combined)
         d2curve = d2curve - d2curve[imaxVortZ, :]
 
+    ### NORMAL FORCE CALCULATION ###
+
     # Calculate the various normal force contributions
     d2Fn = np.zeros((len(d1s), 11))
 
-    # Inviscid terms
+    ## Inviscid terms
+    print(f"d1nx: {d1nx}")
+    print(f"d1u: {d1u}")
+    print(f"d1v: {d1v}")
     d2Fn[:, 1] = 0.5 * d1nx * (d1u**2 + d1v**2)
+    # Convective term
     d2Fn[:, 2] = -(d1nx * d1u**2 + d1ny * d1v * d1u)
+    # Rotational correction term
     d2Fn[:, 3] = (
         -1
         / (iN - 1)
@@ -207,7 +285,7 @@ def forceFromVelNoca2D_V3(
     )
     d2Fn[:, 4] = 0
 
-    # Time dependent terms
+    ## Time dependent terms
     d2Fn[:, 5] = (
         -1 / (iN - 1) * d1nx * (d2curve[:, 0] * d1dudt + d2curve[:, 1] * d1dvdt)
     )
@@ -216,7 +294,7 @@ def forceFromVelNoca2D_V3(
     )
     d2Fn[:, 7] = -(d1nx * d1dudt * d2curve[:, 0] + d1ny * d1dvdt * d2curve[:, 0])
 
-    # Viscous terms
+    ## Viscous terms
     d1nablaTau1 = 2 * d1d2udx2 + d1d2vdxdy + d1d2udy2
     d1nablaTau2 = d1d2udxdy + d1d2vdx2 + 2 * d1d2vdy2
 
@@ -239,6 +317,8 @@ def forceFromVelNoca2D_V3(
 
     # Integrate each column across rows (axis=0), producing 11 values
     d1Fn = np.trapz(d2Fn, d1s, axis=0)
+
+    ### TANGENTIAL FORCE CALCULATION ###
 
     # Calculate the various tangential force contributions
     d2Ft = np.zeros((len(d1s), 11))
@@ -289,6 +369,18 @@ def forceFromVelNoca2D_V3(
     # Integrate each column across rows (axis=0), producing 11 values
     d1Ft = np.trapz(d2Ft, d1s, axis=0)
 
+    # printing out all the components, with labels
+    print(f"\nNormal force components:")
+    print(f"Inviscid terms [1,2,3] {d1Fn[1], d1Fn[2], d1Fn[3]}")
+    print(f"Time dependent terms [5,6,7] {d1Fn[5], d1Fn[6], d1Fn[7]}")
+    print(f"Viscous terms [8,9,10] {d1Fn[8], d1Fn[9], d1Fn[10]}")
+    print(f"------------+ {d1Fn[0]}")
+    print(f"\nTangential force components:")
+    print(f"Inviscid terms [1,2,3] {d1Ft[1], d1Ft[2], d1Ft[3]}")
+    print(f"Time dependent terms [5,6,7] {d1Ft[5], d1Ft[6], d1Ft[7]}")
+    print(f"Viscous terms [8,9,10] {d1Ft[8], d1Ft[9], d1Ft[10]}")
+    print(f"------------+ {d1Ft[0]}")
+
     return d1Fn, d1Ft
 
 
@@ -312,6 +404,7 @@ def load_data(is_CFD: bool, alpha: int, y_num: int, alpha_d_rod: float = 7.25):
             / f"aoa_{int(alpha+alpha_d_rod)}_Y{y_num}_stichted.csv"
         )
 
+    print(f"Loading data from: {csv_path}")
     df_1D = pd.read_csv(csv_path)
     return df_1D
 
@@ -336,8 +429,12 @@ def main(
         d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
         print(f"Running NOCA on Rectangle, will take a while...")
 
+    print(f"df_1D: {np.mean(df_1D['u'])}")
+
     # reshape df
     df_2D = reshape_data(df_1D, "x", "y", "u", "v", "vort_z", "dudx", "dvdx")
+
+    print(f"df_2D: {np.mean(df_2D['u'].ravel())}")
 
     d1Fn, d1Ft = forceFromVelNoca2D_V3(
         d2x=df_2D["x"],
@@ -345,8 +442,8 @@ def main(
         d2u=df_2D["u"],
         d2v=df_2D["v"],
         d2vortZ=df_2D["vort_z"],
-        d2dudt=df_2D["dudx"],
-        d2dvdt=df_2D["dvdx"],
+        d2dudt=0,
+        d2dvdt=0,
         d2curve=d2curve,
         dmu=mu,
         bcorMaxVort=is_with_maximim_vorticity_location_correction,
@@ -369,7 +466,19 @@ if __name__ == "__main__":
         drot=0,
         dLx=0.8,
         dLy=0.4,
-        iP=50,
-        mu=1.8e-5,
+        iP=35,
+        mu=1.7894e-5,
         is_with_maximim_vorticity_location_correction=True,
     )
+
+    # main(
+    #     df_1D,
+    #     is_ellipse=False,
+    #     d1centre=np.array([0.27, 0.13]),
+    #     drot=0,
+    #     dLx=0.8,
+    #     dLy=0.4,
+    #     iP=35,
+    #     mu=1.7894e-5,
+    #     is_with_maximim_vorticity_location_correction=True,
+    # )
