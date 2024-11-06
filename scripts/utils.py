@@ -1,13 +1,15 @@
 from pathlib import Path
 import numpy as np
 from scipy.interpolate import (
-    griddata,
     interp2d,
-    RectBivariateSpline,
-    RegularGridInterpolator,
 )
 
 project_dir = Path(__file__).resolve().parent.parent
+
+
+def reshape_remove_nans(col, n_rows, n_cols):
+    col[np.isnan(col)] = 0
+    return col.values.reshape(n_rows, n_cols)
 
 
 def interp2d_batch(d2x, d2y, d2_values, points, kind="linear"):
@@ -19,199 +21,20 @@ def interp2d_batch(d2x, d2y, d2_values, points, kind="linear"):
     # print(f"dim: d2x: {d2x.shape}, d2y: {d2y.shape}, d2_values: {d2_values.shape}")
 
     # Create the interpolator
-    x = np.sort(np.unique(d2x.ravel()))
-    y = np.sort(np.unique(d2y.ravel()))
-    ip = interp2d(x, y, d2_values, kind=kind)
+    d2x_flat = np.sort(np.unique(d2x.ravel()))
+    d2y_flat = np.sort(np.unique(d2y.ravel()))
+    ip = interp2d(d2x_flat, d2y_flat, d2_values, kind=kind)
+
+    x_points, y_points = zip(*points)
 
     ip_out_list = []
-    for point in points:
+    for xi, yi in zip(x_points, y_points):
         # Perform interpolation for each point
-        xi, yi = point
         ip_out = ip(xi, yi)
         ip_out_list.append(ip_out)
-    print(f"dim input: points: {np.array(points).shape}")
-    print(f"dim: ip_out: {np.array(ip_out_list).shape}")
+    # print(f"dim input: points: {np.array(points).shape}")
+    # print(f"dim: ip_out: {np.array(ip_out_list).shape}")
     return np.array(ip_out_list).flatten()
-
-
-# def interp2d_scipy(x, y, z, xi, yi, kind="linear"):
-#     """Interpolation using scipy's interp2d."""
-#     ip = interp2d(x, y, z, kind=kind)
-#     return ip(xi, yi)[0]  # Return the first element to match output shape
-
-
-# def interp2d_fast(d2x, d2y, d2_variable, d2curve, method="linear"):
-#     interpolator = RegularGridInterpolator((d2x, d2y), d2_variable, method=method)
-#     return interpolator(d2curve)
-
-
-# def interp2d_jelle(
-#     d2x: np.ndarray,
-#     d2y: np.ndarray,
-#     d2_variable: np.ndarray,
-#     d2curve: np.ndarray,
-#     method="linear",
-# ):
-#     interpolated_points = []
-#     for point in d2curve:
-#         interpolated_point = interp2d_scipy(
-#             d2x.ravel(), d2y.ravel(), d2_variable, point[0], point[1], method
-#         )
-#         interpolated_points.append(interpolated_point)
-#     return np.array(interpolated_points)
-
-
-def prepare_grid_inputs(d2x, d2y, d2_variable):
-    """
-    Prepare inputs for RegularGridInterpolator by reshaping and sorting d2x and d2y.
-
-    Parameters:
-    - d2x: Array of x-coordinates.
-    - d2y: Array of y-coordinates.
-    - d2_variable: 2D array of values on the (d2x, d2y) grid.
-
-    Returns:
-    - d2x_sorted, d2y_sorted: 1D arrays sorted in ascending order.
-    - d2_variable_sorted: 2D array of values sorted according to the sorted grid.
-    """
-    # Ensure d2x and d2y are 1D by taking unique values along each axis
-    d2x_unique = np.unique(d2x.ravel())
-    d2y_unique = np.unique(d2y.ravel())
-
-    # Sort d2x and d2y and ensure d2_variable aligns with sorted axes
-    if not np.all(np.diff(d2x_unique) > 0):  # Ascending check
-        d2x_unique = d2x_unique[::-1]  # Reverse order if needed
-        d2_variable = d2_variable[::-1, :]
-
-    if not np.all(np.diff(d2y_unique) > 0):  # Ascending check
-        d2y_unique = d2y_unique[::-1]
-        d2_variable = d2_variable[:, ::-1]
-
-    return d2x_unique, d2y_unique, d2_variable
-
-
-# def interp2d_batch(d2x, d2y, d2_variable, d2curve, method="linear"):
-#     """
-#     Perform 2D interpolation on multiple points in batch mode.
-
-#     Parameters:
-#     - d2x: 2D array or 1D array of x-coordinates.
-#     - d2y: 2D array or 1D array of y-coordinates.
-#     - d2_variable: 2D array of values on the (d2x, d2y) grid.
-#     - d2curve: Nx2 array of [x, y] points for interpolation.
-#     - method: Interpolation method ('linear' or 'nearest').
-
-#     Returns:
-#     - Interpolated values for each point in `d2curve`.
-#     """
-
-#     print(
-#         f"before: dim: d2x: {d2x.shape}, d2y: {d2y.shape}, d2_variable: {d2_variable.shape}"
-#     )
-#     # print(f"d2x: {d2x}")
-#     # print(f"d2y: {d2y}")
-
-#     import matplotlib.pyplot as plt
-
-#     plt.scatter(d2x, d2y, label="Grid Points", color="blue")
-#     plt.scatter(d2curve[:, 0], d2curve[:, 1], label="Curve Points", color="red")
-#     plt.xlabel("x")
-#     plt.ylabel("y")
-#     plt.legend()
-#     plt.show()
-
-#     d2x = np.sort(np.unique(d2x.ravel()))
-#     d2y = np.sort(np.unique(d2y.ravel()))
-
-#     print(
-#         f"after: dim: d2x: {d2x.shape}, d2y: {d2y.shape}, d2_variable: {d2_variable.shape}"
-#     )
-#     print(
-#         f"(d2y, d2x): {d2y.shape}, {d2x.shape}, x_bounds: [{d2x.min():.2f},{d2x.max():.2f}], y_bounds: [{d2y.min():.2f},{d2y.max():.2f}]"
-#     )
-#     print(
-#         f"d2curve: {d2curve.shape}, print x_bounds: [{d2curve[:, 0].min():.2f},{d2curve[:, 0].max():.2f}], y_bounds: [{d2curve[:, 1].min():.2f},{d2curve[:, 1].max():.2f}]"
-#     )
-#     # print(f"d2x: {d2x}")
-#     # print(f"d2y: {d2y}")
-
-#     # Create the interpolator object
-#     interpolator = RegularGridInterpolator((d2y, d2x), d2_variable, method=method)
-
-#     # Perform interpolation for all clamped points in `d2curve`
-#     return interpolator(d2curve)
-
-
-def interp2d_jelle(
-    d2x: np.ndarray,
-    d2y: np.ndarray,
-    d2_variable: np.ndarray,
-    d2curve: np.ndarray,
-    method="cubic",
-):
-    points = np.column_stack((d2x.ravel(), d2y.ravel()))
-
-    # Interpolate u and v values at each boundary point on the curve
-    d1_variable = griddata(points, d2_variable.ravel(), d2curve, method=method)
-
-    return d1_variable
-
-
-import numpy as np
-from scipy.interpolate import griddata, interp2d, RectBivariateSpline
-
-
-def interp_griddata(
-    d2x: np.ndarray,  # 1D array of x-coordinates (grid points)
-    d2y: np.ndarray,  # 1D array of y-coordinates (grid points)
-    d2_variable: np.ndarray,  # 2D array of values on the (d2x, d2y) grid
-    xi: float,  # X-coordinate for interpolation
-    yi: float,  # Y-coordinate for interpolation
-    method="cubic",
-):
-    # Ensure method is valid
-    valid_methods = {"linear", "cubic", "nearest"}
-    if method not in valid_methods:
-        print(f"Warning: Unknown method '{method}', defaulting to 'linear'")
-        method = "linear"
-
-    # Create meshgrid from 1D x and y arrays
-    mesh_x, mesh_y = np.meshgrid(d2x, d2y)
-
-    # Stack meshgrid coordinates into points array
-    points = np.column_stack((mesh_x.ravel(), mesh_y.ravel()))
-
-    # Flatten the variable data
-    values = d2_variable.ravel()
-
-    # Prepare the input points for interpolation
-    d2curve = np.array([[xi, yi]])  # Create a 2D array for a single (x, y) point
-
-    # Interpolate at points defined by d2curve
-    d1_variable = griddata(points, values, d2curve, method=method)
-
-    return (
-        d1_variable[0] if d1_variable is not None else None
-    )  # Return the interpolated value
-
-
-def interp2d_scipy(x, y, z, xi, yi, kind="linear"):
-    """Interpolation using scipy's interp2d."""
-    ip = interp2d(x, y, z, kind=kind)
-    return ip(xi, yi)[0]  # Return the first element to match output shape
-
-
-def rect_bivariate_spline(x, y, z, xi, yi, kx=3, ky=3, s=0):
-    """Interpolation using RectBivariateSpline."""
-    spline = RectBivariateSpline(x, y, z, kx=kx, ky=ky, s=s)
-    return spline(xi, yi)[0, 0]  # Return the first element to match output shape
-
-
-def nearest_neighbor(x, y, z, x0, y0):
-    """Nearest-neighbor interpolation."""
-    xi = np.abs(x - x0).argmin()
-    yi = np.abs(y - y0).argmin()
-    return z[yi, xi]
 
 
 # Example testing script
@@ -369,28 +192,46 @@ if __name__ == "__main__":
     x = np.array(x)
     y = np.array(y)
     z = np.array(z)
-    print("Input data:")
-    print("x:", x)
-    print("y:", y)
-    print("z:", z)
+    # print("Input data:")
+    # print("x:", x)
+    # print("y:", y)
+    # print("z:", z)
 
     # Interpolation points
-    # xi, yi = 5.5, 5.5
-    d2curve = np.array([[5.5, 5.5], [5.5, 5.5], [5.5, 5.5]])
-
-    # Test each function
-    # results_interp_griddata = interp_griddata(x, y, z, xi, yi)
-    # result_interp2d = interp2d_scipy(x, y, z, xi, yi)
-    # result_spline = rect_bivariate_spline(x, y, z, xi, yi)
-    # result_nearest = nearest_neighbor(x, y, z, xi, yi)
-    # interp2d_jelle(x, y, z, np.array([[xi, yi]]))
-    interp2d_batch(x, y, z, d2curve)
+    points = np.array([[5.5, 5.5], [5.5, 5.5], [5.5, 5.5]])
+    results = interp2d_batch(x, y, z, points)
 
     # Print results
-    print("\nInterpolated values: MATLAB result == 0.2682")
-    # print("griddata result:", results_interp_griddata)
-    # print("interp2d result:", result_interp2d)
-    # print("RectBivariateSpline result:", result_spline)
-    # print("Nearest-neighbor result:", result_nearest)
-    # print("Jelle's interp2d result:", interp2d_jelle(x, y, z, np.array([[xi, yi]]))[0])
-    print("Batch interp2d result:", interp2d_batch(x, y, z, d2curve))
+    print(f"\nTesting part 1")
+    print("MATLAB result == 0.2682")
+    print("Batch interp2d result:", results)
+
+    ## TESTING ##
+    print(f"\nTesting part 2")
+    # Example input
+    d2x = np.array([0, 1, 2, 3])
+    d2y = np.array([0, 1, 2, 3])
+    d2_values = np.array([[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]])
+    points = [[1.5, 1.5], [2.5, 2.5]]
+
+    result = interp2d_batch(d2x, d2y, d2_values, points)
+    print(f"Matlab result = [3, 5]")
+    print(f"Python result = {result}")
+
+    # Example 2D data grid (d2x, d2y)
+    d2x = np.array([0, 3.4, 6.7, 8.56])  # X values
+    d2y = np.array([0, 3.4, 6.7])  # Y values
+
+    # Example 2D values corresponding to the (x, y) grid
+    d2_values = np.array(
+        [[1.2342, 2.11, 1.00, 23], [-0.2, 34.5, 22.3, 11], [21.6, 7.5, 6.9, 6]]
+    )
+
+    # Points to interpolate (xi, yi)
+    points = [[0.5, 0.5], [1.5, 1.5], [2.0, 2.0]]
+
+    # Interpolated values
+    interpolated_values = interp2d_batch(d2x, d2y, d2_values, points)
+    print(f"\nTesting part 3")
+    print(f"Matlab results:   1.883575e+00, 7.571277e+00, 1.260960e+01")
+    print("Interpolated values (Python):", interpolated_values)

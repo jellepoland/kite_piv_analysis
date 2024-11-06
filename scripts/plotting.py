@@ -563,6 +563,7 @@ def add_circulation_analysis(
     dLy = plot_params["dLy"]
     iP = plot_params["iP"]
     mu = plot_params["mu"]
+    c = plot_params["chord"]
     is_with_maximim_vorticity_location_correction = plot_params[
         "is_with_maximim_vorticity_location_correction"
     ]
@@ -572,43 +573,31 @@ def add_circulation_analysis(
     ellipse_kutta_force = ellipse_gamma * u_inf * rho
     rectangle_kutta_force = rectangle_gamma * u_inf * rho
 
-    is_ellipse = True
-    force_normal_ellipse_array, force_tangential_ellipse_array = force_from_noca.main(
+    f_x_ellipse, f_y_ellipse, c_l_ellipse, c_d_ellipse = force_from_noca.main(
         df_1D,
-        is_ellipse,
-        d1centre,
-        drot,
-        dLx,
-        dLy,
-        iP,
+        d2curve_ellipse,
         mu,
         is_with_maximim_vorticity_location_correction,
+        rho,
+        u_inf,
+        c,
     )
-    is_ellipse = False
-    force_normal_rectangle_array, force_tangential_rectangle_array = (
-        force_from_noca.main(
-            df_1D,
-            is_ellipse,
-            d1centre,
-            drot,
-            dLx,
-            dLy,
-            iP,
-            mu,
-            is_with_maximim_vorticity_location_correction,
-        )
+    f_x_rectangle, f_y_rectangle, c_l_rectangle, c_d_rectangle = force_from_noca.main(
+        df_1D,
+        d2curve_rectangle,
+        mu,
+        is_with_maximim_vorticity_location_correction,
+        rho,
+        u_inf,
+        c,
     )
-    force_normal_ellipse = force_normal_ellipse_array[0]
-    force_tangential_ellipse = force_tangential_ellipse_array[0]
-    force_normal_rectangle = force_normal_rectangle_array[0]
-    force_tangential_rectangle = force_tangential_rectangle_array[0]
 
     # Adding text below the plot using LaTeX formatting
     text = (
         f"Ellipse:    $\\Gamma$: {ellipse_gamma:.2f} m2/s --> $F_{{\\rho \\Gamma u}}$: {ellipse_kutta_force:.2f} N"
-        f"  |  NOCA --> $F_n$: {force_normal_ellipse:.2f} N, $F_t$: {force_tangential_ellipse:.2f} N\n"
-        f"Rectangle:  $\\Gamma$: {rectangle_gamma:.2f} m2/s --> $F_{{\\rho \\Gamma u}}$: {rectangle_kutta_force:.2f} N"
-        f"  |  NOCA --> $F_n$: {force_normal_rectangle:.2f} N, $F_t$: {force_tangential_rectangle:.2f} N"
+        f"\nNOCA --> $F_x$: {f_x_ellipse:.2f} N, $F_y$: {f_y_ellipse:.2f} N  |  $C_L$: {c_l_ellipse:.2f}, $C_D$: {c_d_ellipse:.2f}"
+        f"\nRectangle:  $\\Gamma$: {rectangle_gamma:.2f} m2/s --> $F_{{\\rho \\Gamma u}}$: {rectangle_kutta_force:.2f} N"
+        f"\nNOCA --> $F_n$: {f_x_rectangle:.2f} N, $F_t$: {f_y_rectangle:.2f} N  |  $C_L$: {c_l_rectangle:.2f}, $C_D$: {c_d_rectangle:.2f}"
     )
 
     ax.text(
@@ -1156,7 +1145,7 @@ if __name__ == "__main__":
         "drot": 0.0,
         "dLx": 0.56,
         "dLy": 0.4,
-        "iP": 35,
+        "iP": 65,
         # insert
         # "d1centre": np.array([0.27, 0.13]),
         # "drot": 0,
@@ -1173,6 +1162,7 @@ if __name__ == "__main__":
         "rho": 1.225,
         "mu": 1.7894e-5,
         "is_with_maximim_vorticity_location_correction": True,
+        "chord": 0.37,
         # Mask settings
         "is_with_mask": False,
         "column_to_mask": "w",

@@ -3,12 +3,12 @@ import pandas as pd
 from scipy.interpolate import interp2d, griddata
 from pathlib import Path
 import time
-from utils import project_dir, interp2d_jelle
+from utils import project_dir, reshape_remove_nans, interp2d_batch
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
 
 
 def calculate_circulation(
-    df: pd.DataFrame,
+    df_1D: pd.DataFrame,
     d2curve: np.ndarray,
 ) -> float:
     """
@@ -25,15 +25,26 @@ def calculate_circulation(
     Returns:
     - float: Calculated circulation `dGamma` along the curve.
     """
-    # Extract the relevant columns for x, y, u, and v, ignoring any NaN entries
-    d2x = df["x"].values.reshape(-1, 1)
-    d2y = df["y"].values.reshape(-1, 1)
-    d2u = df["u"].values.reshape(-1, 1)
-    d2v = df["v"].values.reshape(-1, 1)
+    # # Extract the relevant columns for x, y, u, and v, ignoring any NaN entries
+    # d2x = df["x"].values.reshape(-1, 1)
+    # d2y = df["y"].values.reshape(-1, 1)
+    # d2u = df["u"].values.reshape(-1, 1)
+    # d2v = df["v"].values.reshape(-1, 1)
+
+    # reshape df
+    d2x = df_1D["x"].values
+    d2y = df_1D["y"].values
+    n_rows = len(np.unique(d2y))
+    n_cols = len(np.unique(d2x))
+
+    d2x = reshape_remove_nans(df_1D["x"], n_rows, n_cols)
+    d2y = reshape_remove_nans(df_1D["y"], n_rows, n_cols)
+    d2u = reshape_remove_nans(df_1D["u"], n_rows, n_cols)
+    d2v = reshape_remove_nans(df_1D["v"], n_rows, n_cols)
 
     # Interpolate u and v values at each boundary point on the curve
-    d1u = interp2d_jelle(d2x, d2y, d2u, d2curve)
-    d1v = interp2d_jelle(d2x, d2y, d2v, d2curve)
+    d1u = interp2d_batch(d2x, d2y, d2u, d2curve)
+    d1v = interp2d_batch(d2x, d2y, d2v, d2curve)
     # Calculate circulation using trapezoidal integration over the boundary points
     dGamma = -np.trapz(d1u.ravel(), d2curve[:, 0]) - np.trapz(
         d1v.ravel(), d2curve[:, 1]
