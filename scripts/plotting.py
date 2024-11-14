@@ -99,6 +99,15 @@ def load_data(plot_params: dict) -> tuple:
             / f"Y{y_num}_paraview_corrected.csv"
         )
         plot_params["csv_file_path_std"] = None
+    elif plot_params["spanwise_CFD"]:
+        csv_file_path = (
+            Path(project_dir)
+            / "processed_data"
+            / "CFD_slices"
+            / f"spanwise_slices"
+            / f"alpha_{int(alpha)}_CFD_spanwise_slice_50cm_1.csv"
+        )
+        plot_params["csv_file_path_std"] = None
     else:
         aoa_rod = round(alpha + d_alpha_rod, 0)
         csv_file_path = (
@@ -196,6 +205,7 @@ def apply_mask(
 
 
 def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
+
     ## Getting the color data
     x_unique = df["x"].unique()
     y_unique = df["y"].unique()
@@ -227,8 +237,8 @@ def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
         # )
 
     if plot_params["color_data_col_name"] == "w":
-        plot_params["min_cbar_value"] = -4
-        plot_params["max_cbar_value"] = 4
+        plot_params["min_cbar_value"] = -7
+        plot_params["max_cbar_value"] = 7
 
     # ### USING PCOLORMESH
     # cax = ax.pcolormesh(
@@ -701,15 +711,15 @@ def interpolate_missing_data(
     dLy = y_max - y_min
     iP = 25
     d2curve_rectangle = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
-    ax.plot(
-        d2curve_rectangle[:, 0],  # x-coordinates of the boundary
-        d2curve_rectangle[:, 1],  # y-coordinates of the boundary
-        color="pink",  # Boundary color (e.g., red)
-        linestyle="--",  # Dashed line for visibility
-        linewidth=1,  # Line width for boundary
-        alpha=1,
-        # marker="o",
-    )
+    # ax.plot(
+    #     d2curve_rectangle[:, 0],  # x-coordinates of the boundary
+    #     d2curve_rectangle[:, 1],  # y-coordinates of the boundary
+    #     color="pink",  # Boundary color (e.g., red)
+    #     linestyle="--",  # Dashed line for visibility
+    #     linewidth=1,  # Line width for boundary
+    #     alpha=1,
+    #     # marker="o",
+    # )
 
     return df
 
@@ -801,10 +811,10 @@ def plotting_on_ax(
             )
 
     ax.set_xlabel("x [m]")
-    ax.set_xlim(-0.2, 0.8)
+    ax.set_xlim(plot_params["xlim"])
     if plot_params["is_CFD"] or not plot_params["is_CFD_PIV_comparison"]:
         ax.set_ylabel("y [m]")
-    ax.set_ylim(-0.2, 0.4)
+    ax.set_ylim(plot_params["ylim"])
 
     # ax.grid(True)
 
@@ -905,6 +915,7 @@ def plotting_single(plot_params: dict) -> None:
         f'Y_{plot_params["y_num"]} | α = {plot_params["alpha"]}° | {plot_params["u_inf"]}m/s'
     )
 
+    plot_params["is_with_interpolation"] = False
     # Load, plot and save
     df, x_meshgrid, y_meshgrid, plot_params = load_data(plot_params)
     plot_params = plotting_on_ax(fig, ax, df, x_meshgrid, y_meshgrid, plot_params)
@@ -927,6 +938,7 @@ def plotting_CFD_PIV_comparison(plot_params: dict) -> None:
     df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params = load_data(
         plot_params | {"is_CFD": True}
     )
+    plot_params["is_with_interpolation"] = False
     plot_params = plotting_on_ax(fig, ax1, df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params)
     ax1.set_title("CFD")
     if plot_params["is_with_cbar"]:
@@ -934,6 +946,7 @@ def plotting_CFD_PIV_comparison(plot_params: dict) -> None:
 
     # Load and plot PIV data
     print(f"Plotting PIV")
+    plot_params["is_with_interpolation"] = False
     df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
         plot_params | {"is_CFD": False}
     )
@@ -953,6 +966,8 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
     )
 
     is_with_circulation_analysis = plot_params["is_with_circulation_analysis"]
+    is_with_bound = plot_params["is_with_bound"]
+    is_with_interpolation = plot_params["is_with_interpolation"]
     data_labels = ["u", "v", "w", "V"]
 
     for i, label in enumerate(data_labels):
@@ -962,7 +977,8 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
 
         ### CFD
         plot_params["is_with_interpolation"] = False
-        plot_params["is_with_bound"] = True
+        if is_with_bound:
+            plot_params["is_with_bound"] = True
         if is_with_circulation_analysis:
             plot_params["is_with_circulation_analysis"] = True
         df_cfd, x_mesh_cfd, y_mesh_cfd, plot_params = load_data(
@@ -1029,36 +1045,73 @@ def plotting_CFD_PIV_comparison_multicomponent_masked(plot_params: dict) -> None
         #     add_colorbar(fig, axes[i, 3], plot_params)
 
         ### PIV Mask Reinterpolated
-        plot_params["is_with_bound"] = True
+        if is_with_bound:
+            plot_params["is_with_bound"] = True
         if is_with_circulation_analysis:
             plot_params["is_with_circulation_analysis"] = True
-        plot_params["is_with_interpolation"] = True
-        plot_params["interpolation_zones"] = (
-            # {
-            #     "bounds": [0.43, 0.5, 0.14, 0.19],
-            #     "increase_weight_points_close": False,
-            #     "increase_weight_points_far": True,
-            #     "method": "linear",
-            # },
-            {
-                "bounds": [0.43, 0.55, 0.11, 0.21],
-                "increase_weight_points_close": False,
-                "increase_weight_points_far": True,
-                "method": "linear",
-            },
-            {
-                "bounds": [0.43, 0.55, -0.1, 0.04],
-                "increase_weight_points_close": False,
-                "increase_weight_points_far": True,
-                "method": "linear",
-            },
-            {
-                "bounds": [0.22, 0.3, -0.15, -0.07],
-                "increase_weight_points_close": False,
-                "increase_weight_points_far": True,
-                "method": "linear",
-            },
-        )
+        if is_with_interpolation:
+            plot_params["is_with_interpolation"] = True
+        if plot_params["alpha"] == 6:
+            plot_params["interpolation_zones"] = (
+                # {
+                #     "bounds": [0.43, 0.5, 0.14, 0.19],
+                #     "increase_weight_points_close": False,
+                #     "increase_weight_points_far": True,
+                #     "method": "linear",
+                # },
+                {
+                    "bounds": [0.43, 0.55, 0.11, 0.21],
+                    "increase_weight_points_close": False,
+                    "increase_weight_points_far": True,
+                    "method": "linear",
+                },
+                {
+                    "bounds": [0.43, 0.55, -0.1, 0.04],
+                    "increase_weight_points_close": False,
+                    "increase_weight_points_far": True,
+                    "method": "linear",
+                },
+                {
+                    "bounds": [0.22, 0.3, -0.15, -0.07],
+                    "increase_weight_points_close": False,
+                    "increase_weight_points_far": True,
+                    "method": "linear",
+                },
+            )
+        else:
+            plot_params["interpolation_zones"] = (
+                # {
+                #     "bounds": [0.43, 0.5, 0.14, 0.19],
+                #     "increase_weight_points_close": False,
+                #     "increase_weight_points_far": True,
+                #     "method": "linear",
+                # },
+                {
+                    "bounds": [0.47, 0.55, 0.01, 0.1],
+                    "increase_weight_points_close": False,
+                    "increase_weight_points_far": True,
+                    "method": "linear",
+                },
+                {
+                    "bounds": [0.47, 0.55, -0.05, 0.01],
+                    "increase_weight_points_close": False,
+                    "increase_weight_points_far": True,
+                    "method": "linear",
+                },
+                {
+                    "bounds": [0.35, 0.55, -0.1, -0.05],
+                    "increase_weight_points_close": False,
+                    "increase_weight_points_far": True,
+                    "method": "linear",
+                },
+                {
+                    "bounds": [0.11, 0.2, -0.12, -0.07],
+                    "increase_weight_points_close": False,
+                    "increase_weight_points_far": True,
+                    "method": "linear",
+                },
+            )
+
         plot_params["interpolation_method"] = "nearest"
         df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
             plot_params | {"is_CFD": False}
@@ -1106,16 +1159,20 @@ if __name__ == "__main__":
 
     plot_params: PlotParams = {
         # Basic configuration
-        "is_CFD": True,
-        "y_num": 1,
-        "alpha": 16,
+        "is_CFD": False,
+        "spanwise_CFD": False,
+        "y_num": 5,
+        "alpha": 6,
         "project_dir": project_dir,
         "plot_type": ".pdf",
         "title": None,
         "is_CFD_PIV_comparison": False,
-        "color_data_col_name": "V",
-        "is_CFD_PIV_comparison_multicomponent_masked": True,
+        "color_data_col_name": "u",
+        "is_CFD_PIV_comparison_multicomponent_masked": False,
         "run_for_all_planes": False,
+        # Plot_settings
+        "xlim": (-0.2, 0.8),
+        "ylim": (-0.2, 0.4),
         # Color and contour settings
         "is_with_cbar": True,
         "cbar_value_factor_of_std": 2.0,
@@ -1140,7 +1197,7 @@ if __name__ == "__main__":
         "subsample_factor_raw_images": 1,
         "intensity_lower_bound": 10000,
         # Boundary settings
-        "is_with_bound": True,
+        "is_with_bound": False,
         "d1centre": np.array([0.24, 0.13]),
         "drot": 0.0,
         "dLx": 0.56,
@@ -1158,7 +1215,7 @@ if __name__ == "__main__":
         "bound_linewidth": 1.0,
         "bound_alpha": 1.0,
         # Circulation analysis
-        "is_with_circulation_analysis": True,
+        "is_with_circulation_analysis": False,
         "rho": 1.225,
         "mu": 1.7894e-5,
         "is_with_maximim_vorticity_location_correction": True,
@@ -1168,6 +1225,8 @@ if __name__ == "__main__":
         "column_to_mask": "w",
         "mask_lower_bound": -3,
         "mask_upper_bound": 3,
+        ## Interpolation settings
+        "is_with_interpolation": True,
     }
     main(plot_params)
     if plot_params["is_CFD_PIV_comparison"]:
