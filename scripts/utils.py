@@ -1,4 +1,5 @@
 from pathlib import Path
+import pandas as pd
 import numpy as np
 from scipy.interpolate import (
     interp2d,
@@ -35,6 +36,31 @@ def interp2d_batch(d2x, d2y, d2_values, points, kind="linear"):
     # print(f"dim input: points: {np.array(points).shape}")
     # print(f"dim: ip_out: {np.array(ip_out_list).shape}")
     return np.array(ip_out_list).flatten()
+
+
+def csv_reader(
+    is_CFD: bool = True, alpha: float = 6, y_num: int = 1, alpha_d_rod: float = 7.25
+):
+
+    if is_CFD:
+        csv_path = csv_path = (
+            Path(project_dir)
+            / "processed_data"
+            / "CFD"
+            / f"alpha_{int(alpha)}"
+            / f"Y{y_num}_paraview_corrected.csv"
+        )
+    else:
+        csv_path = (
+            Path(project_dir)
+            / "processed_data"
+            / "stichted_planes_erik"
+            / f"aoa_{int(alpha+alpha_d_rod)}"
+            / f"aoa_{int(alpha+alpha_d_rod)}_Y{y_num}_stichted.csv"
+        )
+
+    df_1D = pd.read_csv(csv_path)
+    return df_1D
 
 
 # Example testing script

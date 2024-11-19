@@ -2,7 +2,7 @@ import numpy as np
 from pathlib import Path
 import pandas as pd
 from scipy.signal import convolve2d
-from utils import project_dir, reshape_remove_nans, interp2d_batch
+from utils import project_dir, reshape_remove_nans, interp2d_batch, csv_reader
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
 
 
@@ -588,29 +588,7 @@ def main(
 
 if __name__ == "__main__":
 
-    is_CFD = True
-    alpha = 6
-    y_num = 1
-    alpha_d_rod = 7.25
-    if is_CFD:
-        csv_path = csv_path = (
-            Path(project_dir)
-            / "processed_data"
-            / "CFD"
-            / f"alpha_{int(alpha)}"
-            / f"Y{y_num}_paraview_corrected.csv"
-        )
-    else:
-        csv_path = (
-            Path(project_dir)
-            / "processed_data"
-            / "stichted_planes_erik"
-            / f"aoa_{int(alpha+alpha_d_rod)}"
-            / f"aoa_{int(alpha+alpha_d_rod)}_Y{y_num}_stichted.csv"
-        )
-
-    print(f"Loading data from: {csv_path}")
-    df_1D = pd.read_csv(csv_path)
+    df_1D = csv_reader(is_CFD=True, alpha=6, y_num=1, alpha_d_rod=7.25)
 
     ### Running for Ellipse ###
     is_ellipse = True

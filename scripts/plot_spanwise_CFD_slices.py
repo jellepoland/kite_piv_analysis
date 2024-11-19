@@ -356,31 +356,31 @@ def plot_contour_with_colored_data(plot_params):
             mean_val + plot_params["cbar_value_factor_of_std"] * std_val
         )
 
-    # Plot the contour
-    plot_params["cax"] = ax.contourf(
-        X_grid,
-        Y_grid,
-        color_data,
-        levels=plot_params["countour_levels"],
-        cmap=plot_params["cmap"],
-        vmin=plot_params["min_cbar_value"],
-        vmax=plot_params["max_cbar_value"],
-    )
+    # # Plot the contour
+    # plot_params["cax"] = ax.contourf(
+    #     X_grid,
+    #     Y_grid,
+    #     color_data,
+    #     levels=plot_params["countour_levels"],
+    #     cmap=plot_params["cmap"],
+    #     vmin=plot_params["min_cbar_value"],
+    #     vmax=plot_params["max_cbar_value"],
+    # )
 
-    # Plot the points where abs(color_values) > 4 in pink
-    ax.scatter(
-        x_unique[mask_pink],
-        y_unique[mask_pink],
-        c="yellow",
-        s=1,  # Adjust point size as needed
-        label="abs(w) > 3",
-    )
+    # # Plot the points where abs(color_values) > 4 in pink
+    # ax.scatter(
+    #     x_unique[mask_pink],
+    #     y_unique[mask_pink],
+    #     c="yellow",
+    #     s=1,  # Adjust point size as needed
+    #     label="abs(w) > 3",
+    # )
+
+    # Add colorbar and labels
+    # add_colorbar(fig, ax, plot_params)
 
     # Plotting zeros
     ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
-
-    # Add colorbar and labels
-    add_colorbar(fig, ax, plot_params)
 
     # Adjust plot settings
     ax.set_aspect("equal")
@@ -403,7 +403,7 @@ if __name__ == "__main__":
         "is_CFD": False,
         "spanwise_CFD": True,
         "y_num": 1,
-        "alpha": 16,
+        "alpha": 6,
         "d_alpha_rod": 7.25,
         "is_with_mask": False,
         "is_with_interpolation": False,
@@ -412,8 +412,8 @@ if __name__ == "__main__":
         "is_with_overlay": False,
         "is_CFD_PIV_comparison": False,
         # Plot settings
-        "xlim": (0, 0.85),
-        "ylim": (-0.6, 0.15),
+        "xlim": (-0.05, 0.75),  # 0,0.85
+        "ylim": (-0.65, 0.35),  # 0.6,0.15
         # Color and contour settings
         "color_data_col_name": "w",
         "min_cbar_value": -3,

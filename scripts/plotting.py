@@ -15,6 +15,7 @@ from io import StringIO
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
 import force_from_noca
 from calculating_circulation import calculate_circulation
+from calculating_airfoil_centre import reading_center_from_csv
 
 
 class PlotParams(TypedDict):
@@ -527,7 +528,8 @@ def overlay_raw_image(
 
 
 def add_boundaries(ax, plot_params):
-    d1centre = plot_params["d1centre"]
+
+    d1centre = reading_center_from_csv(plot_params["alpha"], plot_params["y_num"])
     drot = plot_params["drot"]
     dLx = plot_params["dLx"]
     dLy = plot_params["dLy"]
@@ -1159,15 +1161,15 @@ if __name__ == "__main__":
 
     plot_params: PlotParams = {
         # Basic configuration
-        "is_CFD": False,
+        "is_CFD": True,
         "spanwise_CFD": False,
-        "y_num": 5,
+        "y_num": 1,
         "alpha": 6,
         "project_dir": project_dir,
         "plot_type": ".pdf",
         "title": None,
         "is_CFD_PIV_comparison": False,
-        "color_data_col_name": "u",
+        "color_data_col_name": "V",
         "is_CFD_PIV_comparison_multicomponent_masked": False,
         "run_for_all_planes": False,
         # Plot_settings
@@ -1197,10 +1199,10 @@ if __name__ == "__main__":
         "subsample_factor_raw_images": 1,
         "intensity_lower_bound": 10000,
         # Boundary settings
-        "is_with_bound": False,
+        "is_with_bound": True,
         "d1centre": np.array([0.24, 0.13]),
         "drot": 0.0,
-        "dLx": 0.56,
+        "dLx": 0.8,
         "dLy": 0.4,
         "iP": 65,
         # insert
