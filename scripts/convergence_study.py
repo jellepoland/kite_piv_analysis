@@ -573,7 +573,7 @@ def plot_noca_coefficients_grid(
         fig.savefig(save_path)  # , bbox_inches="tight", dpi=300)
         print(f"Figure saved to {save_path}")
 
-    plt.show()
+    # plt.show()
     return fig, axes
 
 
@@ -592,14 +592,6 @@ if __name__ == "__main__":
         type_data = "CFD"
     else:
         type_data = "PIV"
-    save_path = (
-        Path(project_dir)
-        / "results"
-        / "convergence_study"
-        / f"alpha_{alpha}"
-        / f"{type_data}"
-        / f"Y_{y_num}_{parameter_name}.pdf"
-    )
 
     # plot_noca_coefficients(
     #     pd.DataFrame(results_df),
@@ -637,12 +629,21 @@ if __name__ == "__main__":
     # # Or run all sweeps at once
     # all_results = run_parameter_sweeps(df_1D, Path("./noca_results"))
 
-    plot_noca_coefficients_grid(
-        is_CFD,
-        alpha,
-        y_num,
-        save_path,
-        # colors: tuple = ("blue", "red"),
-        # markers: tuple = ("o", "s"),
-        # markersize: int = 6,
-    )
+    for y_num in [1, 2, 3, 4, 5, 6, 7]:
+        save_path = (
+            Path(project_dir)
+            / "results"
+            / "convergence_study"
+            / f"alpha_{alpha}"
+            / f"{type_data}"
+            / f"Y_{y_num}_{parameter_name}.pdf"
+        )
+        plot_noca_coefficients_grid(
+            is_CFD,
+            alpha,
+            y_num,
+            save_path,
+            # colors: tuple = ("blue", "red"),
+            # markers: tuple = ("o", "s"),
+            # markersize: int = 6,
+        )
