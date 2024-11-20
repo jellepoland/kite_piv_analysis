@@ -121,7 +121,7 @@ def set_plot_style():
             "font.serif": ["Computer Modern Roman"],
             ## Axes settings
             "axes.titlesize": 15,
-            "axes.labelsize": 15,
+            "axes.labelsize": 13,
             "axes.linewidth": 1.0,
             "axes.edgecolor": "#C5C5C5",
             "axes.labelcolor": "black",
@@ -151,8 +151,8 @@ def set_plot_style():
             "ytick.color": "#C5C5C5",
             "xtick.labelcolor": "black",
             "ytick.labelcolor": "black",
-            "xtick.labelsize": 15,
-            "ytick.labelsize": 15,
+            "xtick.labelsize": 13,
+            "ytick.labelsize": 13,
             "xtick.top": True,  # Show ticks on both sides
             "xtick.bottom": True,
             "ytick.left": True,

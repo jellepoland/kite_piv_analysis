@@ -15,7 +15,9 @@ from io import StringIO
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
 import force_from_noca
 from calculating_circulation import calculate_circulation
-from calculating_airfoil_centre import reading_center_from_csv
+import calculating_airfoil_centre
+from interpolating import interpolate_missing_data, find_areas_needing_interpolation
+from convergence_study import reading_optimal_bound_placement
 
 
 class PlotParams(TypedDict):
@@ -236,10 +238,25 @@ def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
         # print(
         #     f'color min,max determined at {plot_params["cbar_value_factor_of_std"]} time the std from the mean: {mean_val:.2f}'
         # )
+    if plot_params["color_data_col_name"] == "u":
+        plot_params["min_cbar_value"] = 12
+        plot_params["max_cbar_value"] = 18
 
-    if plot_params["color_data_col_name"] == "w":
-        plot_params["min_cbar_value"] = -7
-        plot_params["max_cbar_value"] = 7
+    elif plot_params["color_data_col_name"] == "v":
+        plot_params["min_cbar_value"] = -5
+        plot_params["max_cbar_value"] = 5
+
+    elif plot_params["color_data_col_name"] == "w":
+        plot_params["min_cbar_value"] = -3
+        plot_params["max_cbar_value"] = 3
+
+    elif plot_params["color_data_col_name"] == "V":
+        plot_params["min_cbar_value"] = 12
+        plot_params["max_cbar_value"] = 18
+
+    # if plot_params["color_data_col_name"] == "w":
+    #     plot_params["min_cbar_value"] = -7
+    #     plot_params["max_cbar_value"] = 7
 
     # ### USING PCOLORMESH
     # cax = ax.pcolormesh(
@@ -529,10 +546,13 @@ def overlay_raw_image(
 
 def add_boundaries(ax, plot_params):
 
-    d1centre = reading_center_from_csv(plot_params["alpha"], plot_params["y_num"])
+    d1centre = calculating_airfoil_centre.main(
+        plot_params["alpha"], plot_params["y_num"]
+    )
+    dLx, dLy = reading_optimal_bound_placement(
+        plot_params["alpha"], plot_params["y_num"]
+    )
     drot = plot_params["drot"]
-    dLx = plot_params["dLx"]
-    dLy = plot_params["dLy"]
     iP = plot_params["iP"]
     ellipse_color = plot_params["ellipse_color"]
     rectangle_color = plot_params["rectangle_color"]
@@ -540,14 +560,14 @@ def add_boundaries(ax, plot_params):
     bound_alpha = plot_params["bound_alpha"]
 
     d2curve_ellipse = boundary_ellipse(d1centre, drot, dLx, dLy, iP)
-    ax.plot(
-        d2curve_ellipse[:, 0],  # x-coordinates of the boundary
-        d2curve_ellipse[:, 1],  # y-coordinates of the boundary
-        color=ellipse_color,  # Boundary color (e.g., red)
-        linestyle="--",  # Dashed line for visibility
-        linewidth=bound_linewidth,  # Line width for boundary
-        alpha=bound_alpha,
-    )
+    # ax.plot(
+    #     d2curve_ellipse[:, 0],  # x-coordinates of the boundary
+    #     d2curve_ellipse[:, 1],  # y-coordinates of the boundary
+    #     color=ellipse_color,  # Boundary color (e.g., red)
+    #     linestyle="--",  # Dashed line for visibility
+    #     linewidth=bound_linewidth,  # Line width for boundary
+    #     alpha=bound_alpha,
+    # )
     d2curve_rectangle = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
     ax.plot(
         d2curve_rectangle[:, 0],  # x-coordinates of the boundary
@@ -557,6 +577,15 @@ def add_boundaries(ax, plot_params):
         linewidth=bound_linewidth,  # Line width for boundary
         alpha=bound_alpha,
         # marker="o",
+    )
+    # plotting the centr point as a big dot
+    ax.plot(
+        d1centre[0],
+        d1centre[1],
+        color="green",
+        marker="+",
+        markersize=8,
+        label="Centre",
     )
 
     return d2curve_ellipse, d2curve_rectangle
@@ -569,10 +598,13 @@ def add_circulation_analysis(
     u_inf = plot_params["u_inf"]
     rho = plot_params["rho"]
     df_1D = df
-    d1centre = plot_params["d1centre"]
+    d1centre = calculating_airfoil_centre.main(
+        plot_params["alpha"], plot_params["y_num"]
+    )
+    dLx, dLy = reading_optimal_bound_placement(
+        plot_params["alpha"], plot_params["y_num"]
+    )
     drot = plot_params["drot"]
-    dLx = plot_params["dLx"]
-    dLy = plot_params["dLy"]
     iP = plot_params["iP"]
     mu = plot_params["mu"]
     c = plot_params["chord"]
@@ -628,143 +660,6 @@ def add_circulation_analysis(
     )
 
 
-def interpolate_missing_data(
-    ax,
-    df,
-    interpolation_zone_i,
-    columns=[
-        "u",
-        "v",
-        "w",
-        "V",
-        "dudx",
-        "dudy",
-        "dvdx",
-        "dvdy",
-        "dwdx",
-        "dwdy",
-        "vort_z",
-    ],
-):
-
-    x_min, x_max, y_min, y_max = interpolation_zone_i["bounds"]
-    increase_weight_points_close = interpolation_zone_i["increase_weight_points_close"]
-    increase_weight_points_far = interpolation_zone_i["increase_weight_points_far"]
-    method = interpolation_zone_i["method"]
-
-    # Filter data within the expanded bounding box and non-NaN values for interpolation
-    subset = df[
-        (df["x"] >= x_min)
-        & (df["x"] <= x_max)
-        & (df["y"] >= y_min)
-        & (df["y"] <= y_max)
-    ]
-
-    # Get coordinates with available data for interpolation
-    valid_data = subset.dropna(subset=columns)
-    points = valid_data[["x", "y"]].values  # Points where data is known
-
-    # Dictionary to store interpolated values for each column
-    interpolated_values = {}
-
-    for col in columns:
-        # Values for known data points in the current column
-        values = valid_data[col].values
-
-        # Identify cells to interpolate (i.e., cells with NaN values within bounds)
-        nan_cells = df[
-            (df["x"] >= x_min)
-            & (df["x"] <= x_max)
-            & (df["y"] >= y_min)
-            & (df["y"] <= y_max)
-            & df[col].isna()
-        ]
-        nan_points = nan_cells[["x", "y"]].values  # Points needing interpolation
-
-        if increase_weight_points_close:
-            # Custom inverse distance weighting for interpolated values
-            interpolated_values[col] = inverse_distance_weighting(
-                points, values, nan_points
-            )
-        elif increase_weight_points_far:
-            # Custom distance weighting for interpolated values
-            interpolated_values[col] = distance_weighting(points, values, nan_points)
-        else:
-            # Use griddata for standard interpolation
-            interpolated_values[col] = griddata(
-                points, values, nan_points, method=method
-            )
-
-    # Fill the interpolated values into the dataframe
-    for col in columns:
-        df.loc[
-            (df["x"] >= x_min)
-            & (df["x"] <= x_max)
-            & (df["y"] >= y_min)
-            & (df["y"] <= y_max)
-            & df[col].isna(),
-            col,
-        ] = interpolated_values[col]
-
-    # plotting a rectangle around the interpolation zone
-    d1centre = x_min + (x_max - x_min) / 2, y_min + (y_max - y_min) / 2
-    drot = 0
-    dLx = x_max - x_min
-    dLy = y_max - y_min
-    iP = 25
-    d2curve_rectangle = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
-    # ax.plot(
-    #     d2curve_rectangle[:, 0],  # x-coordinates of the boundary
-    #     d2curve_rectangle[:, 1],  # y-coordinates of the boundary
-    #     color="pink",  # Boundary color (e.g., red)
-    #     linestyle="--",  # Dashed line for visibility
-    #     linewidth=1,  # Line width for boundary
-    #     alpha=1,
-    #     # marker="o",
-    # )
-
-    return df
-
-
-def inverse_distance_weighting(points, values, grid_points, power=2):
-    """
-    Performs inverse distance weighting (IDW) interpolation for specified grid points.
-    """
-    interpolated_values = []
-    for gp in grid_points:
-        # Calculate distances from the grid point to all known points
-        distances = np.linalg.norm(points - gp, axis=1)
-        weights = 1 / (
-            distances**power + 1e-6
-        )  # Add small value to avoid division by zero
-        weights /= weights.sum()  # Normalize weights
-        interpolated_value = np.dot(weights, values)
-        interpolated_values.append(interpolated_value)
-
-    return np.array(interpolated_values)
-
-
-def distance_weighting(points, values, grid_points, power=2):
-    """
-    Custom distance weighting interpolation where farther points have higher weight.
-    This assigns weights proportional to distance instead of the inverse of distance.
-    """
-    interpolated_values = []
-    for gp in grid_points:
-        # Calculate distances from the grid point to all known points
-        distances = np.linalg.norm(points - gp, axis=1)
-
-        # Weight proportional to distance (adding small constant to avoid zero weight at distance 0)
-        weights = distances**power + 1e-6  # Increase weight with distance
-        weights /= weights.sum()  # Normalize weights
-
-        # Calculate weighted sum for interpolated value
-        interpolated_value = np.dot(weights, values)
-        interpolated_values.append(interpolated_value)
-
-    return np.array(interpolated_values)
-
-
 def plotting_on_ax(
     fig,
     ax,
@@ -772,6 +667,8 @@ def plotting_on_ax(
     x_meshgrid: np.ndarray,
     y_meshgrid: np.ndarray,
     plot_params: dict,
+    is_with_xlabel: bool = True,
+    is_with_ylabel: bool = True,
 ) -> None:
 
     ax.set_aspect("equal", adjustable="box")
@@ -780,6 +677,15 @@ def plotting_on_ax(
         df = apply_mask(df, plot_params)
 
     if plot_params.get("is_with_interpolation", False):
+
+        plot_params["interpolation_zones"] = find_areas_needing_interpolation(
+            ax,
+            df,
+            plot_params["alpha"],
+            plot_params["y_num"],
+            plot_params["rectangle_size"],
+        )
+
         for interpolation_zone_i in plot_params["interpolation_zones"]:
             df = interpolate_missing_data(
                 ax,
@@ -812,9 +718,11 @@ def plotting_on_ax(
                 fig, ax, df, plot_params, d2curve_ellipse, d2curve_rectangle
             )
 
-    ax.set_xlabel("x [m]")
+    if is_with_xlabel:
+        ax.set_xlabel("x [m]")
     ax.set_xlim(plot_params["xlim"])
-    if plot_params["is_CFD"] or not plot_params["is_CFD_PIV_comparison"]:
+    # if plot_params["is_CFD"] or not plot_params["is_CFD_PIV_comparison"]:
+    if is_with_ylabel:
         ax.set_ylabel("y [m]")
     ax.set_ylim(plot_params["ylim"])
 
@@ -823,42 +731,89 @@ def plotting_on_ax(
     return plot_params
 
 
-def add_colorbar(fig, ax, plot_params):
+def add_colorbar(fig, ax, plot_params, is_horizontal: bool = True):
 
-    cax = plot_params["cax"]
-    vmin = plot_params["min_cbar_value"]
-    vmax = plot_params["max_cbar_value"]
-    ### USING PCOLORMESH
-    # Create a horizontal color bar for the figure
-    # cbar = fig.colorbar(
-    #     cax,
-    #     ax=ax,
-    #     orientation="horizontal",
-    #     fraction=0.02,
-    #     pad=0.1,
-    # )
-    # cbar.set_label(plot_params["color_data_col_name"])
+    if is_horizontal:
 
-    ### USING CONTOURF
-    divider = make_axes_locatable(ax)
-    divider_ax = divider.append_axes("top", size="5%", pad=0.3)
-    cbar = plt.colorbar(
-        ScalarMappable(norm=cax.norm, cmap=cax.cmap),
-        cax=divider_ax,
-        ticks=np.linspace(int(vmin), int(vmax), 10),
-        orientation="horizontal",
-    )
-    # adjust tick labels
-    cbar.ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
+        cax = plot_params["cax"]
+        vmin = plot_params["min_cbar_value"]
+        vmax = plot_params["max_cbar_value"]
+        ### USING PCOLORMESH
+        # Create a horizontal color bar for the figure
+        # cbar = fig.colorbar(
+        #     cax,
+        #     ax=ax,
+        #     orientation="horizontal",
+        #     fraction=0.02,
+        #     pad=0.1,
+        # )
+        # cbar.set_label(plot_params["color_data_col_name"])
 
-    # Adjust label alignment
-    # labels = cbar.ax.get_yticklabels()
-    # Set the ticks to appear on top of the color bar
-    cbar.ax.xaxis.set_ticks_position("top")  # Move ticks to the top
-    cbar.ax.xaxis.set_label_position("top")  # Move label to the top
-    # labels[0].set_verticalalignment("top")
-    # labels[-1].set_verticalalignment("bottom")
-    cbar.set_label(plot_params["color_data_col_name"], rotation=0, fontsize=8)
+        ### USING CONTOURF
+        divider = make_axes_locatable(ax)
+        divider_ax = divider.append_axes("top", size="5%", pad=0.3)
+        cbar = plt.colorbar(
+            ScalarMappable(norm=cax.norm, cmap=cax.cmap),
+            cax=divider_ax,
+            ticks=np.linspace(int(vmin), int(vmax), 10),
+            orientation="horizontal",
+        )
+        # adjust tick labels
+        cbar.ax.tick_params(direction="out")
+
+        cbar.ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
+
+        # Adjust label alignment
+        # labels = cbar.ax.get_yticklabels()
+        # Set the ticks to appear on top of the color bar
+        cbar.ax.xaxis.set_ticks_position("top")  # Move ticks to the top
+        cbar.ax.xaxis.set_label_position("top")  # Move label to the top
+        # labels[0].set_verticalalignment("top")
+        # labels[-1].set_verticalalignment("bottom")
+        cbar.set_label(plot_params["color_data_col_name"], rotation=0, fontsize=8)
+
+        # turn of ticks and grid
+        # cbar.ax.xaxis.set_ticks_position("none")
+        # cbar.ax.yaxis.set_ticks_position("none")
+        # cbar.ax.xaxis.set_tick_params(width=0)
+        cbar.ax.grid(False)
+        return cbar
+
+    # if vertical
+    else:
+        cax = plot_params["cax"]
+        vmin = plot_params["min_cbar_value"]
+        vmax = plot_params["max_cbar_value"]
+
+        # Create a divider for the existing axes
+        divider = make_axes_locatable(ax)
+        # Add a new axes to the left with specified size and padding
+        divider_ax = divider.append_axes("left", size="5%", pad=0.3)
+
+        # Create vertical colorbar
+        cbar = plt.colorbar(
+            ScalarMappable(norm=cax.norm, cmap=cax.cmap),
+            cax=divider_ax,
+            ticks=np.linspace(int(vmin), int(vmax), 10),
+            orientation="vertical",  # Changed to vertical
+        )
+
+        # Adjust tick parameters
+        cbar.ax.tick_params(direction="out")
+        cbar.ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
+
+        # Set label position and rotation for vertical orientation
+        cbar.set_label(
+            plot_params["color_data_col_name"],
+            rotation=90,  # Rotate label for vertical orientation
+            # fontsize=8,
+            labelpad=30,  # Add some padding between label and colorbar
+        )
+
+        # Turn off grid
+        cbar.ax.grid(False)
+
+        return cbar
 
 
 def save_plot(
@@ -887,6 +842,14 @@ def save_plot(
             / f"alpha_{int(alpha)}"
             / "CFD_PIV_uvwV"
             / f"Y{y_num}{plot_type}"
+        )
+    elif plot_params["normal_masked_interpolated"]:
+        save_path = (
+            Path(project_dir)
+            / "results"
+            / f"alpha_{int(alpha)}"
+            / "PIV"
+            / f"Y{y_num}_normal_masked_interpolated{plot_type}"
         )
     else:
         if is_CFD:
@@ -917,7 +880,6 @@ def plotting_single(plot_params: dict) -> None:
         f'Y_{plot_params["y_num"]} | α = {plot_params["alpha"]}° | {plot_params["u_inf"]}m/s'
     )
 
-    plot_params["is_with_interpolation"] = False
     # Load, plot and save
     df, x_meshgrid, y_meshgrid, plot_params = load_data(plot_params)
     plot_params = plotting_on_ax(fig, ax, df, x_meshgrid, y_meshgrid, plot_params)
@@ -1161,14 +1123,14 @@ if __name__ == "__main__":
 
     plot_params: PlotParams = {
         # Basic configuration
-        "is_CFD": True,
+        "is_CFD": False,
         "spanwise_CFD": False,
-        "y_num": 1,
+        "y_num": 3,
         "alpha": 6,
         "project_dir": project_dir,
         "plot_type": ".pdf",
         "title": None,
-        "is_CFD_PIV_comparison": False,
+        "is_CFD_PIV_comparison": True,
         "color_data_col_name": "V",
         "is_CFD_PIV_comparison_multicomponent_masked": False,
         "run_for_all_planes": False,
@@ -1182,7 +1144,7 @@ if __name__ == "__main__":
         "max_cbar_value": None,
         "subsample_color": 1,
         "countour_levels": 100,
-        "cmap": "viridis",
+        "cmap": "coolwarm",
         # Quiver settings
         "is_with_quiver": True,
         "subsample_quiver": 5,
@@ -1199,22 +1161,13 @@ if __name__ == "__main__":
         "subsample_factor_raw_images": 1,
         "intensity_lower_bound": 10000,
         # Boundary settings
-        "is_with_bound": True,
-        "d1centre": np.array([0.24, 0.13]),
+        "is_with_bound": False,
         "drot": 0.0,
-        "dLx": 0.8,
-        "dLy": 0.4,
         "iP": 65,
-        # insert
-        # "d1centre": np.array([0.27, 0.13]),
-        # "drot": 0,
-        # "dLx": 0.8,
-        # "dLy": 0.4,
-        # "iP": 35,
         ##
         "ellipse_color": "red",
-        "rectangle_color": "red",
-        "bound_linewidth": 1.0,
+        "rectangle_color": "green",
+        "bound_linewidth": 2.0,
         "bound_alpha": 1.0,
         # Circulation analysis
         "is_with_circulation_analysis": False,
@@ -1223,12 +1176,15 @@ if __name__ == "__main__":
         "is_with_maximim_vorticity_location_correction": True,
         "chord": 0.37,
         # Mask settings
-        "is_with_mask": False,
+        "is_with_mask": True,
         "column_to_mask": "w",
         "mask_lower_bound": -3,
         "mask_upper_bound": 3,
+        "normal_masked_interpolated": False,
         ## Interpolation settings
         "is_with_interpolation": True,
+        "interpolation_method": "nearest",
+        "rectangle_size": 0.05,
     }
     main(plot_params)
     if plot_params["is_CFD_PIV_comparison"]:
