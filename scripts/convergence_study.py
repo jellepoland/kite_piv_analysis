@@ -19,7 +19,7 @@ class NOCAParameters:
     drot: float = field(default_factory=lambda: 0)
     dLx: float = field(default_factory=lambda: 0.7)
     dLy: float = field(default_factory=lambda: 0.33)
-    iP: int = field(default_factory=lambda: 115)
+    iP: int = field(default_factory=lambda: 93)
 
 
 # def get_sweep_values(parameter_name: str, alpha: float, y_num: int) -> List:
@@ -806,14 +806,16 @@ def plot_noca_coefficients_grid_CFD_PIV(
 
     # Create figure and axes
     fig, axes = plt.subplots(
-        len(parameter_names), 4, figsize=(20, int(len(parameter_names) * 3.5))
+        len(parameter_names), 4, figsize=(20, int(len(parameter_names) * 4.3))
     )
-    fig.subplots_adjust(hspace=0.4, wspace=0.4)  # Adjust spacing
+    # fig.subplots_adjust(hspace=0.4, wspace=0.4)  # Adjust spacing
 
+    dLx, dLy = reading_optimal_bound_placement(alpha, y_num)
+    fig.suptitle(f"Current settings: dLx: {dLx}, dLy: {dLy}")
     # Define labels
     x_label_map = {
-        "dLx": "X Length [m]",
-        "dLy": "Y Length [m]",
+        "dLx": "X [m]",
+        "dLy": "Y [m]",
         "iP": "Number of Points",
         "drot": "Rotation Angle [deg]",
     }
@@ -845,14 +847,11 @@ def plot_noca_coefficients_grid_CFD_PIV(
                     # markersize=markersize,
                     linestyle=linestyle,
                     x_label=x_label,
-                    y_label=(
-                        "$C_l$ [-]" if data_type_idx == 0 else None
-                    ),  # Only set once
-                    is_with_grid=False,
+                    y_label=("$C_l$ [-]"),  # Only set once
+                    is_with_grid=True,
                 )
-                if data_type_idx == 0:  # Add title for Ellipse/Rectangle
-                    title_key = "Ellipse" if key == "Ellipse" else "Rectangle"
-                    axes[row_idx, col_idx * 2].set_title(f"{title_key} {param}")
+                title_key = "Ellipse" if key == "Ellipse" else "Rectangle"
+                axes[row_idx, col_idx * 2].set_title(f"{title_key} {param}")
 
                 # Plot $C_d$ in columns 3 (Ellipse) and 4 (Non-Ellipse)
                 plot_on_ax(
@@ -865,10 +864,8 @@ def plot_noca_coefficients_grid_CFD_PIV(
                     # markersize=markersize,
                     linestyle=linestyle,
                     x_label=x_label,
-                    y_label=(
-                        "$C_d$ [-]" if data_type_idx == 0 else None
-                    ),  # Only set once
-                    is_with_grid=False,
+                    y_label=("$C_d$ [-]"),  # Only set once
+                    is_with_grid=True,
                 )
 
     # Save figure if path provided
@@ -996,9 +993,29 @@ if __name__ == "__main__":
 
     ### Running for relevant files
     # Settings
-    alpha = 6
+    # alpha = 6
 
-    for y_num in [1]:  # [1, 2, 3, 4, 5]:
+    # for y_num in [1, 2, 3, 4, 5]:
+    #     save_path = (
+    #         Path(project_dir)
+    #         / "results"
+    #         / "convergence_study"
+    #         / f"alpha_{alpha}"
+    #         / f"CFD_PIV_Y_{y_num}_dLx_dLy.pdf"
+    #     )
+    #     plot_noca_coefficients_grid_CFD_PIV(
+    #         alpha,
+    #         y_num,
+    #         save_path,
+    #         parameter_names=["dLx", "dLy"],
+    #         # colors: tuple = ("blue", "red"),
+    #         # markers: tuple = ("o", "s"),
+    #         # markersize: int = 6,
+    #     )
+
+    alpha = 16
+
+    for y_num in [1]:
         save_path = (
             Path(project_dir)
             / "results"
