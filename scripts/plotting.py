@@ -560,33 +560,34 @@ def add_boundaries(ax, plot_params):
     bound_alpha = plot_params["bound_alpha"]
 
     d2curve_ellipse = boundary_ellipse(d1centre, drot, dLx, dLy, iP)
-    # ax.plot(
-    #     d2curve_ellipse[:, 0],  # x-coordinates of the boundary
-    #     d2curve_ellipse[:, 1],  # y-coordinates of the boundary
-    #     color=ellipse_color,  # Boundary color (e.g., red)
-    #     linestyle="--",  # Dashed line for visibility
-    #     linewidth=bound_linewidth,  # Line width for boundary
-    #     alpha=bound_alpha,
-    # )
+    if plot_params["is_CFD"]:
+        ax.plot(
+            d2curve_ellipse[:, 0],  # x-coordinates of the boundary
+            d2curve_ellipse[:, 1],  # y-coordinates of the boundary
+            color=ellipse_color,  # Boundary color (e.g., red)
+            linestyle="dashdot",  # Dashed line for visibility
+            linewidth=bound_linewidth,  # Line width for boundary
+            alpha=bound_alpha,
+        )
     d2curve_rectangle = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
     ax.plot(
         d2curve_rectangle[:, 0],  # x-coordinates of the boundary
         d2curve_rectangle[:, 1],  # y-coordinates of the boundary
         color=rectangle_color,  # Boundary color (e.g., red)
-        linestyle="-",  # Dashed line for visibility
+        linestyle=(0, (5, 1)),  # Dashed line for visibility
         linewidth=bound_linewidth,  # Line width for boundary
         alpha=bound_alpha,
         # marker="o",
     )
-    # plotting the centr point as a big dot
-    ax.plot(
-        d1centre[0],
-        d1centre[1],
-        color="green",
-        marker="+",
-        markersize=8,
-        label="Centre",
-    )
+    # # plotting the centr point as a big dot
+    # ax.plot(
+    #     d1centre[0],
+    #     d1centre[1],
+    #     color="yellow",
+    #     marker="*",
+    #     markersize=8,
+    #     label="Centre",
+    # )
 
     return d2curve_ellipse, d2curve_rectangle
 
@@ -668,7 +669,10 @@ def plotting_on_ax(
     y_meshgrid: np.ndarray,
     plot_params: dict,
     is_with_xlabel: bool = True,
+    is_label_bottom: bool = True,
     is_with_ylabel: bool = True,
+    is_label_left: bool = True,
+    is_with_grid: bool = False,
 ) -> None:
 
     ax.set_aspect("equal", adjustable="box")
@@ -687,10 +691,23 @@ def plotting_on_ax(
         )
 
         for interpolation_zone_i in plot_params["interpolation_zones"]:
-            df = interpolate_missing_data(
+            df, d2curve_rectangle_interpolated_zone = interpolate_missing_data(
                 ax,
                 df,
                 interpolation_zone_i,
+            )
+            ax.plot(
+                d2curve_rectangle_interpolated_zone[
+                    :, 0
+                ],  # x-coordinates of the boundary
+                d2curve_rectangle_interpolated_zone[
+                    :, 1
+                ],  # y-coordinates of the boundary
+                color="purple",  # Boundary color (e.g., red)
+                linestyle="-",  # Dashed line for visibility
+                linewidth=1.5,  # Line width for boundary
+                alpha=1.0,
+                # marker="o",
             )
     plot_params = plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params)
 
@@ -718,15 +735,35 @@ def plotting_on_ax(
                 fig, ax, df, plot_params, d2curve_ellipse, d2curve_rectangle
             )
 
-    if is_with_xlabel:
-        ax.set_xlabel("x [m]")
+    # setting limits
     ax.set_xlim(plot_params["xlim"])
-    # if plot_params["is_CFD"] or not plot_params["is_CFD_PIV_comparison"]:
-    if is_with_ylabel:
-        ax.set_ylabel("y [m]")
     ax.set_ylim(plot_params["ylim"])
 
-    # ax.grid(True)
+    if is_label_bottom and is_with_xlabel:
+        ax.xaxis.set_label_position("bottom")  # Set the label position to the bottom
+        ax.xaxis.tick_bottom()  # Ensure ticks are also on the bottom
+        ax.set_xlabel("x [m]")  # Set the x-axis label
+    elif is_with_xlabel:
+        ax.xaxis.set_label_position("top")  # Set the label position to the top
+        ax.xaxis.tick_top()  # Ensure ticks are also on the top
+        ax.set_xlabel("x [m]")  # Set the x-axis label
+    else:
+        ax.set_xlabel(None)
+        ax.tick_params(labelbottom=False, labeltop=False)
+
+    if is_label_left and is_with_ylabel:
+        ax.yaxis.set_label_position("left")  # Set the label position to the left
+        ax.yaxis.tick_left()  # Ensure ticks are also on the left
+        ax.set_ylabel("y [m]")  # Set the y-axis label
+    elif is_with_ylabel:
+        ax.yaxis.set_label_position("right")  # Set the label position to the right
+        ax.yaxis.tick_right()  # Ensure ticks are also on the right
+        ax.set_ylabel("y [m]")  # Set the y-axis label
+    else:
+        ax.set_ylabel(None)
+        ax.tick_params(labelleft=False, labelright=False)
+
+    ax.grid(is_with_grid)
 
     return plot_params
 
@@ -814,6 +851,46 @@ def add_colorbar(fig, ax, plot_params, is_horizontal: bool = True):
         cbar.ax.grid(False)
 
         return cbar
+
+
+def add_vertical_colorbar_for_row(
+    fig, axes_row, plot_params, label=None, fontsize=17, labelpad=10
+):
+    cax = plot_params["cax"]
+    vmin = plot_params["min_cbar_value"]
+    vmax = plot_params["max_cbar_value"]
+
+    # Move colorbar further left by increasing the offset (e.g., from 0.08 to 0.1)
+    bbox = axes_row[0].get_position()
+    cbar_ax = fig.add_axes([bbox.x0 - 0.03, bbox.y0, 0.02, bbox.height])
+
+    cbar = plt.colorbar(
+        ScalarMappable(norm=cax.norm, cmap=cax.cmap),
+        cax=cbar_ax,
+        ticks=np.linspace(int(vmin), int(vmax), 10),
+        orientation="vertical",
+    )
+
+    # Move ticks and labels to the left side
+    cbar.ax.yaxis.set_ticks_position("left")
+    cbar.ax.yaxis.set_label_position("left")
+
+    cbar.ax.tick_params(direction="out")
+    cbar.ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
+
+    if label is None:
+        label = plot_params["color_data_col_name"]
+
+    cbar.set_label(
+        label,
+        labelpad=labelpad,
+        fontsize=fontsize,
+        rotation=0,
+    )
+
+    cbar.ax.grid(False)
+
+    return cbar
 
 
 def save_plot(
@@ -1165,8 +1242,8 @@ if __name__ == "__main__":
         "drot": 0.0,
         "iP": 65,
         ##
-        "ellipse_color": "red",
-        "rectangle_color": "green",
+        "ellipse_color": "lightgreen",
+        "rectangle_color": "lightgreen",
         "bound_linewidth": 2.0,
         "bound_alpha": 1.0,
         # Circulation analysis

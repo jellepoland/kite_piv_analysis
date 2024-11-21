@@ -46,7 +46,6 @@ def distance_weighting(points, values, grid_points, power=2):
 
 
 def interpolate_missing_data(
-    ax,
     df,
     interpolation_zone_i,
     columns=[
@@ -129,22 +128,13 @@ def interpolate_missing_data(
     dLx = x_max - x_min
     dLy = y_max - y_min
     iP = 25
-    d2curve_rectangle = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
-    ax.plot(
-        d2curve_rectangle[:, 0],  # x-coordinates of the boundary
-        d2curve_rectangle[:, 1],  # y-coordinates of the boundary
-        color="green",  # Boundary color (e.g., red)
-        linestyle="--",  # Dashed line for visibility
-        linewidth=1,  # Line width for boundary
-        alpha=1,
-        # marker="o",
+    d2curve_rectangle_interpolated_zone = boundary_rectangle(
+        d1centre, drot, dLx, dLy, iP
     )
-
-    return df
+    return df, d2curve_rectangle_interpolated_zone
 
 
 def find_areas_needing_interpolation(
-    ax,
     df: pd.DataFrame,
     alpha: int,
     y_num: int,
@@ -162,7 +152,7 @@ def find_areas_needing_interpolation(
 
     interpolation_zones = []
 
-    print(f" inside the find area function")
+    # print(f" inside the find area function")
 
     for x, y in d2curve_rectangle:
         # Define the bounds of the rectangle
@@ -177,7 +167,7 @@ def find_areas_needing_interpolation(
         # counting the number of data points within the rectangle, that are not NaN or zero
         n_datapoints_counted = len(df[mask].dropna())
 
-        print(f"len(df[mask])", n_datapoints_counted)
+        # print(f"len(df[mask])", n_datapoints_counted)
 
         # Check if there are fewer than N_datapoints within the rectangle
         if n_datapoints_counted < N_datapoints:

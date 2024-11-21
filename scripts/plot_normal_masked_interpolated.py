@@ -2,173 +2,6 @@ from plotting import *
 from plot_styling import set_plot_style
 
 
-# def plotting_on_ax(
-#     fig,
-#     ax,
-#     df: pd.DataFrame,
-#     x_meshgrid: np.ndarray,
-#     y_meshgrid: np.ndarray,
-#     plot_params: dict,
-#     is_with_xlabel: bool = True,
-#     is_with_ylabel: bool = True,
-# ) -> None:
-
-#     ax.set_aspect("equal", adjustable="box")
-
-#     if plot_params.get("is_with_mask", False) and not plot_params["is_CFD"]:
-#         df = apply_mask(df, plot_params)
-
-#     if plot_params.get("is_with_interpolation", False):
-#         for interpolation_zone_i in plot_params["interpolation_zones"]:
-#             df = interpolate_missing_data(
-#                 ax,
-#                 df,
-#                 interpolation_zone_i,
-#             )
-#     plot_params = plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params)
-
-#     # # Add optional elements
-#     # if plot_params.get("is_with_cbar", False):
-#     #     add_colorbar(fig, plot_params)
-
-#     if plot_params.get("is_with_quiver", False):
-#         add_quiver(ax, df, x_meshgrid, y_meshgrid, plot_params)
-
-#     if plot_params.get("is_with_airfoil", False):
-#         plot_airfoil(ax, plot_params)
-
-#     if plot_params.get("is_with_overlay", False):
-#         overlay_raw_image(ax, plot_params)
-
-#     if plot_params.get("is_with_bound", False):
-#         d2curve_ellipse, d2curve_rectangle = add_boundaries(ax, plot_params)
-
-#         if (
-#             plot_params.get("is_with_circulation_analysis", False)
-#             and plot_params["color_data_col_name"] == "V"
-#         ):
-#             add_circulation_analysis(
-#                 fig, ax, df, plot_params, d2curve_ellipse, d2curve_rectangle
-#             )
-
-#     if is_with_xlabel:
-#         ax.set_xlabel("x [m]")
-#     ax.set_xlim(plot_params["xlim"])
-#     # if plot_params["is_CFD"] or not plot_params["is_CFD_PIV_comparison"]:
-#     if is_with_ylabel:
-#         ax.set_ylabel("y [m]")
-#     ax.set_ylim(plot_params["ylim"])
-
-#     # ax.grid(True)
-
-#     return plot_params
-
-
-# def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
-
-#     ## Getting the color data
-#     x_unique = df["x"].unique()
-#     y_unique = df["y"].unique()
-#     color_data = df[plot_params["color_data_col_name"]].values.reshape(
-#         len(y_unique), len(x_unique)
-#     )
-#     # Subsample and plot contours
-#     x_mesh_sub = x_meshgrid[
-#         :: plot_params["subsample_color"], :: plot_params["subsample_color"]
-#     ]
-#     y_mesh_sub = y_meshgrid[
-#         :: plot_params["subsample_color"], :: plot_params["subsample_color"]
-#     ]
-#     color_data_sub = color_data[
-#         :: plot_params["subsample_color"], :: plot_params["subsample_color"]
-#     ]
-
-#     if plot_params["min_cbar_value"] is None or plot_params["max_cbar_value"] is None:
-#         mean_val = np.nanmean(color_data)
-#         std_val = np.nanstd(color_data)
-#         plot_params["min_cbar_value"] = (
-#             mean_val - plot_params["cbar_value_factor_of_std"] * std_val
-#         )
-#         plot_params["max_cbar_value"] = (
-#             mean_val + plot_params["cbar_value_factor_of_std"] * std_val
-#         )
-#         # print(
-#         #     f'color min,max determined at {plot_params["cbar_value_factor_of_std"]} time the std from the mean: {mean_val:.2f}'
-#         # )
-#     if plot_params["color_data_col_name"] == "u":
-#         plot_params["min_cbar_value"] = 13
-#         plot_params["max_cbar_value"] = 17
-
-#     elif plot_params["color_data_col_name"] == "v":
-#         plot_params["min_cbar_value"] = -5
-#         plot_params["max_cbar_value"] = 5
-
-#     elif plot_params["color_data_col_name"] == "w":
-#         plot_params["min_cbar_value"] = -3
-#         plot_params["max_cbar_value"] = 3
-
-#     # ### USING PCOLORMESH
-#     # cax = ax.pcolormesh(
-#     #     x_mesh_sub,
-#     #     y_mesh_sub,
-#     #     color_data_sub,
-#     #     # shading="auto",
-#     #     cmap=plot_params["cmap"],
-#     #     vmin=plot_params["min_cbar_value"],
-#     #     vmax=plot_params["max_cbar_value"],
-#     # )  # 'shading' set to 'auto' to avoid warning
-
-#     #### USING CONTOURF
-#     cax = ax.contourf(
-#         x_mesh_sub,
-#         y_mesh_sub,
-#         color_data_sub,
-#         levels=plot_params["countour_levels"],
-#         cmap=plot_params["cmap"],
-#         vmin=plot_params["min_cbar_value"],
-#         vmax=plot_params["max_cbar_value"],
-#     )
-
-#     plot_params["cax"] = cax
-
-#     return plot_params
-
-
-def add_colorbar_for_row(fig, axes_row, plot_params):
-    cax = plot_params["cax"]
-    vmin = plot_params["min_cbar_value"]
-    vmax = plot_params["max_cbar_value"]
-
-    # Move colorbar further left by increasing the offset (e.g., from 0.08 to 0.1)
-    bbox = axes_row[0].get_position()
-    cbar_ax = fig.add_axes([bbox.x0 - 0.07, bbox.y0, 0.02, bbox.height])
-
-    cbar = plt.colorbar(
-        ScalarMappable(norm=cax.norm, cmap=cax.cmap),
-        cax=cbar_ax,
-        ticks=np.linspace(int(vmin), int(vmax), 10),
-        orientation="vertical",
-    )
-
-    # Move ticks and labels to the left side
-    cbar.ax.yaxis.set_ticks_position("left")
-    cbar.ax.yaxis.set_label_position("left")
-
-    cbar.ax.tick_params(direction="out")
-    cbar.ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
-
-    cbar.set_label(
-        plot_params["color_data_col_name"],
-        labelpad=10,
-        fontsize=17,
-        rotation=0,
-    )
-
-    cbar.ax.grid(False)
-
-    return cbar
-
-
 def normal_masked_interpolated(plot_params: dict) -> None:
     """Create a 4x3 comparison of CFD and PIV data, with PIV masked/unmasked."""
     fig, axes = plt.subplots(
@@ -177,7 +10,7 @@ def normal_masked_interpolated(plot_params: dict) -> None:
         figsize=(15, 10),
         gridspec_kw={
             "hspace": 0.01,  # A bit more vertical space for labels
-            "wspace": 0.09,
+            "wspace": 0.07,
         },
     )  # Minimal horizontal space since colorbars are outside)
     # fig.suptitle(
@@ -234,7 +67,7 @@ def normal_masked_interpolated(plot_params: dict) -> None:
             is_with_ylabel=True,
         )
         if plot_params["is_with_cbar"]:
-            add_colorbar_for_row(fig, axes[i, :], plot_params)
+            add_vertical_colorbar_for_row(fig, axes[i, :], plot_params)
 
         ### PIV Mask
         plot_params["is_with_interpolation"] = False
@@ -312,6 +145,90 @@ def normal_masked_interpolated(plot_params: dict) -> None:
     # plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust for suptitle space
     # plt.tight_layout()
     save_plot(fig, plot_params)
+
+
+def normal_masked_interpolated_3by2(plot_params: dict) -> None:
+    """Create a 3x2 comparison of CFD and PIV data, with PIV masked/unmasked."""
+    fig, axes = plt.subplots(
+        3,
+        2,
+        figsize=(10, 10),
+        gridspec_kw={"hspace": 0.01, "wspace": 0.07},
+    )  # Minimal spacing for compact layout
+
+    data_labels = ["u", "v", "w"]
+    plot_params.update(
+        {
+            "is_with_interpolation": False,
+            "is_with_bound": False,
+            "is_with_circulation_analysis": False,
+        }
+    )
+
+    for i, label in enumerate(data_labels):
+        # Determine x-axis label settings
+        is_with_xlabel = i == 2  # Only for the last row
+
+        # Update color data label
+        plot_params["color_data_col_name"] = label
+
+        ### PIV raw (left column)
+        plot_params["is_with_mask"] = False
+        df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
+            plot_params | {"is_CFD": False}
+        )
+        plot_params = plotting_on_ax(
+            fig,
+            axes[i, 0],
+            df_piv,
+            x_mesh_piv,
+            y_mesh_piv,
+            plot_params,
+            is_with_xlabel=is_with_xlabel,
+            is_with_ylabel=False,
+        )
+
+        ### PIV Mask (right column)
+        plot_params["is_with_mask"] = True
+        df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
+            plot_params | {"is_CFD": False}
+        )
+        plot_params = plotting_on_ax(
+            fig,
+            axes[i, 1],
+            df_piv,
+            x_mesh_piv,
+            y_mesh_piv,
+            plot_params,
+            is_with_xlabel=is_with_xlabel,
+            is_with_ylabel=True,  # Only for the 2nd row
+            is_label_left=False,
+        )
+
+        # setting titles
+        if i == 0:
+            axes[i, 0].set_title(f"PIV Raw")
+            axes[i, 1].set_title(
+                # f'PIV Masked for {plot_params["column_to_mask"]} in bounds {plot_params["mask_lower_bound"]} to {plot_params["mask_upper_bound"]}'
+                f"PIV Masked"
+            )
+
+        # adding cbar
+        add_vertical_colorbar_for_row(fig, axes[i, :], plot_params)
+
+        ### Reset things
+        plot_params["min_cbar_value"] = None
+        plot_params["max_cbar_value"] = None
+
+        # Save the plot
+    save_path = (
+        Path(project_dir)
+        / "results"
+        / "paper_plots"
+        / f"PIV_normal_masked_Y{plot_params['y_num']}.pdf"
+    )
+    fig.savefig(save_path)
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -395,7 +312,8 @@ if __name__ == "__main__":
     else:
         type_label = "CFD" if plot_params["is_CFD"] else "PIV"
 
-    normal_masked_interpolated(plot_params)
+    # normal_masked_interpolated(plot_params)
+    normal_masked_interpolated_3by2(plot_params)
     print(
         f'{type_label} plot with color = {plot_params["color_data_col_name"]} | Y{plot_params["y_num"]} | α = {plot_params["alpha"]}°'
     )

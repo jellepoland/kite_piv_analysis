@@ -400,6 +400,142 @@ def plot_contour_with_colored_data(plot_params):
     plt.close()
 
 
+def plot_contour_with_colored_data(plot_params):
+    # Create a figure with two side-by-side subplots
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(10, 5),
+        gridspec_kw={
+            "hspace": 0.01,  # A bit more vertical space for labels
+            "wspace": 0.07,
+        },
+    )
+    # Create two separate plot_params for each subplot
+    plot_params_1 = plot_params.copy()
+    plot_params_2 = plot_params.copy()
+
+    # Set different alpha values for each subplot
+    plot_params_1["alpha"] = 6
+    plot_params_2["alpha"] = 16
+
+    for idx, (ax, curr_plot_params) in enumerate(
+        zip(axes, [plot_params_1, plot_params_2])
+    ):
+        # Transform raw data to processed data
+        df, zero_vel_df = transform_raw_csv_to_processed_df(curr_plot_params["alpha"])
+
+        # Extract unique x, y, and w values
+        x_unique = df["x"].values
+        y_unique = df["y"].values
+        color_values = df[curr_plot_params["color_data_col_name"]].values
+
+        # Mask the values where abs(color_values) > 4 and color them pink
+        mask_pink = np.abs(color_values) > 3
+        color_values_pink = np.copy(color_values)
+        color_values_pink[mask_pink] = (
+            np.nan
+        )  # Set masked values to NaN to avoid interpolation interference
+
+        # Create a regular grid based on unique x and y values
+        x_grid = np.linspace(
+            x_unique.min(),
+            x_unique.max(),
+            int(len(x_unique) / curr_plot_params["subsample_color"]),
+        )
+        y_grid = np.linspace(
+            y_unique.min(),
+            y_unique.max(),
+            int(len(y_unique) / curr_plot_params["subsample_color"]),
+        )
+
+        # Create a meshgrid
+        X_grid, Y_grid = np.meshgrid(x_grid, y_grid)
+
+        # Interpolate the w values onto the grid using griddata
+        color_data = griddata(
+            (x_unique, y_unique), color_values_pink, (X_grid, Y_grid), method="linear"
+        )
+
+        if (
+            curr_plot_params["min_cbar_value"] is None
+            or curr_plot_params["max_cbar_value"] is None
+        ):
+            mean_val = np.nanmean(color_data)
+            std_val = np.nanstd(color_data)
+            curr_plot_params["min_cbar_value"] = (
+                mean_val - curr_plot_params["cbar_value_factor_of_std"] * std_val
+            )
+            curr_plot_params["max_cbar_value"] = (
+                mean_val + curr_plot_params["cbar_value_factor_of_std"] * std_val
+            )
+
+        # Plot the contour
+        curr_plot_params["cax"] = ax.contourf(
+            X_grid,
+            Y_grid,
+            color_data,
+            levels=curr_plot_params["countour_levels"],
+            cmap=curr_plot_params["cmap"],
+            vmin=curr_plot_params["min_cbar_value"],
+            vmax=curr_plot_params["max_cbar_value"],
+        )
+
+        # Plot the points where abs(color_values) > 4 in pink
+        ax.scatter(
+            x_unique[mask_pink],
+            y_unique[mask_pink],
+            c="lightgreen",
+            s=1,  # Adjust point size as needed
+            label="abs(w) > 3",
+        )
+        ax.grid(False)
+
+        # Plotting zeros
+        ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
+
+        # Adjust plot settings
+        ax.set_aspect("equal")
+        ax.set_xlim(curr_plot_params["xlim"])
+        ax.set_ylim(curr_plot_params["ylim"])
+
+        # Add title to distinguish the subplots
+        ax.set_title(r"$\alpha$ = {} ".format(curr_plot_params["alpha"]))
+
+        # Apply label logic
+        if curr_plot_params["alpha"] == 6:
+            # For alpha 6: bottom x-label, no y-label
+            ax.xaxis.set_label_position("bottom")
+            ax.xaxis.tick_bottom()
+            ax.set_xlabel("x [m]")
+
+            ax.set_ylabel(None)
+            ax.tick_params(labelleft=False, labelright=False)
+        else:  # alpha 16
+            # For alpha 16: bottom x-label, left y-label
+            ax.xaxis.set_label_position("bottom")
+            ax.xaxis.tick_bottom()
+            ax.set_xlabel("x [m]")
+
+            ax.yaxis.set_label_position("right")
+            ax.yaxis.tick_right()
+            ax.set_ylabel("y [m]")
+
+    # Add a single colorbar for the entire figure
+    plot_params["cax"] = curr_plot_params["cax"]
+    add_vertical_colorbar_for_row(fig, axes[:], plot_params)
+
+    # Save the plot
+    save_path = (
+        Path(project_dir)
+        / "results"
+        / "paper_plots"
+        / "spanwise_CFD_alpha_comparison.pdf"
+    )
+    fig.savefig(save_path)
+    plt.close()
+
+
 if __name__ == "__main__":
     from plot_styling import set_plot_style
 
@@ -429,7 +565,7 @@ if __name__ == "__main__":
         "cbar_value_factor_of_std": 2.0,
         "subsample_color": 40,
         "countour_levels": 100,
-        "cmap": "RdBu",
+        "cmap": "coolwarm",
         # Quiver settings
         "is_with_quiver": True,
         "subsample_quiver": 5,
