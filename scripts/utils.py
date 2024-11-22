@@ -9,8 +9,7 @@ project_dir = Path(__file__).resolve().parent.parent
 
 
 def reshape_remove_nans(col, n_rows, n_cols):
-    col[np.isnan(col)] = 0
-    return col.values.reshape(n_rows, n_cols)
+    return col.fillna(0).values.reshape(n_rows, n_cols)
 
 
 def interp2d_batch(d2x, d2y, d2_values, points, kind="linear"):

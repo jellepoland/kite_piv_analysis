@@ -549,7 +549,7 @@ def main(
     U_inf: float = 15,
     c: float = 0.37,
 ):
-    print(f"\nRunning NOCA calculating F_x, F_y, C_l, C_d")
+    # print(f"\nRunning NOCA calculating F_x, F_y, C_l, C_d")
     # reshape df
     d2x = df_1D["x"].values
     d2y = df_1D["y"].values
@@ -578,10 +578,10 @@ def main(
     F_y = d1Ft[0]
     C_l = F_y / (0.5 * rho * U_inf**2 * c)
     C_d = F_x / (0.5 * rho * U_inf**2 * c)
-    print(f"F_x = {d1Fn[0]:.3f}N (F_n Normal force)")
-    print(f"F_y = {d1Ft[0]:.3f}N (F_t Tangential force)")
-    print(f"C_l = {C_l:.3f} (C_l Lift coefficient)")
-    print(f"C_d = {C_d:.3f} (C_d Drag coefficient)")
+    # print(f"F_x = {d1Fn[0]:.3f}N (F_n Normal force)")
+    # print(f"F_y = {d1Ft[0]:.3f}N (F_t Tangential force)")
+    # print(f"C_l = {C_l:.3f} (C_l Lift coefficient)")
+    # print(f"C_d = {C_d:.3f} (C_d Drag coefficient)")
 
     return F_x, F_y, C_l, C_d
 

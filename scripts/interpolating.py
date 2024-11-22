@@ -140,12 +140,24 @@ def find_areas_needing_interpolation(
     y_num: int,
     rectangle_size: float,
     iP: int = 49,
+    dLx: float = None,
+    dLy: float = None,
+    drot: float = None,
 ):
     # Get the airfoil center and optimal bound placement
     airfoil_center = calculating_airfoil_centre.main(alpha, y_num)
-    dLx, dLy, N_datapoints = reading_optimal_bound_placement(
-        alpha, y_num, is_with_N_datapoints=True
-    )
+
+    if dLx is None or dLy is None:
+        dLx, dLy, N_datapoints = reading_optimal_bound_placement(
+            alpha, y_num, is_with_N_datapoints=True
+        )
+    else:
+        dLx_optimal, dLy_optimal, N_datapoints = reading_optimal_bound_placement(
+            alpha, y_num, is_with_N_datapoints=True
+        )
+
+    if drot is None:
+        drot = 0
 
     # Generate the boundary rectangle
     d2curve_rectangle = boundary_rectangle(airfoil_center, 0, dLx, dLy, iP)

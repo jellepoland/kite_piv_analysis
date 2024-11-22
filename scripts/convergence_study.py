@@ -56,9 +56,9 @@ def get_sweep_values(
         max_dLx = min(
             max_positive_dLx, max_negative_dLx
         )  # Take the minimum of both bounds
-        print(
-            f"max_positive_dLx: {max_positive_dLx}, max_negative_dLx: {max_negative_dLx}, max_dLx: {max_dLx}"
-        )
+        # print(
+        #     f"max_positive_dLx: {max_positive_dLx}, max_negative_dLx: {max_negative_dLx}, max_dLx: {max_dLx}"
+        # )
         dLx = np.linspace(0.35, 1.8 * max_dLx, 50)  # Adjust the range dynamically
         return dLx
 
@@ -69,10 +69,10 @@ def get_sweep_values(
         max_dLy = min(
             max_positive_dLy, max_negative_dLy
         )  # Take the minimum of both bounds
-        print(
-            f"max_positive_dLy: {max_positive_dLy}, max_negative_dLy: {max_negative_dLy}, max_dLy: {max_dLy}"
-        )
-        print(f"max_dLy + airfoil_center: {max_dLy + airfoil_center[1]}")
+        # print(
+        #     f"max_positive_dLy: {max_positive_dLy}, max_negative_dLy: {max_negative_dLy}, max_dLy: {max_dLy}"
+        # )
+        # print(f"max_dLy + airfoil_center: {max_dLy + airfoil_center[1]}")
         dLy = np.linspace(0.1, 1.8 * max_dLy, 50)  # Adjust the range dynamically
         return dLy
 
@@ -108,7 +108,9 @@ def get_sweep_values(
 
 
 def reading_optimal_bound_placement(
-    alpha: float, y_num: int, is_with_N_datapoints: bool = False
+    alpha: float,
+    y_num: int,
+    is_with_N_datapoints: bool = False,
 ) -> Tuple[float, float]:
     """
     Read the optimal bound placement from a CSV file.
@@ -134,11 +136,13 @@ def reading_optimal_bound_placement(
         # If the specific (alpha, y_num) combination is not found, return NaNs
         dLx, dLy = np.nan, np.nan
 
-    if not is_with_N_datapoints:
-        return dLx, dLy
-    else:
+    # to enable the interpolator to work within the convergence study
+    if is_with_N_datapoints:
         N_datapoints = df_optimal_bound_placement.loc[mask, "N_datapoints"].values[0]
         return dLx, dLy, N_datapoints
+
+    else:
+        return dLx, dLy
 
 
 def parameter_sweep_noca(
@@ -153,6 +157,8 @@ def parameter_sweep_noca(
     rho: float = 1.225,
     U_inf: float = 15,
     c: float = 0.37,
+    is_small_piv: bool = False,
+    max_number_of_interpolation_zones: int = 5,
 ) -> pd.DataFrame:
     """
     Perform parameter sweep for NOCA analysis.
@@ -236,6 +242,13 @@ def parameter_sweep_noca(
 
     dLx, dLy = reading_optimal_bound_placement(alpha, y_num)
 
+    # When PIV, the cells have to be interpolated, therefore we are only checking convergence around a small area, surrounding the optimal bound
+    if is_small_piv and not is_CFD:
+        if parameter_name == "dLx":
+            parameter_values = np.linspace(dLx - 0.05 * dLx, dLx + 0.05 * dLx, 10)
+        elif parameter_name == "dLy":
+            parameter_values = np.linspace(dLy - 0.05 * dLy, dLy + 0.05 * dLy, 10)
+
     for value in parameter_values:
         # Create copy of base parameters
         current_params = NOCAParameters(**vars(base_params))
@@ -288,19 +301,36 @@ def parameter_sweep_noca(
             )
 
         # Interpolate the data if PIV
+        is_skip_this_parameter = False
         if not plot_params["is_CFD"]:
             plot_params["interpolation_zones"] = find_areas_needing_interpolation(
                 df,
                 plot_params["alpha"],
                 plot_params["y_num"],
                 plot_params["rectangle_size"],
+                dLx=current_params.dLx,
+                dLy=current_params.dLy,
             )
 
-            for interpolation_zone_i in plot_params["interpolation_zones"]:
-                df, d2curve_rectangle_interpolated_zone = interpolate_missing_data(
-                    df,
-                    interpolation_zone_i,
+            # to make sure that we are not interpolating too many areas, we set the is_skip_parameter
+
+            if (
+                len(plot_params["interpolation_zones"])
+                < max_number_of_interpolation_zones
+            ):
+
+                for interpolation_zone_i in plot_params["interpolation_zones"]:
+                    df, d2curve_rectangle_interpolated_zone = interpolate_missing_data(
+                        df,
+                        interpolation_zone_i,
+                    )
+            else:
+                print(
+                    f'---> SKIPPED n_zones: {len(plot_params["interpolation_zones"])}, dLx: {current_params.dLx:.2f}, dLy: {current_params.dLy:.2f}'
                 )
+                is_skip_this_parameter = True
+        if is_skip_this_parameter:
+            continue
 
         # Run NOCA analysis
         F_x, F_y, C_l, C_d = force_from_noca.main(
@@ -879,6 +909,197 @@ def plot_noca_coefficients_grid_CFD_PIV(
     return fig, axes
 
 
+def plot_noca_coefficients_2x2(
+    alpha: int,
+    y_num: int,
+    save_path: Optional[Union[str, Path]] = None,
+    colors: tuple = ("blue", "red"),
+    markers: tuple = ("o", "s"),
+    markersize: int = 6,
+    data_types: List = ["CFD", "PIV"],
+    is_small_piv: bool = False,
+):
+    """
+    Create a 2x2 grid plot showing CL and CD for dLx and dLy parameters.
+
+    Args:
+        alpha: Angle of attack.
+        y_num: Y value index.
+        save_path: Optional path to save the figure.
+        colors: Tuple of colors for CL and CD plots.
+        markers: Tuple of markers for CFD and PIV data.
+        markersize: Size of markers.
+
+    Returns:
+        tuple: (fig, axes) - Figure and axes objects.
+    """
+    set_plot_style()
+
+    # Parameters to plot
+    parameter_names = ["dLx", "dLy"]
+
+    # Collect results for all parameters and both data types (CFD and PIV)
+
+    results_dict = {data_type: {} for data_type in data_types}
+    for data_type in results_dict:
+        is_CFD = data_type == "CFD"
+        for param in parameter_names:
+            print(f"\n alpha: {alpha} | Y{y_num} | {data_type} | {param}")
+            results_dict[data_type][param] = {
+                "Ellipse": parameter_sweep_noca(
+                    is_CFD,
+                    alpha,
+                    y_num,
+                    param,
+                    is_ellipse=True,
+                    is_small_piv=is_small_piv,
+                ),
+                "Rectangle": parameter_sweep_noca(
+                    is_CFD,
+                    alpha,
+                    y_num,
+                    param,
+                    is_ellipse=False,
+                    is_small_piv=is_small_piv,
+                ),
+            }
+
+    # Create figure and axes
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+
+    dLx, dLy = reading_optimal_bound_placement(alpha, y_num)
+    fig.suptitle(f"Current settings: dLx: {dLx}, dLy: {dLy}")
+
+    param_to_bound_map = {
+        "dLx": dLx,
+        "dLy": dLy,
+    }
+    # Define labels
+    x_label_map = {
+        "dLx": "X [m]",
+        "dLy": "Y [m]",
+    }
+
+    # Track global min and max for y-axis ranges
+    cl_min, cl_max = float("inf"), float("-inf")
+    cd_min, cd_max = float("inf"), float("-inf")
+
+    # First pass: calculate global y-axis ranges
+    for param in parameter_names:
+        for key in ["Ellipse", "Rectangle"]:
+            for data_type in data_types:
+                results_df = pd.DataFrame(results_dict[data_type][param][key])
+                cl_min = min(cl_min, results_df["C_l"].min())
+                cl_max = max(cl_max, results_df["C_l"].max())
+                cd_min = min(cd_min, results_df["C_d"].min())
+                cd_max = max(cd_max, results_df["C_d"].max())
+
+    cd_min = -0.2
+    cd_max = 0.4
+    cl_min = 0.3
+    cl_max = 0.9
+
+    # Plotting
+    for idx, param in enumerate(parameter_names):
+        x_label = x_label_map.get(param, param)
+
+        # Plotting CL (top row)
+        cl_ax = axes[0, idx]
+
+        # plot an area surrounding the 5% left and %5 right of the optimal bound
+        cl_ax.axvspan(
+            param_to_bound_map[param] - 0.05 * param_to_bound_map[param],
+            param_to_bound_map[param] + 0.05 * param_to_bound_map[param],
+            color="gray",
+            alpha=0.2,
+        )
+
+        # Iterate over data types and shapes
+        for data_type_idx, data_type in enumerate(data_types):
+            for key_idx, key in enumerate(["Ellipse", "Rectangle"]):
+                results_df = pd.DataFrame(results_dict[data_type][param][key])
+                x = results_df["parameter_value"]
+
+                linestyle = "-" if data_type == "CFD" else "--"
+                line_label = f"$C_l$ ({data_type}, {key})"
+
+                # if CL plot blue
+                if key == "Ellipse":
+                    color = colors[0]
+                else:
+                    color = colors[1]
+
+                plot_on_ax(
+                    ax=cl_ax,
+                    x=x,
+                    y=results_df["C_l"],
+                    label=line_label,
+                    color=color,
+                    # marker=markers[data_type_idx],
+                    linestyle=linestyle,
+                    x_label=x_label,
+                    y_label="$C_l$ [-]",
+                    is_with_grid=False,
+                )
+
+        cl_ax.set_title(f"{param} Effect on $C_l$")
+        cl_ax.set_ylim(cl_min, cl_max)
+
+        # Plotting CD (bottom row)
+        cd_ax = axes[1, idx]
+
+        # plot an area surrounding the 5% left and %5 right of the optimal bound
+        cd_ax.axvspan(
+            param_to_bound_map[param] - 0.05 * param_to_bound_map[param],
+            param_to_bound_map[param] + 0.05 * param_to_bound_map[param],
+            color="gray",
+            alpha=0.2,
+        )
+
+        for data_type_idx, data_type in enumerate(data_types):
+            for key_idx, key in enumerate(["Ellipse", "Rectangle"]):
+                results_df = pd.DataFrame(results_dict[data_type][param][key])
+                x = results_df["parameter_value"]
+
+                linestyle = "-" if data_type == "CFD" else "--"
+                line_label = f"$C_d$ ({data_type}, {key})"
+
+                if key == "Ellipse":
+                    color = colors[0]
+                else:
+                    color = colors[1]
+
+                plot_on_ax(
+                    ax=cd_ax,
+                    x=x,
+                    y=results_df["C_d"],
+                    label=line_label,
+                    color=color,
+                    # marker=markers[data_type_idx],
+                    linestyle=linestyle,
+                    x_label=x_label,
+                    y_label="$C_d$ [-]",
+                    is_with_grid=False,
+                )
+
+        cd_ax.set_title(f"{param} Effect on $C_d$")
+        cd_ax.set_ylim(cd_min, cd_max)
+        if idx == 0:
+            cl_ax.legend(loc="lower center")
+            cd_ax.legend(loc="lower center")
+
+    # Adjust layout and save
+    plt.tight_layout()
+
+    if save_path is not None:
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path)
+        print(f"Figure saved to {save_path}")
+
+    return fig, axes
+
+
 if __name__ == "__main__":
 
     # Settings
@@ -991,8 +1212,7 @@ if __name__ == "__main__":
     #         # markersize: int = 6,
     #     )
 
-    ### Running for relevant files
-    # Settings
+    ## Running for relevant files
     # alpha = 6
 
     # for y_num in [1, 2, 3, 4, 5]:
@@ -1001,7 +1221,7 @@ if __name__ == "__main__":
     #         / "results"
     #         / "convergence_study"
     #         / f"alpha_{alpha}"
-    #         / f"CFD_PIV_Y_{y_num}_dLx_dLy.pdf"
+    #         / f"CFD_PIV_Y_{y_num}_dLx_dLy_small.pdf"
     #     )
     #     plot_noca_coefficients_grid_CFD_PIV(
     #         alpha,
@@ -1013,22 +1233,57 @@ if __name__ == "__main__":
     #         # markersize: int = 6,
     #     )
 
-    alpha = 16
+    # alpha = 16
 
-    for y_num in [1]:
+    # for y_num in [1]:
+    #     save_path = (
+    #         Path(project_dir)
+    #         / "results"
+    #         / "convergence_study"
+    #         / f"alpha_{alpha}"
+    #         / f"CFD_PIV_Y_{y_num}_dLx_dLy_small.pdf"
+    #     )
+    #     plot_noca_coefficients_grid_CFD_PIV(
+    #         alpha,
+    #         y_num,
+    #         save_path,
+    #         parameter_names=["dLx", "dLy"],
+    #         # colors: tuple = ("blue", "red"),
+    #         # markers: tuple = ("o", "s"),
+    #         # markersize: int = 6,
+    #     )
+
+    ## Running the 2x2
+    alpha = 6
+    for y_num in [1, 2, 3, 4, 5]:
         save_path = (
             Path(project_dir)
             / "results"
             / "convergence_study"
             / f"alpha_{alpha}"
-            / f"CFD_PIV_Y_{y_num}_dLx_dLy.pdf"
+            / f"CFD_PIV_Y_{y_num}_dLx_dLy_2x2_all.pdf"
         )
-        plot_noca_coefficients_grid_CFD_PIV(
+        plot_noca_coefficients_2x2(
             alpha,
             y_num,
             save_path,
-            parameter_names=["dLx", "dLy"],
-            # colors: tuple = ("blue", "red"),
-            # markers: tuple = ("o", "s"),
-            # markersize: int = 6,
+            data_types=["CFD", "PIV"],
+            # is_small_piv=True,
         )
+
+    alpha = 16
+    y_num = 1
+    save_path = (
+        Path(project_dir)
+        / "results"
+        / "convergence_study"
+        / f"alpha_{alpha}"
+        / f"CFD_PIV_Y_{y_num}_dLx_dLy_2x2_all.pdf"
+    )
+    plot_noca_coefficients_2x2(
+        alpha,
+        y_num,
+        save_path,
+        data_types=["CFD", "PIV"],
+        # is_small_piv=True,
+    )
