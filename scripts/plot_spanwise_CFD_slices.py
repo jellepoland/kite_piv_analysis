@@ -507,7 +507,7 @@ def plot_contour_with_colored_data(plot_params):
             # For alpha 6: bottom x-label, no y-label
             ax.xaxis.set_label_position("bottom")
             ax.xaxis.tick_bottom()
-            ax.set_xlabel("x [m]")
+            ax.set_xlabel("y [m]")
 
             ax.set_ylabel(None)
             ax.tick_params(labelleft=False, labelright=False)
@@ -515,11 +515,11 @@ def plot_contour_with_colored_data(plot_params):
             # For alpha 16: bottom x-label, left y-label
             ax.xaxis.set_label_position("bottom")
             ax.xaxis.tick_bottom()
-            ax.set_xlabel("x [m]")
+            ax.set_xlabel("y [m]")
 
             ax.yaxis.set_label_position("right")
             ax.yaxis.tick_right()
-            ax.set_ylabel("y [m]")
+            ax.set_ylabel("z [m]")
 
     # Add a single colorbar for the entire figure
     plot_params["cax"] = curr_plot_params["cax"]

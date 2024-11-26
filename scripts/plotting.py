@@ -278,6 +278,7 @@ def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
         cmap=plot_params["cmap"],
         vmin=plot_params["min_cbar_value"],
         vmax=plot_params["max_cbar_value"],
+        antialiased=False,
     )
 
     plot_params["cax"] = cax
@@ -683,7 +684,6 @@ def plotting_on_ax(
     if plot_params.get("is_with_interpolation", False):
 
         plot_params["interpolation_zones"] = find_areas_needing_interpolation(
-            ax,
             df,
             plot_params["alpha"],
             plot_params["y_num"],
@@ -692,7 +692,6 @@ def plotting_on_ax(
 
         for interpolation_zone_i in plot_params["interpolation_zones"]:
             df, d2curve_rectangle_interpolated_zone = interpolate_missing_data(
-                ax,
                 df,
                 interpolation_zone_i,
             )
@@ -754,11 +753,11 @@ def plotting_on_ax(
     if is_label_left and is_with_ylabel:
         ax.yaxis.set_label_position("left")  # Set the label position to the left
         ax.yaxis.tick_left()  # Ensure ticks are also on the left
-        ax.set_ylabel("y [m]")  # Set the y-axis label
+        ax.set_ylabel("z [m]")  # Set the y-axis label
     elif is_with_ylabel:
         ax.yaxis.set_label_position("right")  # Set the label position to the right
         ax.yaxis.tick_right()  # Ensure ticks are also on the right
-        ax.set_ylabel("y [m]")  # Set the y-axis label
+        ax.set_ylabel("z [m]")  # Set the y-axis label
     else:
         ax.set_ylabel(None)
         ax.tick_params(labelleft=False, labelright=False)

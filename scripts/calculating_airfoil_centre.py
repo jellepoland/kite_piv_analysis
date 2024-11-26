@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 from utils import project_dir
 
 
@@ -27,16 +27,16 @@ def main(
     """
     # Load translation data
     translation_data = pd.read_csv(translation_csv_path)
+
     # Filter for the current alpha and y_num
-    translation_row = translation_data[
-        (translation_data["alpha"] == alpha) & (translation_data["Y"] == y_num)
-    ]
+    mask = (translation_data["alpha"] == alpha) & (translation_data["Y"] == y_num)
+    translation_row = translation_data[mask]
     if translation_row.empty:
         raise ValueError(f"No translation data found for alpha={alpha}, y_num={y_num}.")
 
     # Extract translation values
-    x_translation = translation_row["x"].values[0]
-    y_translation = translation_row["y"].values[0]
+    x_translation = translation_row["x"].iloc[0]
+    y_translation = translation_row["y"].iloc[0]
 
     # Path to the airfoil data file
     airfoil_file = Path(project_dir) / "data" / "airfoils" / f"y{y_num}.dat"

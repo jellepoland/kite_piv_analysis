@@ -9,6 +9,7 @@ def main(plot_params: dict) -> None:
 
     # Set up alpha and y_num values
     alphas = [6, 6]
+
     y_nums = [1, 5]
     is_with_xlabel = False
 

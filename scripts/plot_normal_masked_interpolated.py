@@ -261,7 +261,7 @@ if __name__ == "__main__":
         "countour_levels": 100,
         "cmap": "coolwarm",
         # Quiver settings
-        "is_with_quiver": True,
+        "is_with_quiver": False,
         "subsample_quiver": 5,
         "u_inf": 15.0,
         # PIV specific settings
