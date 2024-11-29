@@ -62,6 +62,44 @@ def csv_reader(
     return df_1D
 
 
+def reading_optimal_bound_placement(
+    alpha: float,
+    y_num: int,
+    is_with_N_datapoints: bool = False,
+):
+    """
+    Read the optimal bound placement from a CSV file.
+
+    Args:
+        alpha (float): Angle of attack.
+        y_num (int): Y value index.
+
+    Returns:
+        Tuple[float, float]: Optimal dLx and dLy values.
+    """
+    # Reading in the airfoil centers
+    df_optimal_bound_placement = pd.read_csv(
+        Path(project_dir) / "processed_data" / "optimal_bound_placement.csv"
+    )
+
+    mask = (df_optimal_bound_placement["alpha"] == alpha) & (
+        df_optimal_bound_placement["Y"] == y_num
+    )
+    try:
+        dLx, dLy = df_optimal_bound_placement.loc[mask, ["dLx", "dLy"]].values[0]
+    except IndexError:
+        # If the specific (alpha, y_num) combination is not found, return NaNs
+        dLx, dLy = np.nan, np.nan
+
+    # to enable the interpolator to work within the convergence study
+    if is_with_N_datapoints:
+        N_datapoints = df_optimal_bound_placement.loc[mask, "N_datapoints"].values[0]
+        return dLx, dLy, int(N_datapoints)
+
+    else:
+        return dLx, dLy
+
+
 # Example testing script
 if __name__ == "__main__":
     # Define the variables in MATLAB

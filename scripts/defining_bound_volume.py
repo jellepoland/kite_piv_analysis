@@ -52,6 +52,20 @@ def boundary_ellipse(
     return d2curve_rot
 
 
+def iP_checker(iP: int) -> int:
+    """
+    Ensure the number of points is a multiple of 4.
+
+    Parameters:
+    - iP (int): Number of points to distribute
+
+    Returns:
+    - int: Adjusted number of points to be a multiple of 4
+    """
+    # Ensure iP is a multiple of 4, always rounding up
+    return 4 * ((iP + 3) // 4)
+
+
 def boundary_rectangle(
     d1centre: np.ndarray, drot: float, dLx: float, dLy: float, iP: int
 ) -> np.ndarray:
@@ -63,33 +77,13 @@ def boundary_rectangle(
     - drot (float): Rotation angle in degrees; 0 corresponds to no rotation.
     - dLx (float): Total length of the rectangle along the x-axis.
     - dLy (float): Total width of the rectangle along the y-axis.
-    - iP (int): Total number of points to evenly distribute around the rectangle boundary.
+    - iP (int): Total number of points to distribute around the rectangle boundary.
 
     Returns:
     - np.ndarray: A matrix of rotated (x, y) coordinates for points on the rectangle boundary.
-
-    Notes:
-    - The rotation is applied around the rectangle center `d1centre`.
-    - The `iP` parameter determines the density of points along each side of the rectangle.
     """
-    iP = iP - 1
+    # Adjust iP to be a multiple of 4
     iP = iP_checker(iP)
-
-    # Defining total length
-    total_length = 2 * (dLx + dLy)
-
-    # Calculating the number of points per side
-    n_points_lower_horizontal = int(np.round(iP * dLx / total_length))
-    n_points_right_vertical = int(np.round(iP * dLy / total_length))
-    n_points_upper_horizontal = int(np.round(iP * dLx / total_length))
-    n_points_left_vertical = int(np.round(iP * dLy / total_length))
-    # print(f"---> n_points_lower_horizontal: {n_points_lower_horizontal}")
-    # print(f"---> n_points_right_vertical: {n_points_right_vertical}")
-    # print(f"---> n_points_upper_horizontal: {n_points_upper_horizontal}")
-    # print(f"---> n_points_left_vertical: {n_points_left_vertical}")
-
-    # Initialize an array to hold the boundary points
-    d2curve = np.zeros((iP, 2))
 
     # Define the corner points
     bottom_left = np.array([-0.5 * dLx, -0.5 * dLy]) + d1centre
@@ -97,39 +91,32 @@ def boundary_rectangle(
     top_right = np.array([0.5 * dLx, 0.5 * dLy]) + d1centre
     top_left = np.array([-0.5 * dLx, 0.5 * dLy]) + d1centre
 
-    # Populate the boundary points in clockwise order
-    index = 0
+    # Initialize an array to hold the boundary points
+    d2curve = np.zeros((iP, 2))
 
-    # Lower horizontal edge
-    for i in range(n_points_lower_horizontal):
-        d2curve[index] = (
-            bottom_left + i * (bottom_right - bottom_left) / n_points_lower_horizontal
-        )
-        index += 1
+    # Calculate points per side (ensuring equal distribution)
+    points_per_side = iP // 4
 
-    # Right vertical edge
-    for i in range(n_points_right_vertical):
-        d2curve[index] = (
-            bottom_right + i * (top_right - bottom_right) / n_points_right_vertical
-        )
-        index += 1
+    # Distribute points along each side
+    # Bottom side (left to right)
+    for i in range(points_per_side):
+        t = i / (points_per_side - 1) if points_per_side > 1 else 0
+        d2curve[i] = bottom_left + t * (bottom_right - bottom_left)
 
-    # Upper horizontal edge
-    for i in range(n_points_upper_horizontal):
-        d2curve[index] = (
-            top_right + i * (top_left - top_right) / n_points_upper_horizontal
-        )
-        index += 1
+    # Right side (bottom to top)
+    for i in range(points_per_side):
+        t = i / (points_per_side - 1) if points_per_side > 1 else 0
+        d2curve[points_per_side + i] = bottom_right + t * (top_right - bottom_right)
 
-    # Left vertical edge
-    for i in range(n_points_left_vertical):
-        d2curve[index] = (
-            top_left + i * (bottom_left - top_left) / n_points_left_vertical
-        )
-        index += 1
+    # Top side (right to left)
+    for i in range(points_per_side):
+        t = i / (points_per_side - 1) if points_per_side > 1 else 0
+        d2curve[2 * points_per_side + i] = top_right + t * (top_left - top_right)
 
-    # Append the bottom_left starting point to d2curve
-    d2curve = np.concatenate((d2curve, [d2curve[0]]), axis=0)
+    # Left side (top to bottom)
+    for i in range(points_per_side):
+        t = i / (points_per_side - 1) if points_per_side > 1 else 0
+        d2curve[3 * points_per_side + i] = top_left + t * (bottom_left - top_left)
 
     # Rotate points around the center
     cos_rot = np.cos(np.radians(drot))
@@ -137,8 +124,10 @@ def boundary_rectangle(
 
     # Apply rotation and translation to each point
     for i in range(iP):
-        x_rotated = d2curve[i, 0] * cos_rot - d2curve[i, 1] * sin_rot
-        y_rotated = d2curve[i, 0] * sin_rot + d2curve[i, 1] * cos_rot
+        x = d2curve[i, 0]
+        y = d2curve[i, 1]
+        x_rotated = x * cos_rot - y * sin_rot
+        y_rotated = x * sin_rot + y * cos_rot
         d2curve[i] = [x_rotated, y_rotated]
 
     return d2curve

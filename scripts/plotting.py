@@ -17,7 +17,7 @@ import force_from_noca
 from calculating_circulation import calculate_circulation
 import calculating_airfoil_centre
 from interpolating import interpolate_missing_data, find_areas_needing_interpolation
-from convergence_study import reading_optimal_bound_placement
+from utils import reading_optimal_bound_placement
 
 
 class PlotParams(TypedDict):
@@ -1239,7 +1239,7 @@ if __name__ == "__main__":
         # Boundary settings
         "is_with_bound": False,
         "drot": 0.0,
-        "iP": 65,
+        "iP": 360,
         ##
         "ellipse_color": "lightgreen",
         "rectangle_color": "lightgreen",

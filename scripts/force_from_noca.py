@@ -545,7 +545,7 @@ def main(
     d2curve: np.ndarray,
     mu: float = 1.7894e-5,
     is_with_maximim_vorticity_location_correction: bool = True,
-    rho: float = 1.225,
+    rho: float = 1.20,
     U_inf: float = 15,
     c: float = 0.37,
 ):

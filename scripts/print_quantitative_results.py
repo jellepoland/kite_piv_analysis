@@ -1,0 +1,138 @@
+import pandas as pd
+from pathlib import Path
+from utils import reading_optimal_bound_placement
+from utils import project_dir
+
+
+import pandas as pd
+from pathlib import Path
+
+
+def read_results(alpha, y_num, is_CFD, is_ellipse):
+    """
+    Read Cl and Cd values from saved files based on alpha, y_num, is_CFD, and is_ellipse.
+
+    Args:
+        alpha: Angle of attack.
+        y_num: Y value index.
+        is_CFD: Flag for CFD data.
+        is_ellipse: Flag for ellipse shape.
+
+    Returns:
+        tuple: Cl and Cd values.
+    """
+    # Define the folder path and filename pattern
+    folder_path = Path(project_dir) / "processed_data" / "convergence_study"
+    shape = "Ellipse" if is_ellipse else "Rectangle"
+    data_type = "CFD" if is_CFD else "PIV"
+
+    # Initialize results dictionary
+    results = {"C_l": None, "C_d": None}
+
+    # Get optimal boundary placement parameters
+    dLx, dLy, iP = reading_optimal_bound_placement(
+        alpha, y_num, is_with_N_datapoints=True
+    )
+    # print(f"optimal: dLx, dLy, iP: {dLx}, {dLy}, {iP}")
+
+    # # Read the CSV file
+    # df = pd.read_csv(f"{file_path})
+    # df["dLx"] = pd.to_numeric(df["dLx"], errors="coerce")
+    # df["dLy"] = pd.to_numeric(df["dLy"], errors="coerce")
+    # df["iP"] = pd.to_numeric(df["iP"], errors="coerce")
+
+    df_iP = pd.read_csv(
+        Path(folder_path) / f"alpha_{alpha}_Y{y_num}_{data_type}_{shape}_iP.csv"
+    )
+    df_dLx = pd.read_csv(
+        Path(folder_path) / f"alpha_{alpha}_Y{y_num}_{data_type}_{shape}_dLx.csv"
+    )
+    df_dLy = pd.read_csv(
+        Path(folder_path) / f"alpha_{alpha}_Y{y_num}_{data_type}_{shape}_dLy.csv"
+    )
+    df = pd.concat([df_iP, df_dLx, df_dLy], axis=0, ignore_index=True)
+
+    # print(f"df-head: {df.head()}")
+    # print(f'df.ip {df["iP"].values}')
+    # print(f'df.dLx {df["dLx"].values}')
+    # print(f'df.dLy {df["dLy"].values}')
+
+    if is_CFD:
+        # # For CFD data, exact match on iP, dLx, and dLy
+        # df_iP = df[(df["iP"] == iP)]
+        # print(f"df_iP:{df_iP}")
+        # df_iP_dLx = df_iP[(df_iP["dLx"] == dLx)]
+        # print(df_iP_dLx)
+        # df_iP_dLy = df_iP_dLx[(df_iP_dLx["dLy"] == dLy)]
+        # print(df_iP_dLy)
+        # filtered_df = df_iP_dLy
+        filtered_df = df[(df["iP"] == iP) & (df["dLx"] == dLx) & (df["dLy"] == dLy)]
+    else:
+        # For PIV data, allow ±5% tolerance on dLx and dLy
+        filtered_df = df[
+            (df["iP"] == iP)
+            & (df["dLx"].between(dLx * 0.95, dLx * 1.05))
+            & (df["dLy"].between(dLy * 0.95, dLy * 1.05))
+        ]
+
+        # For non-CFD data, take the mean of matching rows
+        if not filtered_df.empty:
+            filtered_df = filtered_df.mean(numeric_only=True).to_frame().T
+
+    # Extract Cl and Cd from the filtered data
+    if not filtered_df.empty:
+        results["C_l"] = filtered_df["C_l"].values[0]
+        results["C_d"] = filtered_df["C_d"].values[0]
+        results["d1centre_x"] = filtered_df["d1centre_x"].values[0]
+        results["d1centre_y"] = filtered_df["d1centre_y"].values[0]
+        results["perc_of_interpolated_points"] = filtered_df[
+            "perc_of_interpolated_points"
+        ].values[0]
+        results["Gamma"] = filtered_df["Gamma"].values[0]
+        results["F_kutta"] = filtered_df["F_kutta"].values[0]
+
+    else:
+        raise ValueError(
+            f"No matching data found for the given parameters. File: {file_path}"
+        )
+
+    return results
+
+
+if __name__ == "__main__":
+    # Settings
+    parameter_names = ["iP", "dLx", "dLy"]
+
+    for alpha in [6, 16]:
+        if alpha == 6:
+            y_num_range = [1, 2, 3, 4, 5]
+        elif alpha == 16:
+            print(f" ------------------- ")
+            y_num_range = [1]
+        for y_num in y_num_range:
+            results = read_results(alpha, y_num, True, True)
+            d1centre_x = results["d1centre_x"]
+            d1centre_y = results["d1centre_y"]
+            perc_of_interpolated_points = results["perc_of_interpolated_points"]
+            print(
+                f"\n alpha={alpha} Y{y_num} centre_x: {d1centre_x:0.2f}, centre_y:{d1centre_y:0.2f}, perc_of_interpolated_points: {perc_of_interpolated_points}"
+            )
+            for is_CFD in [True, False]:
+                for is_ellipse in [True, False]:
+                    results = read_results(alpha, y_num, is_CFD, is_ellipse)
+                    C_l = results["C_l"]
+                    C_d = results["C_d"]
+                    Gamma = results["Gamma"]
+                    F_kutta = results["F_kutta"]
+                    if is_CFD:
+                        name = "CFD"
+                    else:
+                        name = "PIV"
+                    if is_ellipse:
+                        shape = "Ellipse  "
+                    else:
+                        shape = "Rectangle"
+
+                    print(
+                        f"{name}  {shape} C_l: {C_l:.2f}, C_d: {C_d:.2f}, F_kutta: {F_kutta:.2f}, Gamma: {Gamma:.2f}"
+                    )

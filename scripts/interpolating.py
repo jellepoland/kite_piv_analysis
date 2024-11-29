@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import griddata
 import pandas as pd
 from defining_bound_volume import boundary_rectangle
-from convergence_study import reading_optimal_bound_placement
+from utils import reading_optimal_bound_placement
 import calculating_airfoil_centre
 
 

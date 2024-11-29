@@ -12,6 +12,7 @@ def main(
     / "data"
     / "airfoils"
     / "airfoil_translation_values.csv",
+    is_with_chord: bool = False,
 ) -> Tuple[float, float]:
     """
     Calculate the geometric center of an airfoil, apply rotation and translation,
@@ -59,7 +60,11 @@ def main(
     x_final = x_translated * np.cos(alpha_rad) - y_translated * np.sin(alpha_rad)
     y_final = x_translated * np.sin(alpha_rad) + y_translated * np.cos(alpha_rad)
 
-    return x_final, y_final
+    if is_with_chord:
+        chord = np.abs(np.abs(max(x_coords)) - np.abs(min(x_coords)))
+        return x_final, y_final, chord
+    else:
+        return x_final, y_final
 
 
 if __name__ == "__main__":
