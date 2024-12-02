@@ -307,6 +307,8 @@ def plot_on_ax(
     y_label: str = "Y-axis",
     is_with_x_label: bool = True,
     is_with_y_label: bool = True,
+    is_with_x_tick_label: bool = True,
+    is_with_y_tick_label: bool = True,
     is_with_x_ticks: bool = True,
     is_with_y_ticks: bool = True,
 ):
@@ -335,10 +337,14 @@ def plot_on_ax(
         ax: Matplotlib axis object (if is_return_ax=True).
     """
     # Handle tick visibility
+    if not is_with_x_tick_label:
+        ax.tick_params(labelbottom=False)
+    if not is_with_y_tick_label:
+        ax.tick_params(labelleft=False)
     if not is_with_x_ticks:
-        ax.tick_params(bottom=False, labelbottom=False)
+        ax.tick_params(bottom=False)
     if not is_with_y_ticks:
-        ax.tick_params(left=False, labelleft=False)
+        ax.tick_params(left=False)
 
     # Handle grid visibility
     if is_with_grid:

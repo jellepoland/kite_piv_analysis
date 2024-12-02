@@ -8,6 +8,33 @@ import pandas as pd
 from pathlib import Path
 
 
+def read_PIV_parameter_sweep_results(
+    alpha: float, y_num: int, is_ellipse: bool, data_type: str = "PIV"
+) -> pd.DataFrame:
+    """
+    Read the parameter sweep results CSV for a specific configuration.
+
+    Args:
+        alpha: Angle of attack.
+        y_num: Y value index.
+        is_ellipse: Whether the results are for an ellipse (True) or rectangle (False).
+        project_dir: Base directory where the results are stored.
+        data_type: Type of data collected.
+
+    Returns:
+        DataFrame containing the parameter sweep results.
+    """
+    # Construct the shape string
+    shape = "Ellipse" if is_ellipse else "Rectangle"
+
+    # Construct the file path
+    save_folder = (
+        Path(project_dir) / "processed_data" / "convergence_study" / "PIV_sweep"
+    )
+    file_path = Path(save_folder) / f"alpha_{alpha}_Y{y_num}_{data_type}_{shape}.csv"
+    return pd.read_csv(file_path)
+
+
 def read_results(alpha, y_num, is_CFD, is_ellipse):
     """
     Read Cl and Cd values from saved files based on alpha, y_num, is_CFD, and is_ellipse.
@@ -68,12 +95,13 @@ def read_results(alpha, y_num, is_CFD, is_ellipse):
         # filtered_df = df_iP_dLy
         filtered_df = df[(df["iP"] == iP) & (df["dLx"] == dLx) & (df["dLy"] == dLy)]
     else:
-        # For PIV data, allow ±5% tolerance on dLx and dLy
-        filtered_df = df[
-            (df["iP"] == iP)
-            & (df["dLx"].between(dLx * 0.95, dLx * 1.05))
-            & (df["dLy"].between(dLy * 0.95, dLy * 1.05))
-        ]
+        # # For PIV data, allow ±5% tolerance on dLx and dLy
+        # filtered_df = df[
+        #     (df["iP"] == iP)
+        #     & (df["dLx"].between(dLx * 0.9, dLx * 1.1))
+        #     & (df["dLy"].between(dLy * 0.9, dLy * 1.1))
+        # ]
+        filtered_df = read_PIV_parameter_sweep_results(alpha, y_num, is_ellipse)
 
         # For non-CFD data, take the mean of matching rows
         if not filtered_df.empty:

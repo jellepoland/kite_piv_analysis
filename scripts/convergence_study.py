@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
 import force_from_noca
 from utils import project_dir
+from typing import List, Dict, Any, Optional
 from plot_styling import set_plot_style, plot_on_ax
 import matplotlib.pyplot as plt
 import calculating_airfoil_centre
@@ -86,6 +87,9 @@ def parameter_sweep_noca(
     is_small_piv: bool = False,
     max_perc_interpolated_zones: float = 1.2,
     fast_factor: float = 1,
+    n_datapoints: int = 104304,
+    parameter_values=None,
+    dLx=None,
 ) -> pd.DataFrame:
     """
     Perform parameter sweep for NOCA analysis.
@@ -132,19 +136,25 @@ def parameter_sweep_noca(
     airfoil_center = (x_airfoil, y_airfoil)
 
     # Get sweep values for the specified parameter
-    parameter_values = get_sweep_values(
-        parameter_name,
-        alpha,
-        y_num,
-        airfoil_center,
-        xlim=(-0.2, 0.8),
-        ylim=(-0.2, 0.4),
-        fast_factor=fast_factor,
-    )
+    if parameter_values is None:
+        parameter_values = get_sweep_values(
+            parameter_name,
+            alpha,
+            y_num,
+            airfoil_center,
+            xlim=(-0.2, 0.8),
+            ylim=(-0.2, 0.4),
+            fast_factor=fast_factor,
+        )
 
-    dLx, dLy, iP = reading_optimal_bound_placement(
-        alpha, y_num, is_with_N_datapoints=True
-    )
+    if dLx is None:
+        dLx, dLy, iP = reading_optimal_bound_placement(
+            alpha, y_num, is_with_N_datapoints=True
+        )
+    else:
+        _, dLy, iP = reading_optimal_bound_placement(
+            alpha, y_num, is_with_N_datapoints=True
+        )
 
     # When PIV, the cells have to be interpolated, therefore we are only checking convergence around a small area, surrounding the optimal bound
     if is_small_piv and not is_CFD:
@@ -178,7 +188,7 @@ def parameter_sweep_noca(
         else:
             raise ValueError(f"Unknown parameter name: {parameter_name}")
 
-        print(f"{parameter_name} = {value:.3f}")
+        # print(f"{parameter_name} = {value:.3f}")
 
         # Generate boundary curve
         if current_params.is_ellipse:
@@ -224,8 +234,8 @@ def parameter_sweep_noca(
                 dropped_by_nan = subset[subset["u"].isna()]
                 n_points_nan += len(dropped_by_nan)
 
-            perc_of_interpolated_points = 100 * (n_points_nan / 104304)
-            print(f"perc_of_interpolated_points: {perc_of_interpolated_points:.2f}%")
+            perc_of_interpolated_points = 100 * (n_points_nan / n_datapoints)
+            # print(f"perc_of_interpolated_points: {perc_of_interpolated_points:.2f}%")
 
             # to make sure that we are not interpolating too many areas, we set the is_skip_parameter
             if perc_of_interpolated_points < max_perc_interpolated_zones:
@@ -294,199 +304,6 @@ def parameter_sweep_noca(
     return results
 
 
-def _collect_parameter_results(
-    alpha, y_num, parameter_names, data_types, is_small_piv, fast_factor
-):
-    """
-    Collect parameter sweep results for different data types.
-
-    Args:
-        alpha: Angle of attack.
-        y_num: Y value index.
-        parameter_names: List of parameters to sweep.
-        data_types: Types of data to collect.
-        is_small_piv: Flag for small PIV dataset.
-
-    Returns:
-        dict: Collected results dictionary.
-    """
-    results_dict = {data_type: {} for data_type in data_types}
-
-    for data_type in results_dict:
-        is_CFD = data_type == "CFD"
-        for param in parameter_names:
-            results_dict[data_type][param] = {
-                "Ellipse": parameter_sweep_noca(
-                    is_CFD,
-                    alpha,
-                    y_num,
-                    param,
-                    is_ellipse=True,
-                    is_small_piv=is_small_piv,
-                    fast_factor=fast_factor,
-                ),
-                "Rectangle": parameter_sweep_noca(
-                    is_CFD,
-                    alpha,
-                    y_num,
-                    param,
-                    is_ellipse=False,
-                    is_small_piv=is_small_piv,
-                    fast_factor=fast_factor,
-                ),
-            }
-    # # Remove empty results
-    # for data_type in results_dict:
-    #     for param in list(results_dict[data_type].keys()):
-    #         for key in list(results_dict[data_type][param].keys()):
-    #             if (
-    #                 isinstance(results_dict[data_type][param][key], list)
-    #                 and len(results_dict[data_type][param][key]) == 0
-    #             ):
-    #                 del results_dict[data_type][param][key]
-
-    return results_dict
-
-
-def storing_parameter_results(
-    alpha,
-    y_num,
-    parameter_names,
-    data_types=["CFD", "PIV"],
-    is_small_piv=False,
-    fast_factor: float = 1,
-):
-    """
-    Collect parameter sweep results for different data types and save as DataFrames.
-
-    Args:
-        alpha: Angle of attack.
-        y_num: Y value index.
-        parameter_names: List of parameters to sweep.
-        data_types: Types of data to collect.
-        is_small_piv: Flag for small PIV dataset.
-        project_dir: Base directory for the project.
-
-    Returns:
-        dict: Collected results as DataFrames.
-    """
-    # Define the save folder
-    if project_dir is None:
-        raise ValueError("project_dir must be specified")
-
-    save_folder = Path(project_dir) / "processed_data" / "convergence_study"
-    save_folder.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
-
-    # Initialize results dictionary to hold DataFrames
-    results_dict = {}
-
-    # Temporary storage for all collected results before saving
-    all_results = {}
-
-    # First, collect all results
-    for data_type in data_types:
-        is_CFD = data_type == "CFD"
-        for is_ellipse, shape in [(True, "Ellipse"), (False, "Rectangle")]:
-            # Collect results for all specified parameters
-            param_results = {}
-            for param in parameter_names:
-                results = parameter_sweep_noca(
-                    is_CFD,
-                    alpha,
-                    y_num,
-                    param,
-                    is_ellipse=is_ellipse,
-                    is_small_piv=is_small_piv,
-                    fast_factor=fast_factor,
-                )
-
-                # Store results if not empty
-                if results:
-                    param_results[param] = results
-
-            # If we have results, add to all_results
-            if param_results:
-                key = (alpha, y_num, data_type, shape)
-                all_results[key] = param_results
-
-    # Now save all collected results
-    for (alpha, y_num, data_type, shape), param_results in all_results.items():
-        # Combine all parameter results into a single DataFrame
-        combined_df = None
-        for param, results in param_results.items():
-            df = pd.DataFrame(results)
-
-            # Concatenate DataFrames
-            if combined_df is None:
-                combined_df = df
-            else:
-                combined_df = pd.concat([combined_df, df], ignore_index=True)
-
-        # filtering for only the desired outputs
-        combined_df = combined_df[
-            [
-                "F_x",
-                "F_y",
-                "C_l",
-                "C_d",
-                "area",
-                "is_ellipse",
-                "d1centre_x",
-                "d1centre_y",
-                "dLx",
-                "dLy",
-                "iP",
-                "drot",
-                "perc_of_interpolated_points",
-                "Gamma",
-                "F_kutta",
-            ]
-        ]
-
-        filename = f"alpha_{alpha}_Y{y_num}_{data_type}_{shape}.csv"
-        save_path = save_folder / filename
-
-        # Save the combined DataFrame to a CSV file
-        combined_df.to_csv(save_path, index=False)
-        print(f"Saved: {save_path}")
-
-    return
-
-
-def load_results_to_dict(alpha, y_num, parameter_names):
-    results_dict = {"CFD": {}, "PIV": {}}
-
-    # Folder path
-    folder_path = Path(project_dir) / "processed_data" / "convergence_study"
-
-    # Loop through data types and shapes
-    for data_type in results_dict.keys():
-        for param in parameter_names:
-            # Ensure param key exists in results_dict[data_type]
-            if param not in results_dict[data_type]:
-                results_dict[data_type][param] = {}
-
-            for shape in ["Ellipse", "Rectangle"]:
-                # Construct the file path
-                file_path = (
-                    folder_path / f"alpha_{alpha}_Y{y_num}_{data_type}_{shape}.csv"
-                )
-
-                if file_path.exists():
-                    # Read the CSV into a DataFrame
-                    df = pd.read_csv(file_path)
-
-                    # Sorting the df on param
-                    df = df.sort_values(by=param)
-
-                    # add df to results_dict
-                    results_dict[data_type][param][shape] = df
-                else:
-                    print(f"File not found: {file_path}")
-
-    return results_dict
-
-
 def storing_and_collecting_results(
     alpha,
     y_num,
@@ -549,6 +366,93 @@ def storing_and_collecting_results(
                     )
                     df.to_csv(save_path, index=False)
                     print(f"Saved: {save_path}")
+
+    return results_dict
+
+
+def storing_PIV_percentage_sweep(
+    alpha: float,
+    y_num: int,
+    n_points: int = 4,
+    data_type: str = "PIV",
+    fast_factor: float = 1,
+    percentage_range: int = 20,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Collect comprehensive parameter sweep results for Ellipse and Rectangle shapes.
+
+    Args:
+        alpha: Angle of attack.
+        y_num: Y value index.
+        data_type: Type of data to collect.
+        is_small_piv: Flag for small PIV dataset.
+        fast_factor: Speed-up factor for parameter sweep.
+        percentage_range: Percentage range for parameter values.
+        project_dir: Base directory for saving the files.
+
+    Returns:
+        Dictionary of collected results for each shape.
+    """
+    if project_dir is None:
+        raise ValueError("project_dir must be specified")
+
+    # Define the save folder
+    save_folder = (
+        Path(project_dir) / "processed_data" / "convergence_study" / "PIV_sweep"
+    )
+    save_folder.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+
+    # Initialize the results dictionary
+    results_dict = {}
+
+    # Get base values for dLx, dLy, and iP
+    dLx_base, dLy_base, iP = reading_optimal_bound_placement(
+        alpha, y_num, is_with_N_datapoints=True
+    )
+
+    # Prepare parameter values for dLx and dLy
+    dLx_values = np.linspace(
+        dLx_base - dLx_base * 0.5 * (percentage_range / 100),
+        dLx_base + dLx_base * 0.5 * (percentage_range / 100),
+        n_points,
+    )
+    dLy_values = np.linspace(
+        dLy_base - dLy_base * 0.5 * (percentage_range / 100),
+        dLy_base + dLy_base * 0.5 * (percentage_range / 100),
+        n_points,
+    )
+    # Determine if CFD or not (default to False)
+    is_CFD = False
+
+    # Main loop through shapes
+    for is_ellipse, shape in [(True, "Ellipse"), (False, "Rectangle")]:
+        # Collect all results for this shape
+        all_results = []
+
+        # Comprehensive sweep through dLx and dLy combinations
+        for dLx_i in dLx_values:
+            results = parameter_sweep_noca(
+                is_CFD,
+                alpha,
+                y_num,
+                is_ellipse=is_ellipse,
+                fast_factor=fast_factor,
+                parameter_name="dLy",
+                parameter_values=dLy_values,  # Pass dLx value
+                dLx=dLx_i,
+            )
+            # Append results for this specific dLx, dLy combination
+            all_results.extend(results)
+
+        # Store results for this shape
+        results_dict[shape] = all_results
+
+        # Save results to CSV if not empty
+        if all_results:
+            df = pd.DataFrame(all_results)
+            save_path = save_folder / f"alpha_{alpha}_Y{y_num}_{data_type}_{shape}.csv"
+            df.to_csv(save_path, index=False)
+            print(f"Saved: {save_path}")
 
     return results_dict
 
@@ -643,20 +547,20 @@ def plot_noca_coefficients_grid(
     dLx, dLy, iP = reading_optimal_bound_placement(
         alpha, y_num, is_with_N_datapoints=True
     )
-    fig.suptitle(f"Settings= iP: {iP}, dLx: {dLx}, dLy: {dLy}")
+    # fig.suptitle(f"Settings= iP: {iP}, dLx: {dLx}, dLy: {dLy}")
 
     # Mapping of parameters to their bounds and labels
     param_config = {
-        "iP": {"bound": iP, "label": "iP"},
-        "dLx": {"bound": dLx, "label": "x [m]"},
-        "dLy": {"bound": dLy, "label": "z [m]"},
+        "iP": {"bound": iP, "label": r"$N_{\textrm{b}}$"},
+        "dLx": {"bound": dLx, "label": r"$W_{\textrm{b}}$ [m]"},
+        "dLy": {"bound": dLy, "label": r"$H_{\textrm{b}}$ [m]"},
     }
 
     # Plot parameters
     plot_parameters = {
         "C_l": {
             "row": 0,
-            "ylim": (0.3, 0.9),
+            "ylim": (0.2, 1.2),
             "ylabel": "$C_l$ [-]",
             "title_template": "{param} Effect on $C_l$",
         },
@@ -677,7 +581,7 @@ def plot_noca_coefficients_grid(
             bound = param_config[param]["bound"]
             ax.axvline(x=bound, color="black", linestyle="-", alpha=0.5)
             if param == "dLx" or param == "dLy":
-                ax.axvspan(bound * 0.95, bound * 1.05, color="gray", alpha=0.2)
+                ax.axvspan(bound * 0.9, bound * 1.1, color="gray", alpha=0.2)
 
             # Plot each data type and shape
             for data_type in data_types:
@@ -702,6 +606,17 @@ def plot_noca_coefficients_grid(
                     else:
                         label = None
 
+                    # determine if y-label/x-label should be present
+                    if param == "iP":
+                        is_ylabel = True
+                    else:
+                        is_ylabel = False
+
+                    if coef_type == "C_d":
+                        is_xlabel = True
+                    else:
+                        is_xlabel = False
+
                     plot_on_ax(
                         ax=ax,
                         x=results_df[param],
@@ -712,6 +627,10 @@ def plot_noca_coefficients_grid(
                         x_label=param_config[param]["label"],
                         y_label=plot_config["ylabel"],
                         is_with_grid=False,
+                        is_with_x_label=is_xlabel,
+                        is_with_y_label=is_ylabel,
+                        is_with_x_tick_label=is_xlabel,
+                        is_with_y_tick_label=is_ylabel,
                     )
 
                     # Adding markers with coloring based on perc_of_interpolated_points
@@ -730,7 +649,7 @@ def plot_noca_coefficients_grid(
                             )
 
             # Set plot details
-            ax.set_title(plot_config["title_template"].format(param=param))
+            # ax.set_title(plot_config["title_template"].format(param=param))
             ax.set_ylim(plot_config["ylim"])
 
     ## Adding legend
@@ -780,13 +699,11 @@ if __name__ == "__main__":
     fast_factor = 1
 
     for alpha in [6]:
-        for y_num in [2]:  # [1, 2, 3, 4, 5]:
-            # storing_parameter_results(
-            #     alpha, y_num, parameter_names, fast_factor=fast_factor
-            # )
+        for y_num in [1, 2, 3, 4, 5]:
             storing_and_collecting_results(
                 alpha, y_num, parameter_names, fast_factor=fast_factor
             )
+            storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
             save_path = (
                 Path(project_dir)
@@ -803,23 +720,24 @@ if __name__ == "__main__":
                 fast_factor=fast_factor,
             )
 
-    # for alpha in [16]:
-    #     for y_num in [1]:
-    #         storing_and_collecting_results(
-    #             alpha, y_num, parameter_names, fast_factor=fast_factor
-    #         )
+    for alpha in [16]:
+        for y_num in [1]:
+            storing_and_collecting_results(
+                alpha, y_num, parameter_names, fast_factor=fast_factor
+            )
+            storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
-    #         save_path = (
-    #             Path(project_dir)
-    #             / "results"
-    #             / "convergence_study"
-    #             / f"alpha_{alpha}"
-    #             / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
-    #         )
-    #         plot_noca_coefficients_grid(
-    #             alpha,
-    #             y_num,
-    #             save_path,
-    #             data_types=["CFD", "PIV"],
-    #             fast_factor=fast_factor,
-    #         )
+            save_path = (
+                Path(project_dir)
+                / "results"
+                / "convergence_study"
+                / f"alpha_{alpha}"
+                / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
+            )
+            plot_noca_coefficients_grid(
+                alpha,
+                y_num,
+                save_path,
+                data_types=["CFD", "PIV"],
+                fast_factor=fast_factor,
+            )
