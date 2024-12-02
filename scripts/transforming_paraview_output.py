@@ -5,13 +5,6 @@ from pathlib import Path
 from utils import project_dir
 
 
-# def scale_data(points, scale_factor=0.1):
-#     """Scale spatial dimensions by the given factor."""
-#     scaled_points = points.copy()
-#     scaled_points *= scale_factor
-#     return scaled_points
-
-
 def scaling_velocity(data_array, headers, vel_scaling=15):
     """Scale velocity components in the data array by the given factor, ignoring x, y, z columns."""
     # Find the indices of velocity-related columns (anything except 'x', 'y', 'z')
@@ -21,41 +14,6 @@ def scaling_velocity(data_array, headers, vel_scaling=15):
     # Scale the velocity components by the given factor
     data_array[:, velocity_indices] *= vel_scaling
     return data_array
-
-
-# def filter_data(points, data_dict, y_num):
-#     """Filter data based on x and y ranges."""
-#     if y_num in [1, 2, 3, 4]:
-#         x_range = (-3, 10)
-#         y_range = (-3.5, 3.5)
-#     elif y_num == 5:
-#         x_range = (-3, 10)
-#         y_range = (-3.5, 3.5)
-#     elif y_num == 6:
-#         x_range = (-3, 10)
-#         y_range = (-3.5, 3.5)
-#     elif y_num == 7:
-#         x_range = (-3, 10)
-#         y_range = (-5, 1)
-
-#     x_mask = (points[:, 0] >= x_range[0]) & (points[:, 0] <= x_range[1])
-#     y_mask = (points[:, 1] >= y_range[0]) & (points[:, 1] <= y_range[1])
-#     mask = x_mask & y_mask
-
-#     filtered_points = points[mask]
-#     filtered_data_dict = {key: data[mask] for key, data in data_dict.items()}
-
-#     # Create a new dataframe with filtered data
-#     filtered_df = pd.DataFrame(
-#         {
-#             "Points:0": filtered_points[:, 0],
-#             "Points:1": filtered_points[:, 1],
-#             "Points:2": filtered_points[:, 2],
-#             **filtered_data_dict,
-#         }
-#     )
-
-#     return filtered_df
 
 
 def rotate_data(points, data_dict, angle_deg):
@@ -178,8 +136,8 @@ def filter_data(points, data_dict, y_num, alpha):
     rotated_points[:, 1] += y_offset
 
     # Define reference ranges for filtering
-    x_range = (-0.2, 0.8)  # 1.0
-    y_range = (-0.2, 0.4)  # 0.6
+    x_range = (-0.5, 1.1)  # 1.0
+    y_range = (-0.5, 0.7)  # 0.6
 
     # Filter points based on ranges
     x_mask = (rotated_points[:, 0] >= x_range[0]) & (rotated_points[:, 0] <= x_range[1])
@@ -206,39 +164,6 @@ def filter_data(points, data_dict, y_num, alpha):
 def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, alpha):
     """Process CSV file with scaling, filtering, and header remapping."""
 
-    # Define the header mapping dictionary
-    ### OLD Jelle Definition
-    # header_mapping = {
-    #     "Points:0": "x",
-    #     "Points:1": "y",
-    #     "Points:2": "z",
-    #     "Time": "time",
-    #     "ReThetat": "ReTheta",
-    #     "U:0": "vel_u",
-    #     "U:1": "vel_v",
-    #     "U:2": "vel_w",
-    #     "gammaInt": "gamma_int",
-    #     "grad(U):0": "du_dx",
-    #     "grad(U):1": "du_dy",
-    #     "grad(U):2": "du_dz",
-    #     "grad(U):3": "dv_dx",
-    #     "grad(U):4": "dv_dy",
-    #     "grad(U):5": "dv_dz",
-    #     "grad(U):6": "dw_dx",
-    #     "grad(U):7": "dw_dy",
-    #     "grad(U):8": "dw_dz",
-    #     "k": "tke",
-    #     "nut": "nu_t",
-    #     "omega": "omega",
-    #     "p": "pressure",
-    #     "vorticity:0": "vorticity_x",
-    #     "vorticity:1": "vorticity_y",
-    #     "vorticity:2": "vorticity_z",
-    #     "wallShearStress:0": "tau_w_x",
-    #     "wallShearStress:1": "tau_w_y",
-    #     "wallShearStress:2": "tau_w_z",
-    #     "yPlus": "y_plus",
-    # }
     ### ERIKs definition
     header_mapping = {
         "Points:0": "x",
@@ -319,37 +244,6 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
                 + final_df["vort_z"] ** 2
             ) ** 0.5
 
-        ### OLD Jelle Definition
-        # Rearange headers to: x,y,vel_u,vel_v,vel_w,vel_mag,du_dx,du_dy,dv_dx,dv_dy,dw_dx,dw_dy,vorticity_jw_z
-        # variable_list = [
-        #     "x",
-        #     "y",
-        #     "vel_u",
-        #     "vel_v",
-        #     "vel_w",
-        #     "vel_mag",
-        #     "du_dx",
-        #     "du_dy",
-        #     "du_dz",
-        #     "dv_dx",
-        #     "dv_dy",
-        #     "dv_dz",
-        #     "dw_dx",
-        #     "dw_dy",
-        #     "vorticity_z",
-        #     # "dw_dz",
-        #     # "tke",
-        #     # "nu_t",
-        #     # "omega",
-        #     # "pressure",
-        #     # "vorticity_x",
-        #     # "vorticity_y",
-        #     # "tau_w_x",
-        #     # "tau_w_y",
-        #     # "tau_w_z",
-        #     # "y_plus",
-        #     # "z",
-        # ]
         ### ERIKs definition
         # Rearange headers to: u, v, w, V, dudx, dudy, dvdx, dvdy, dwdx, dwdy, vort_z, is_valid
         variable_list = [
@@ -366,6 +260,9 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
             "dwdx",
             "dwdy",
             "vort_z",
+            "pressure",
+            "tau_w_x",
+            "tau_w_y",
             # "is_valid",
         ]
         final_df = final_df[variable_list]
@@ -379,6 +276,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         ## From m to mm
         x_global = np.arange(-210, 840, 2.4810164835164836) / 1000
         y_global = np.arange(-205, 405, 2.4810164835164836) / 1000
+        print(f"grid-shape: x_global:{x_global.shape}, y_global:{y_global.shape}")
         x_meshgrid_global, y_meshgrid_global = np.meshgrid(x_global, y_global)
         # x_meshgrid_global *= 100
         # y_meshgrid_global *= 100
@@ -387,12 +285,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         x_loaded = final_df["x"].values
         y_loaded = final_df["y"].values
         points_loaded = np.array([x_loaded, y_loaded]).T
-        # print(f"x_loaded average: {np.mean(x_loaded)}")
-        # print(f"y_loaded average: {np.mean(y_loaded)}")
-        # Perform interpolation
-        # vel_mag_interp = griddata(
-        #     points_loaded, vel_mag, (x_mesh_reduced, y_mesh_reduced), method=method
-        # )
+
         variable_list_interpolation = [
             # "x",
             # "y",
@@ -407,6 +300,9 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
             "dwdx",
             "dwdy",
             "vort_z",
+            "pressure",
+            "tau_w_x",
+            "tau_w_y",
         ]
         interpolated_df = pd.DataFrame()  # New DataFrame for interpolated values
 
@@ -447,9 +343,61 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         print(f"An error occurred: {str(e)}")
 
 
+def compute_surface_normals_2d(x, y):
+    """
+    Computes surface normals (nx, ny) for a 2D surface using finite differences.
+
+    Parameters:
+        x, y: 1D arrays representing the coordinates of the surface points in order.
+
+    Returns:
+        nx, ny: 1D arrays of normal components in x and y directions, normalized.
+    """
+    # Differences between consecutive points
+    dx = np.diff(x, append=x[0])  # Wrap around to the first point
+    dy = np.diff(y, append=y[0])
+
+    # Compute normal components (flip components for normals)
+    nx = -dy
+    ny = dx
+
+    # Normalize normals
+    norm = np.sqrt(nx**2 + ny**2)
+    nx /= norm
+    ny /= norm
+
+    return nx, ny
+
+
+def compute_net_force_2d(x, y, pressure):
+    """
+    Computes the net force on a 2D surface due to pressure.
+
+    Parameters:
+        x, y: 1D arrays representing the coordinates of the surface points in order.
+        pressure: 1D array of pressure values at each point.
+
+    Returns:
+        Fx, Fy: Net force components in the x and y directions.
+    """
+    # Compute surface normals
+    nx, ny = compute_surface_normals_2d(x, y)
+
+    # Segment lengths between points
+    dx = np.diff(x, append=x[0])  # Wrap around to the first point
+    dy = np.diff(y, append=y[0])
+    ds = np.sqrt(dx**2 + dy**2)  # Segment lengths
+
+    # Integrate forces over the surface
+    Fx = np.sum(pressure * nx * ds)
+    Fy = np.sum(pressure * ny * ds)
+
+    return Fx, Fy
+
+
 def main(alpha: int):
 
-    import scripts.plotting_old as plotting_old
+    import plotting
 
     slices_folder = Path(project_dir) / "data" / "CFD_slices" / f"alpha_{alpha}"
     # f"/home/jellepoland/ownCloud/phd/data/V3A/Lebesque_folder/results/1e6/{alpha}/slices"
@@ -477,17 +425,44 @@ def main(alpha: int):
             alpha=alpha,
         )
 
-        plotting_old.main(
-            is_CFD=True,
-            y_num=y_num,
-            alpha=alpha,
-            project_dir=project_dir,
-            is_with_overlay=False,
-            is_with_airfoil=True,
-            airfoil_transparency=1.0,
+        ### Calculating force produces
+        # # Example filter for surface points based on a specific z-value or condition
+        # df_surface = processed_df[
+        #     processed_df["y"] < 0.41
+        # ]  # Adjust condition as necessary
+
+        # Step 1: Check for wallShearStress as a surface indicator
+        # Compute the magnitude of wall shear stress
+        processed_df["tau_w_mag"] = np.sqrt(
+            processed_df["tau_w_x"] ** 2 + processed_df["tau_w_y"] ** 2
         )
+
+        # Filter points where wall shear stress is non-zero
+        df_surface = processed_df[processed_df["tau_w_mag"] > 1e-6]
+
+        print(f"df_surface[x]: {df_surface['x']}, y: {df_surface['y']}")
+
+        # Replace with the actual number of rows and columns
+        x = df_surface["x"].values
+        y = df_surface["y"].values
+        pressure = df_surface["pressure"]
+
+        import matplotlib.pyplot as plt
+
+        plt.scatter(x, y, c=-pressure, cmap="viridis", marker="o")
+        plt.colorbar(label="Pressure")
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.title("Surface Points and Pressure Distribution")
+        plt.show()
+
+        # Compute normals and net forces for the filtered surface points
+        nx, ny = compute_surface_normals_2d(x, y)
+        Fx, Fy = compute_net_force_2d(x, y, pressure)
+
+        print(f"Net force on the surface: Fx = {Fx:.2f}N, Fy = {Fy:.2f}")
 
 
 # Example usage
 if __name__ == "__main__":
-    main(alpha=16)
+    main(alpha=6)

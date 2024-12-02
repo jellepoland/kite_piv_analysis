@@ -373,7 +373,7 @@ def saving_a_plot(
     df = pd.read_csv(csv_file_path)
 
     # Apply mask
-    df = apply_mask(df, "V_std", -10, 10, csv_file_path_std)
+    df = apply_mask(df, "w", -3, 3, csv_file_path_std)
 
     # Convert x, y coordinates to meshgrid
     x_unique = df["x"].unique()

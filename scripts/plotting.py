@@ -1199,14 +1199,14 @@ if __name__ == "__main__":
 
     plot_params: PlotParams = {
         # Basic configuration
-        "is_CFD": False,
+        "is_CFD": True,
         "spanwise_CFD": False,
-        "y_num": 3,
+        "y_num": 1,
         "alpha": 6,
         "project_dir": project_dir,
         "plot_type": ".pdf",
         "title": None,
-        "is_CFD_PIV_comparison": True,
+        "is_CFD_PIV_comparison": False,
         "color_data_col_name": "V",
         "is_CFD_PIV_comparison_multicomponent_masked": False,
         "run_for_all_planes": False,

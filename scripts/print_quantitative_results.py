@@ -131,6 +131,8 @@ if __name__ == "__main__":
     # Settings
     parameter_names = ["iP", "dLx", "dLy"]
 
+    list_Gamma = []
+
     for alpha in [6, 16]:
         if alpha == 6:
             y_num_range = [1, 2, 3, 4, 5]
@@ -157,10 +159,55 @@ if __name__ == "__main__":
                     else:
                         name = "PIV"
                     if is_ellipse:
-                        shape = "Ellipse  "
+                        shape = "Ellipse"
                     else:
                         shape = "Rectangle"
 
                     print(
                         f"{name}  {shape} C_l: {C_l:.2f}, C_d: {C_d:.2f}, F_kutta: {F_kutta:.2f}, Gamma: {Gamma:.2f}"
                     )
+                    list_Gamma.append(
+                        {
+                            "alpha": alpha,
+                            "y_num": y_num,
+                            "data_type": name,
+                            "shape": shape,
+                            "gamma": Gamma,
+                        }
+                    )
+
+    df_y_locations = pd.read_csv(
+        Path(project_dir) / "processed_data" / "circulation_plot" / "y_locations.csv",
+        index_col=False,
+    )
+    # Initialize a new column for Gamma
+    df_y_locations["Gamma_CFD_Ellipse"] = None
+    df_y_locations["Gamma_CFD_Rectangle"] = None
+    df_y_locations["Gamma_PIV_Ellipse"] = None
+    df_y_locations["Gamma_PIV_Rectangle"] = None
+
+    # Loop through the list_Gamma and populate the DataFrame
+    for entry in list_Gamma:
+        # Match the 'Y' column with y_num (e.g., Y1, Y2, etc.)
+        mask = df_y_locations["Y"] == f'Y{entry["y_num"]}'
+
+        if entry["alpha"] == 16:
+            continue
+
+        # Apply the relevant gamma value based on data_type and shape
+        if entry["data_type"] == "CFD" and entry["shape"] == "Ellipse":
+            df_y_locations.loc[mask, "Gamma_CFD_Ellipse"] = entry["gamma"]
+        elif entry["data_type"] == "CFD" and entry["shape"] == "Rectangle":
+            df_y_locations.loc[mask, "Gamma_CFD_Rectangle"] = entry["gamma"]
+        elif entry["data_type"] == "PIV" and entry["shape"] == "Ellipse":
+            df_y_locations.loc[mask, "Gamma_PIV_Ellipse"] = entry["gamma"]
+        elif entry["data_type"] == "PIV" and entry["shape"] == "Rectangle":
+            df_y_locations.loc[mask, "Gamma_PIV_Rectangle"] = entry["gamma"]
+
+    df_y_locations.to_csv(
+        Path(project_dir)
+        / "processed_data"
+        / "circulation_plot"
+        / "y_locations_with_gamma.csv",
+        index=False,
+    )
