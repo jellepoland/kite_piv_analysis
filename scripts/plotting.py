@@ -322,6 +322,7 @@ def add_quiver(ax, df, x_meshgrid, y_meshgrid, plot_params):
 def plot_airfoil(
     ax,
     plot_params,
+    is_return_surface_points: bool = False,
 ):
     """
     Plots the airfoil onto the existing contour plot, using pre-defined x, y positions for different Y-values.
@@ -336,7 +337,6 @@ def plot_airfoil(
 
     y_num = plot_params["y_num"]
     alpha = plot_params["alpha"]
-    airfoil_transparency = plot_params["airfoil_transparency"]
 
     # reading the csv file with the translation values as df
     df = pd.read_csv(
@@ -378,16 +378,24 @@ def plot_airfoil(
         alpha_rad
     ) + airfoil_y_shifted * np.cos(alpha_rad)
 
-    # Plot the airfoil as a black enclosed area
-    ax.plot(
-        airfoil_x_rotated,
-        airfoil_y_rotated,
-        color="black",
-        linewidth=0.4,
-    )
+    if is_return_surface_points:
+        return airfoil_x_rotated, airfoil_y_rotated
+    else:
+        # Plot the airfoil as a black enclosed area
+        ax.plot(
+            airfoil_x_rotated,
+            airfoil_y_rotated,
+            color="black",
+            linewidth=0.4,
+        )
 
-    # Optionally, close the airfoil by connecting last point to the first
-    ax.fill(airfoil_x_rotated, airfoil_y_rotated, "black", alpha=airfoil_transparency)
+        # Optionally, close the airfoil by connecting last point to the first
+        ax.fill(
+            airfoil_x_rotated,
+            airfoil_y_rotated,
+            "black",
+            alpha=plot_params["airfoil_transparency"],
+        )
 
 
 def displacing_subsampling_plotting(

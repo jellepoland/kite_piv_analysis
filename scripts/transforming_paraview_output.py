@@ -1,8 +1,11 @@
 import pandas as pd
 import numpy as np
 import os
+import scipy.interpolate as interpolate
+from scipy.interpolate import griddata
 from pathlib import Path
 from utils import project_dir
+import matplotlib.pyplot as plt
 
 
 def scaling_velocity(data_array, headers, vel_scaling=15):
@@ -28,7 +31,6 @@ def rotate_data(points, data_dict, angle_deg):
     Returns:
         tuple: (rotated_points, rotated_data_dict)
     """
-    import numpy as np
 
     # Convert angle to radians
     angle_rad = -np.radians(angle_deg)
@@ -108,6 +110,20 @@ def rotate_data(points, data_dict, angle_deg):
         rotated_data_dict["vorticity:0"] = rotated_vorticity[:, 0]
         rotated_data_dict["vorticity:1"] = rotated_vorticity[:, 1]
         rotated_data_dict["vorticity:2"] = rotated_vorticity[:, 2]
+
+    # Rotate wall shear stress vectors
+    if all(key in data_dict for key in vector_quantities["wallShearStress"]):
+        wallShearStress_vectors = np.column_stack(
+            [
+                data_dict["wallShearStress:0"],
+                data_dict["wallShearStress:1"],
+                data_dict["wallShearStress:2"],
+            ]
+        )
+        rotated_wallShearStress = np.dot(wallShearStress_vectors, rotation_matrix.T)
+        rotated_data_dict["wallShearStress:0"] = rotated_wallShearStress[:, 0]
+        rotated_data_dict["wallShearStress:1"] = rotated_wallShearStress[:, 1]
+        rotated_data_dict["wallShearStress:2"] = rotated_wallShearStress[:, 2]
 
     return rotated_points, rotated_data_dict
 
@@ -214,6 +230,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
             for col in df.columns
             if col not in ["Points:0", "Points:1", "Points:2"]
         }
+        print(f"data_dict: {data_dict}")
 
         # Filter data
         filtered_df = filter_data(points, data_dict, y_num, alpha)
@@ -271,9 +288,8 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         final_df["is_valid"] = True
 
         # Perform interpolation
-        from scipy.interpolate import griddata
 
-        ## From m to mm
+        ## From mm to m
         x_global = np.arange(-210, 840, 2.4810164835164836) / 1000
         y_global = np.arange(-205, 405, 2.4810164835164836) / 1000
         print(f"grid-shape: x_global:{x_global.shape}, y_global:{y_global.shape}")
@@ -335,7 +351,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         print(f"Successfully processed data and saved to {output_path}")
         print(f"Final columns: {', '.join(final_df.columns)}")
 
-        return final_df
+        return final_df, interpolated_df
 
     except FileNotFoundError:
         print(f"Error: The file {input_path} was not found.")
@@ -343,56 +359,327 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         print(f"An error occurred: {str(e)}")
 
 
-def compute_surface_normals_2d(x, y):
+def computing_force_from_surface_pressure_distribution(final_df, y_num):
+
+    ### Calculating force produces
+    # # Example filter for surface points based on a specific z-value or condition
+    # df_surface = processed_df[
+    #     processed_df["y"] < 0.41
+    # ]  # Adjust condition as necessary
+
+    # Step 1: Check for wallShearStress as a surface indicator
+    # Compute the magnitude of wall shear stress
+
+    final_df["tau_w_mag"] = np.sqrt(final_df["tau_w_x"] ** 2 + final_df["tau_w_y"] ** 2)
+
+    # Filter points where wall shear stress is non-zero
+    df_surface = final_df[final_df["tau_w_mag"] > 1e-6]
+
+    print(f"df_surface[x]: {df_surface['x']}, y: {df_surface['y']}")
+
+    # Replace with the actual number of rows and columns
+    x = df_surface["x"].values
+    y = df_surface["y"].values
+    pressure = df_surface["pressure"]
+
+    def calculate_pressure_forces(x, y, pressure):
+        # Convert inputs to numpy arrays if they're pandas Series
+        x = np.asarray(x)
+        y = np.asarray(y)
+        pressure = np.asarray(pressure)
+
+        # Calculate segments between points
+        dx = np.diff(x)  # Length will be n-1
+        dy = np.diff(y)  # Length will be n-1
+
+        # Calculate segment lengths
+        ds = np.sqrt(dx**2 + dy**2)  # Length n-1
+
+        # Calculate normal vectors
+        nx = dy / ds  # Length n-1
+        ny = -dx / ds  # Length n-1
+
+        # Calculate pressure at segments (average of adjacent points)
+        p_avg = 0.5 * (pressure[:-1] + pressure[1:])  # Length n-1
+
+        # Calculate force components (all arrays now length n-1)
+        fx = p_avg * ds * nx
+        fy = p_avg * ds * ny
+
+        # Sum up total forces
+        total_fx = np.sum(fx)
+        total_fy = np.sum(fy)
+
+        return total_fx, total_fy
+
+    # Calculate forces
+    Fx, Fy = calculate_pressure_forces(x, y, pressure)
+    print(f"Total force in x direction: {Fx:.2f}")
+    print(f"Total force in y direction: {Fy:.2f}")
+
+    # # Compute normals and net forces for the filtered surface points
+    # nx, ny = compute_surface_normals_2d(x, y)
+    # Fx, Fy = compute_net_force_2d(x, y, pressure)
+    rho = 1.2
+    U_inf = 15
+    c = 0.37
+    C_l = Fy / (0.5 * rho * U_inf**2 * c)
+    C_d = Fx / (0.5 * rho * U_inf**2 * c)
+
+    print(f"Net force on the surface: C_l = {C_l:.2f}N, C_d = {C_d:.2f}")
+
+    import matplotlib.pyplot as plt
+
+    x = final_df["x"]
+    y = final_df["y"]
+    pressure = final_df["pressure"]
+
+    plt.scatter(x, y, c=-pressure, cmap="viridis", marker="o")
+    plt.colorbar(label="Pressure")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title(f"Y{y_num} C_l = {C_l:.2f}N, C_d = {C_d:.2f}")
+    plt.axis("equal")
+    plt.show()
+
+
+def compute_surface_forces(df, y_num, alpha):
     """
-    Computes surface normals (nx, ny) for a 2D surface using finite differences.
+    Compute forces for an airfoil with surface points from plot_airfoil function
 
     Parameters:
-        x, y: 1D arrays representing the coordinates of the surface points in order.
+    -----------
+    df : pandas.DataFrame
+        Pressure field data with 'x', 'y', 'pressure' columns
+    plot_params : dict
+        Parameters for airfoil plotting (y_num, alpha, etc.)
 
     Returns:
-        nx, ny: 1D arrays of normal components in x and y directions, normalized.
+    --------
+    Dictionary of forces and force components
     """
-    # Differences between consecutive points
-    dx = np.diff(x, append=x[0])  # Wrap around to the first point
-    dy = np.diff(y, append=y[0])
+    from plotting import plot_airfoil
 
-    # Compute normal components (flip components for normals)
-    nx = -dy
-    ny = dx
+    # Get surface points using the existing function
+    plot_params = {"alpha": alpha, "y_num": y_num}
+    surface_x, surface_y = plot_airfoil(
+        ax=None,
+        plot_params=plot_params,
+        is_return_surface_points=True,
+    )
 
-    # Normalize normals
-    norm = np.sqrt(nx**2 + ny**2)
-    nx /= norm
-    ny /= norm
+    # Flip point order
+    surface_x = surface_x[::-1]
+    surface_y = surface_y[::-1]
 
-    return nx, ny
+    # Combine surface points into a single array
+    surface_points = np.column_stack((surface_x, surface_y))
 
+    # Interpolate pressure at surface points
+    interpolator = interpolate.griddata(
+        (df["x"], df["y"]), df["pressure"], surface_points, method="linear"
+    )
 
-def compute_net_force_2d(x, y, pressure):
-    """
-    Computes the net force on a 2D surface due to pressure.
+    def visualize_interpolated_pressures(df, surface_x, surface_y):
+        """
+        Visualize interpolated pressures on the airfoil surface
 
-    Parameters:
-        x, y: 1D arrays representing the coordinates of the surface points in order.
-        pressure: 1D array of pressure values at each point.
+        Parameters:
+        -----------
+        df : pandas.DataFrame
+            Pressure field data with 'x', 'y', 'pressure' columns
+        surface_x : numpy.ndarray
+            X coordinates of airfoil surface points
+        surface_y : numpy.ndarray
+            Y coordinates of airfoil surface points
 
-    Returns:
-        Fx, Fy: Net force components in the x and y directions.
-    """
+        Returns:
+        --------
+        numpy.ndarray
+            Interpolated pressure values
+        """
+        # Combine surface points into a single array
+        surface_points = np.column_stack((surface_x, surface_y))
+
+        # Interpolate pressure at surface points
+        interpolated_pressures = interpolate.griddata(
+            (df["x"], df["y"]), df["pressure"], surface_points, method="linear"
+        )
+
+        # Create figure
+        plt.figure(figsize=(10, 6))
+
+        # Plot airfoil surface with interpolated pressures
+        scatter = plt.scatter(
+            surface_x, surface_y, c=interpolated_pressures, cmap="coolwarm", s=50
+        )
+        plt.title("Interpolated Pressures on Airfoil Surface")
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.axis("equal")
+        plt.colorbar(scatter, label="Interpolated Pressure")
+
+        plt.tight_layout()
+        plt.show()
+
+    visualize_interpolated_pressures(df, surface_x, surface_y)
+
     # Compute surface normals
-    nx, ny = compute_surface_normals_2d(x, y)
+    def compute_surface_normals(surface_points):
+        """
+        Compute surface normals with more robust method
 
-    # Segment lengths between points
-    dx = np.diff(x, append=x[0])  # Wrap around to the first point
-    dy = np.diff(y, append=y[0])
-    ds = np.sqrt(dx**2 + dy**2)  # Segment lengths
+        Parameters:
+        -----------
+        surface_points : numpy.ndarray
+            Array of surface point coordinates
 
-    # Integrate forces over the surface
-    Fx = np.sum(pressure * nx * ds)
-    Fy = np.sum(pressure * ny * ds)
+        Returns:
+        --------
+        numpy.ndarray of surface normals
+        """
+        normals = []
+        for i in range(len(surface_points) - 1):
+            # Compute tangent vector
+            tangent = surface_points[i + 1] - surface_points[i]
 
-    return Fx, Fy
+            # Compute perpendicular vector (rotated 90 degrees)
+            # Use right-hand rule to determine normal direction
+            normal = np.array([-tangent[1], tangent[0]])
+
+            # Normalize the normal vector
+            normal = normal / np.linalg.norm(normal)
+
+            normals.append(normal)
+
+        return np.array(normals)
+
+    def verify_surface_normals(surface_x, surface_y):
+        surface_points = np.column_stack((surface_x, surface_y))
+        normals = compute_surface_normals(surface_points)
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(surface_x, surface_y, "b-", label="Airfoil Surface")
+
+        # Plot a subset of normals for clarity
+        skip = max(1, len(normals) // int(len(normals)))  # Plot about 20 normal vectors
+        for i in range(0, len(normals), skip):
+            midpoint = (surface_points[i] + surface_points[i + 1]) / 2
+            plt.quiver(
+                midpoint[0],
+                midpoint[1],
+                normals[i][0],
+                normals[i][1],
+                color="r",
+                scale=10,
+                width=0.003,
+            )
+
+        plt.title("Airfoil Surface with Normal Vectors")
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.axis("equal")
+        plt.legend()
+        plt.show()
+
+    # Usage
+    verify_surface_normals(surface_x, surface_y)
+
+    # Compute surface normals
+    surface_normals = compute_surface_normals(surface_points)
+
+    # Debugging: Track force components
+    debug_info = {
+        "segment_lengths": [],
+        "avg_pressures": [],
+        "segment_forces": [],
+        "normals": [],
+    }
+
+    # Compute forces with signed pressure contribution
+    forces = []
+    for i in range(len(surface_points) - 1):
+        # Segment length
+        segment_length = np.linalg.norm(surface_points[i + 1] - surface_points[i])
+        debug_info["segment_lengths"].append(segment_length)
+
+        # Average pressure at segment endpoints
+        avg_pressure = -(interpolator[i] + interpolator[i + 1]) / 2
+        debug_info["avg_pressures"].append(avg_pressure)
+
+        # Ensure interpolated pressure is valid
+        if np.isnan(avg_pressure):
+            continue
+
+        # Force = Pressure * Length * Normal
+        # Positive pressure creates outward force
+        segment_force = avg_pressure * segment_length * surface_normals[i]
+        forces.append(segment_force)
+
+        # Store debug information
+        debug_info["segment_forces"].append(segment_force)
+        debug_info["normals"].append(surface_normals[i])
+
+    total_force = np.sum(forces, axis=0)
+    Fx = total_force[0]
+    Fy = total_force[1]
+    rho = 1.2
+    U_inf = 15
+    import calculating_airfoil_centre
+
+    _, _, chord = calculating_airfoil_centre.main(alpha, y_num, is_with_chord=True)
+    C_l = Fy / (0.5 * rho * (U_inf**2) * chord)
+    C_d = Fx / (0.5 * rho * (U_inf**2) * chord)
+
+    return Fx, Fy, C_l, C_d, debug_info
+
+
+def running_NOCA(
+    df,
+    alpha: int,
+    y_num: int,
+    mu: float = 1.7894e-5,
+    is_with_maximim_vorticity_location_correction: bool = True,
+    U_inf: float = 15,
+):
+
+    import calculating_airfoil_centre
+    import force_from_noca
+    from utils import reading_optimal_bound_placement
+    from defining_bound_volume import boundary_ellipse, boundary_rectangle
+
+    x_airfoil, y_airfoil, chord = calculating_airfoil_centre.main(
+        alpha, y_num, is_with_chord=True
+    )
+    d1centre = (x_airfoil, y_airfoil)
+    drot = 0
+    iP = 360
+
+    # Run NOCA analysis
+    if alpha == 6:
+        rho = 1.20
+    else:
+        rho = 1.18
+    dLx, dLy, iP = reading_optimal_bound_placement(
+        alpha, y_num, is_with_N_datapoints=True
+    )
+    d2curve = boundary_ellipse(
+        d1centre,
+        drot,
+        dLx,
+        dLy,
+        iP,
+    )
+    F_x, F_y, C_l, C_d = force_from_noca.main(
+        df,
+        d2curve,
+        mu=mu,
+        is_with_maximim_vorticity_location_correction=is_with_maximim_vorticity_location_correction,
+        rho=rho,
+        U_inf=U_inf,
+        c=chord,
+    )
+    return F_x, F_y, C_l, C_d
 
 
 def main(alpha: int):
@@ -416,7 +703,7 @@ def main(alpha: int):
             / f"alpha_{alpha}"
             / f"Y{y_num}_paraview_corrected.csv"
         )
-        processed_df = process_csv(
+        non_interpolated_df, interpolated_df = process_csv(
             input_path,
             output_path,
             spatial_scale=2.584,
@@ -425,42 +712,31 @@ def main(alpha: int):
             alpha=alpha,
         )
 
-        ### Calculating force produces
-        # # Example filter for surface points based on a specific z-value or condition
-        # df_surface = processed_df[
-        #     processed_df["y"] < 0.41
-        # ]  # Adjust condition as necessary
-
-        # Step 1: Check for wallShearStress as a surface indicator
-        # Compute the magnitude of wall shear stress
-        processed_df["tau_w_mag"] = np.sqrt(
-            processed_df["tau_w_x"] ** 2 + processed_df["tau_w_y"] ** 2
+        # computing_force_from_surface_pressure_distribution(non_interpolated_df, y_num)
+        Fx, Fy, C_l, C_d, debug_info = compute_surface_forces(
+            interpolated_df, y_num, alpha
         )
+        plt.figure(figsize=(12, 6))
+        plt.subplot(131)
+        plt.title(
+            f"Segment Lengths, total_length:{sum(debug_info['segment_lengths']):.2f}m"
+        )
+        plt.plot(debug_info["segment_lengths"])
 
-        # Filter points where wall shear stress is non-zero
-        df_surface = processed_df[processed_df["tau_w_mag"] > 1e-6]
+        plt.subplot(132)
+        plt.title("Average Pressures")
+        plt.plot(debug_info["avg_pressures"])
 
-        print(f"df_surface[x]: {df_surface['x']}, y: {df_surface['y']}")
+        plt.subplot(133)
+        plt.title("Segment Force Magnitudes")
+        plt.plot([np.linalg.norm(force) for force in debug_info["segment_forces"]])
 
-        # Replace with the actual number of rows and columns
-        x = df_surface["x"].values
-        y = df_surface["y"].values
-        pressure = df_surface["pressure"]
-
-        import matplotlib.pyplot as plt
-
-        plt.scatter(x, y, c=-pressure, cmap="viridis", marker="o")
-        plt.colorbar(label="Pressure")
-        plt.xlabel("x")
-        plt.ylabel("y")
-        plt.title("Surface Points and Pressure Distribution")
+        plt.tight_layout()
         plt.show()
 
-        # Compute normals and net forces for the filtered surface points
-        nx, ny = compute_surface_normals_2d(x, y)
-        Fx, Fy = compute_net_force_2d(x, y, pressure)
-
-        print(f"Net force on the surface: Fx = {Fx:.2f}N, Fy = {Fy:.2f}")
+        print(f"\n NEW <> Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}")
+        Fx, Fy, C_l, C_d = running_NOCA(interpolated_df, alpha, y_num)
+        print(f"\n NOCA <> Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}")
 
 
 # Example usage
