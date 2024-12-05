@@ -11,11 +11,20 @@ import matplotlib.pyplot as plt
 def scaling_velocity(data_array, headers, vel_scaling=15):
     """Scale velocity components in the data array by the given factor, ignoring x, y, z columns."""
     # Find the indices of velocity-related columns (anything except 'x', 'y', 'z')
-    velocity_indices = [
-        i for i, header in enumerate(headers) if header not in ["x", "y", "z"]
-    ]
-    # Scale the velocity components by the given factor
-    data_array[:, velocity_indices] *= vel_scaling
+    for i, header in enumerate(headers):
+        if header in ["x", "y", "z"]:
+            continue
+        elif header in ["pressure"]:
+            continue
+            # data_array[:, i] *= vel_scaling**2
+        else:
+            data_array[:, i] *= vel_scaling
+    # velocity_indices = [
+    #     i for i, header in enumerate(headers) if header not in ["x", "y", "z"]
+    # ]
+    # # Scale the velocity components by the given factor
+    # data_array[:, velocity_indices] *= vel_scaling
+
     return data_array
 
 
@@ -230,7 +239,6 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
             for col in df.columns
             if col not in ["Points:0", "Points:1", "Points:2"]
         }
-        print(f"data_dict: {data_dict}")
 
         # Filter data
         filtered_df = filter_data(points, data_dict, y_num, alpha)
@@ -241,6 +249,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         # Convert DataFrame to numpy array for velocity scaling
         data_array = filtered_df.values
         headers = filtered_df.columns.tolist()
+        print(f"headers: {headers}")
 
         # Scale velocities
         scaled_data = scaling_velocity(data_array, headers, velocity_scale)
@@ -434,7 +443,7 @@ def computing_force_from_surface_pressure_distribution(final_df, y_num):
     y = final_df["y"]
     pressure = final_df["pressure"]
 
-    plt.scatter(x, y, c=-pressure, cmap="viridis", marker="o")
+    plt.scatter(x, y, c=pressure, cmap="viridis", marker="o")
     plt.colorbar(label="Pressure")
     plt.xlabel("x")
     plt.ylabel("y")
@@ -443,152 +452,129 @@ def computing_force_from_surface_pressure_distribution(final_df, y_num):
     plt.show()
 
 
-def compute_surface_forces(df, y_num, alpha):
+def visualize_interpolated_pressures(df, surface_x, surface_y, interpolated_pressures):
     """
-    Compute forces for an airfoil with surface points from plot_airfoil function
+    Visualize interpolated pressures on the airfoil surface
 
     Parameters:
     -----------
     df : pandas.DataFrame
         Pressure field data with 'x', 'y', 'pressure' columns
-    plot_params : dict
-        Parameters for airfoil plotting (y_num, alpha, etc.)
+    surface_x : numpy.ndarray
+        X coordinates of airfoil surface points
+    surface_y : numpy.ndarray
+        Y coordinates of airfoil surface points
 
     Returns:
     --------
-    Dictionary of forces and force components
+    numpy.ndarray
+        Interpolated pressure values
     """
-    from plotting import plot_airfoil
+    # Create figure
+    plt.figure(figsize=(10, 6))
 
-    # Get surface points using the existing function
-    plot_params = {"alpha": alpha, "y_num": y_num}
-    surface_x, surface_y = plot_airfoil(
-        ax=None,
-        plot_params=plot_params,
-        is_return_surface_points=True,
+    # Plot airfoil surface with interpolated pressures
+    scatter = plt.scatter(
+        surface_x, surface_y, c=interpolated_pressures, cmap="coolwarm", s=50
     )
+    plt.title("Interpolated Pressures on Airfoil Surface")
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.axis("equal")
+    plt.colorbar(scatter, label="Interpolated Pressure")
+
+    plt.tight_layout()
+    plt.show()
+
+
+# Compute surface normals
+def compute_surface_normals(surface_points):
+    """
+    Compute surface normals with more robust method
+
+    Parameters:
+    -----------
+    surface_points : numpy.ndarray
+        Array of surface point coordinates
+
+    Returns:
+    --------
+    numpy.ndarray of surface normals
+    """
+    normals = []
+    for i in range(len(surface_points) - 1):
+        # Compute tangent vector
+        tangent = surface_points[i + 1] - surface_points[i]
+
+        # Compute perpendicular vector (rotated 90 degrees)
+        # Use right-hand rule to determine normal direction
+        normal = np.array([-tangent[1], tangent[0]])
+
+        # Normalize the normal vector
+        normal = normal / np.linalg.norm(normal)
+
+        normals.append(normal)
+
+    return np.array(normals)
+
+
+def verify_surface_normals(surface_x, surface_y):
+    surface_points = np.column_stack((surface_x, surface_y))
+    normals = compute_surface_normals(surface_points)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(surface_x, surface_y, "b-", label="Airfoil Surface")
+
+    # Plot a subset of normals for clarity
+    skip = max(1, len(normals) // int(len(normals)))  # Plot about 20 normal vectors
+    for i in range(0, len(normals), skip):
+        midpoint = (surface_points[i] + surface_points[i + 1]) / 2
+        plt.quiver(
+            midpoint[0],
+            midpoint[1],
+            normals[i][0],
+            normals[i][1],
+            color="r",
+            scale=10,
+            width=0.003,
+        )
+
+    plt.title("Airfoil Surface with Normal Vectors")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.axis("equal")
+    plt.legend()
+    plt.show()
+
+
+def compute_surface_forces(df, y_num, alpha):
+    from scipy import interpolate
+    import numpy as np
+    import calculating_airfoil_centre
+
+    # Get surface points
+    surface_x = np.array(
+        [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    )  # Example points
+    surface_y = np.array(
+        [0.01, 0.02, 0.03, 0.02, 0.01, -0.01, -0.02, -0.03, -0.02]
+    )  # Example points
 
     # Flip point order
     surface_x = surface_x[::-1]
     surface_y = surface_y[::-1]
 
-    # Combine surface points into a single array
+    # Combine surface points
     surface_points = np.column_stack((surface_x, surface_y))
 
-    # Interpolate pressure at surface points
+    # Interpolate pressure
     interpolator = interpolate.griddata(
         (df["x"], df["y"]), df["pressure"], surface_points, method="linear"
     )
-
-    def visualize_interpolated_pressures(df, surface_x, surface_y):
-        """
-        Visualize interpolated pressures on the airfoil surface
-
-        Parameters:
-        -----------
-        df : pandas.DataFrame
-            Pressure field data with 'x', 'y', 'pressure' columns
-        surface_x : numpy.ndarray
-            X coordinates of airfoil surface points
-        surface_y : numpy.ndarray
-            Y coordinates of airfoil surface points
-
-        Returns:
-        --------
-        numpy.ndarray
-            Interpolated pressure values
-        """
-        # Combine surface points into a single array
-        surface_points = np.column_stack((surface_x, surface_y))
-
-        # Interpolate pressure at surface points
-        interpolated_pressures = interpolate.griddata(
-            (df["x"], df["y"]), df["pressure"], surface_points, method="linear"
-        )
-
-        # Create figure
-        plt.figure(figsize=(10, 6))
-
-        # Plot airfoil surface with interpolated pressures
-        scatter = plt.scatter(
-            surface_x, surface_y, c=interpolated_pressures, cmap="coolwarm", s=50
-        )
-        plt.title("Interpolated Pressures on Airfoil Surface")
-        plt.xlabel("X")
-        plt.ylabel("Y")
-        plt.axis("equal")
-        plt.colorbar(scatter, label="Interpolated Pressure")
-
-        plt.tight_layout()
-        plt.show()
-
-    visualize_interpolated_pressures(df, surface_x, surface_y)
-
-    # Compute surface normals
-    def compute_surface_normals(surface_points):
-        """
-        Compute surface normals with more robust method
-
-        Parameters:
-        -----------
-        surface_points : numpy.ndarray
-            Array of surface point coordinates
-
-        Returns:
-        --------
-        numpy.ndarray of surface normals
-        """
-        normals = []
-        for i in range(len(surface_points) - 1):
-            # Compute tangent vector
-            tangent = surface_points[i + 1] - surface_points[i]
-
-            # Compute perpendicular vector (rotated 90 degrees)
-            # Use right-hand rule to determine normal direction
-            normal = np.array([-tangent[1], tangent[0]])
-
-            # Normalize the normal vector
-            normal = normal / np.linalg.norm(normal)
-
-            normals.append(normal)
-
-        return np.array(normals)
-
-    def verify_surface_normals(surface_x, surface_y):
-        surface_points = np.column_stack((surface_x, surface_y))
-        normals = compute_surface_normals(surface_points)
-
-        plt.figure(figsize=(10, 6))
-        plt.plot(surface_x, surface_y, "b-", label="Airfoil Surface")
-
-        # Plot a subset of normals for clarity
-        skip = max(1, len(normals) // int(len(normals)))  # Plot about 20 normal vectors
-        for i in range(0, len(normals), skip):
-            midpoint = (surface_points[i] + surface_points[i + 1]) / 2
-            plt.quiver(
-                midpoint[0],
-                midpoint[1],
-                normals[i][0],
-                normals[i][1],
-                color="r",
-                scale=10,
-                width=0.003,
-            )
-
-        plt.title("Airfoil Surface with Normal Vectors")
-        plt.xlabel("x")
-        plt.ylabel("y")
-        plt.axis("equal")
-        plt.legend()
-        plt.show()
-
-    # Usage
-    verify_surface_normals(surface_x, surface_y)
-
-    # Compute surface normals
     surface_normals = compute_surface_normals(surface_points)
 
-    # Debugging: Track force components
+    # Force computation
+    forces = []
     debug_info = {
         "segment_lengths": [],
         "avg_pressures": [],
@@ -596,37 +582,26 @@ def compute_surface_forces(df, y_num, alpha):
         "normals": [],
     }
 
-    # Compute forces with signed pressure contribution
-    forces = []
     for i in range(len(surface_points) - 1):
-        # Segment length
         segment_length = np.linalg.norm(surface_points[i + 1] - surface_points[i])
         debug_info["segment_lengths"].append(segment_length)
 
-        # Average pressure at segment endpoints
         avg_pressure = -(interpolator[i] + interpolator[i + 1]) / 2
         debug_info["avg_pressures"].append(avg_pressure)
 
-        # Ensure interpolated pressure is valid
-        if np.isnan(avg_pressure):
-            continue
-
-        # Force = Pressure * Length * Normal
-        # Positive pressure creates outward force
-        segment_force = avg_pressure * segment_length * surface_normals[i]
-        forces.append(segment_force)
-
-        # Store debug information
-        debug_info["segment_forces"].append(segment_force)
-        debug_info["normals"].append(surface_normals[i])
+        if not np.isnan(avg_pressure):
+            segment_force = avg_pressure * segment_length * surface_normals[i]
+            forces.append(segment_force)
+            debug_info["segment_forces"].append(segment_force)
+            debug_info["normals"].append(surface_normals[i])
 
     total_force = np.sum(forces, axis=0)
     Fx = total_force[0]
     Fy = total_force[1]
+
+    # Compute lift and drag coefficients
     rho = 1.2
     U_inf = 15
-    import calculating_airfoil_centre
-
     _, _, chord = calculating_airfoil_centre.main(alpha, y_num, is_with_chord=True)
     C_l = Fy / (0.5 * rho * (U_inf**2) * chord)
     C_d = Fx / (0.5 * rho * (U_inf**2) * chord)
@@ -712,31 +687,112 @@ def main(alpha: int):
             alpha=alpha,
         )
 
-        # computing_force_from_surface_pressure_distribution(non_interpolated_df, y_num)
-        Fx, Fy, C_l, C_d, debug_info = compute_surface_forces(
-            interpolated_df, y_num, alpha
-        )
-        plt.figure(figsize=(12, 6))
-        plt.subplot(131)
-        plt.title(
-            f"Segment Lengths, total_length:{sum(debug_info['segment_lengths']):.2f}m"
-        )
-        plt.plot(debug_info["segment_lengths"])
+        df = non_interpolated_df.copy()
+        df2 = non_interpolated_df.copy()
+        df3 = non_interpolated_df.copy()
+        rho = 1
+        U_inf = 15
+        spatial_scale = 2.584
 
-        plt.subplot(132)
-        plt.title("Average Pressures")
-        plt.plot(debug_info["avg_pressures"])
-
-        plt.subplot(133)
-        plt.title("Segment Force Magnitudes")
-        plt.plot([np.linalg.norm(force) for force in debug_info["segment_forces"]])
-
-        plt.tight_layout()
-        plt.show()
-
-        print(f"\n NEW <> Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}")
+        ## NOCA
         Fx, Fy, C_l, C_d = running_NOCA(interpolated_df, alpha, y_num)
-        print(f"\n NOCA <> Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}")
+        print(f"NOCA \nFx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}")
+
+        ## no scaling
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df, y_num, alpha)
+        print(f"\n[p = p] \n Fx: {fx:.2f}, Fy: {fy:.2f}, C_l: {cl:.2f}, C_d: {cd:.2f}")
+
+        ## rho scaling
+        df["pressure"] *= rho
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df, y_num, alpha)
+        print(
+            f"\n[p = p/rho] \n Fx: {fx:.2f}, Fy: {fy:.2f}, C_l: {cl:.2f}, C_d: {cd:.2f}"
+        )
+        df["pressure"] /= rho
+
+        ## Roland scaling
+        df["pressure"] *= rho * U_inf**2
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df, y_num, alpha)
+        print(
+            f"\n[p = p * (0.5*rho*Uinf^2)] \n Fx: {fx:.2f}, Fy: {fy:.2f}, C_l: {cl:.2f}, C_d: {cd:.2f}"
+        )
+        df["pressure"] /= rho * U_inf**2
+
+        ## Spatial scaling
+        df["pressure"] *= spatial_scale
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df, y_num, alpha)
+        print(
+            f"\n[p = p * spatial_scale] \n Fx: {fx:.2f}, Fy: {fy:.2f}, C_l: {cl:.2f}, C_d: {cd:.2f}"
+        )
+        df["pressure"] /= spatial_scale
+
+        ## Spatial^2 scaling
+        df["pressure"] *= spatial_scale**2
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df, y_num, alpha)
+        print(
+            f"\n[p = p * spatial_scale^2] \n Fx: {fx:.2f}, Fy: {fy:.2f}, C_l: {cl:.2f}, C_d: {cd:.2f}"
+        )
+        df["pressure"] /= spatial_scale**2
+
+        ## Spatial^2 / Velocity^2
+        df["pressure"] /= (spatial_scale**2) / (U_inf**2)
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df, y_num, alpha)
+        print(
+            f"\n[p = p * spatial_scale^2 / U_inf^2] \n Fx: {fx:.2f}, Fy: {fy:.2f}, C_l: {cl:.2f}, C_d: {cd:.2f}"
+        )
+        df["pressure"] *= (spatial_scale**2) / (U_inf**2)
+
+        ## Lebesque I scaling
+        print(
+            f'part 1: {np.sum(df["pressure"] / (0.5 * rho * (U_inf**2)))} part 2: {np.sum((df["V"] ** 2) / (U_inf**2))}'
+        )
+        df["pressure"] = df["pressure"] / (0.5 * rho * (U_inf**2)) + (
+            (df["V"] ** 2) / (U_inf**2)
+        )
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df, y_num, alpha)
+        print(
+            f"\n[Cp,t = (p/(0.5*rho*Uinf^2)) + ((V/Uinf)^2)] \n C_l: {fy:.2f}, C_d: {fx:.2f}"
+        )
+
+        ## Lebesque I * (1/rho) scaling
+        df3["pressure"] = (1 / 1.2) * (
+            df3["pressure"] / (0.5 * rho * (U_inf**2)) + ((df["V"] ** 2) / (U_inf**2))
+        )
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df3, y_num, alpha)
+        print(
+            f"\n[Cp,t = (1/rho_windtunnel)*(p/(0.5*rho*Uinf^2)) + ((V/Uinf)^2)] \n C_l: {fy:.2f}, C_d: {fx:.2f}"
+        )
+
+        ## Lebesque II scaling
+        df2["pressure"] = 2 * (df2["pressure"] + 0.5 * ((df2["V"] / U_inf) ** 2))
+        fx, fy, cl, cd, debug_info = compute_surface_forces(df2, y_num, alpha)
+        print(f"\n[Cp,t = 2*(p+0.5*(V/Uinf)^2)] \n C_l: {fy:.2f}, C_d: {fx:.2f}")
+
+        # # computing_force_from_surface_pressure_distribution(non_interpolated_df, y_num)
+        # Fx, Fy, C_l, C_d, debug_info = compute_surface_forces(
+        #     interpolated_df, y_num, alpha
+        # )
+        # plt.figure(figsize=(12, 6))
+        # plt.subplot(131)
+        # plt.title(
+        #     f"Segment Lengths, total_length:{sum(debug_info['segment_lengths']):.2f}m"
+        # )
+        # plt.plot(debug_info["segment_lengths"])
+
+        # plt.subplot(132)
+        # plt.title("Average Pressures")
+        # plt.plot(debug_info["avg_pressures"])
+
+        # plt.subplot(133)
+        # plt.title("Segment Force Magnitudes")
+        # plt.plot([np.linalg.norm(force) for force in debug_info["segment_forces"]])
+
+        # plt.tight_layout()
+        # plt.show()
+
+        # print(f"\n NEW <> Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}")
+        # Fx, Fy, C_l, C_d = running_NOCA(interpolated_df, alpha, y_num)
+        # print(f"\n NOCA <> Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}")
 
 
 # Example usage
