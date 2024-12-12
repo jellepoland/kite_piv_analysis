@@ -143,6 +143,7 @@ def find_areas_needing_interpolation(
     dLx: float = None,
     dLy: float = None,
     drot: float = None,
+    n_lim: float = None,
 ):
     # Get the airfoil center and optimal bound placement
     airfoil_center = calculating_airfoil_centre.main(alpha, y_num)
@@ -165,6 +166,8 @@ def find_areas_needing_interpolation(
     interpolation_zones = []
 
     # print(f" inside the find area function")
+    if n_lim is None:
+        n_lim = N_datapoints
 
     for x, y in d2curve_rectangle:
         # Define the bounds of the rectangle
@@ -182,7 +185,8 @@ def find_areas_needing_interpolation(
         # print(f"len(df[mask])", n_datapoints_counted)
 
         # Check if there are fewer than N_datapoints within the rectangle
-        if n_datapoints_counted < N_datapoints:
+        # print(f"n_datapoints_counted: {n_datapoints_counted}, n_lim: {n_lim}")
+        if n_datapoints_counted < n_lim:
             interpolation_zones.append(
                 {
                     "bounds": [

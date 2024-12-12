@@ -19,6 +19,315 @@ from calculating_circulation import calculate_circulation
 from plotting import *
 
 
+# # def scaling_velocity(df, velocity_columns, vel_scaling=15):
+# #     """Scale velocity components in the DataFrame."""
+# #     for col in velocity_columns:
+# #         if col not in ["x", "y", "z"]:
+# #             df[col] *= vel_scaling
+# #     return df
+
+
+# # def preprocess_data(df, plot_params):
+# #     """
+# #     Create a subsampled grid of (x, y) pairs and extract matching data
+# #     without using a costly merge operation.
+# #     """
+# #     # Extract unique x and y values
+# #     x_unique = np.sort(df["x"].unique())
+# #     y_unique = np.sort(df["y"].unique())
+
+# #     # Subsample x and y values
+# #     subsample_factor = 10  # Default to 10
+# #     x_subsampled = x_unique[::subsample_factor]
+# #     y_subsampled = y_unique[::subsample_factor]
+
+# #     # Create a subsampled grid of (x, y) pairs
+# #     x_grid, y_grid = np.meshgrid(x_subsampled, y_subsampled)
+
+# #     # Use broadcasting to find the rows in the DataFrame that match the subsampled grid
+# #     mask_x = df["x"].isin(x_subsampled)
+# #     mask_y = df["y"].isin(y_subsampled)
+# #     df_subsampled = df[mask_x & mask_y]
+
+# #     # Optional: Ensure grid completeness by filling missing values
+# #     # Pivot the data into a grid-like structure to fill gaps
+# #     color_column = plot_params["color_data_col_name"]
+# #     pivot_table = df_subsampled.pivot(index="y", columns="x", values=color_column)
+# #     pivot_table = pivot_table.reindex(
+# #         index=y_subsampled, columns=x_subsampled, fill_value=0
+# #     )
+
+# #     # Flatten back into a DataFrame for compatibility with plotting
+# #     df_processed = pivot_table.stack().reset_index()
+# #     df_processed.columns = ["y", "x", color_column]
+
+# #     return df_processed, x_grid, y_grid
+
+
+# def main(plot_params: dict) -> None:
+#     """Create a single plot with the specified parameters."""
+#     fig, ax = plt.subplots()
+
+#     # Transform raw data to processed data
+#     df, zero_vel_df = transform_raw_csv_to_processed_df(plot_params["alpha"])
+
+#     # Extract unique x, y, and w values
+#     x_unique = df["x"].values
+#     y_unique = df["y"].values
+#     color_values = df[plot_params["color_data_col_name"]].values
+
+#     # Create a regular grid based on unique x and y values
+#     x_grid = np.linspace(
+#         x_unique.min(),
+#         x_unique.max(),
+#         int(len(x_unique) / plot_params["subsample_color"]),
+#     )
+#     y_grid = np.linspace(
+#         y_unique.min(),
+#         y_unique.max(),
+#         int(len(y_unique) / plot_params["subsample_color"]),
+#     )
+
+#     # Create a meshgrid
+#     X_grid, Y_grid = np.meshgrid(x_grid, y_grid)
+
+#     # Interpolate the w values onto the grid using griddata
+#     color_data = griddata(
+#         (x_unique, y_unique), color_values, (X_grid, Y_grid), method="linear"
+#     )
+
+#     if plot_params["min_cbar_value"] is None or plot_params["max_cbar_value"] is None:
+#         mean_val = np.nanmean(color_data)
+#         std_val = np.nanstd(color_data)
+#         plot_params["min_cbar_value"] = (
+#             mean_val - plot_params["cbar_value_factor_of_std"] * std_val
+#         )
+#         plot_params["max_cbar_value"] = (
+#             mean_val + plot_params["cbar_value_factor_of_std"] * std_val
+#         )
+#     # Plot the contour
+#     plot_params["cax"] = ax.contourf(
+#         X_grid,
+#         Y_grid,
+#         color_data,
+#         levels=plot_params["countour_levels"],
+#         cmap=plot_params["cmap"],
+#         vmin=plot_params["min_cbar_value"],
+#         vmax=plot_params["max_cbar_value"],
+#     )
+
+#     # Plotting zeros
+#     ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
+
+#     add_colorbar(fig, ax, plot_params)
+#     save_path = (
+#         Path(plot_params["save_dir"])
+#         / f"alpha_{plot_params['alpha']}_Y{plot_params['y_num']}_{plot_params['color_data_col_name']}.pdf"
+#     )
+#     ax.set_aspect("equal")
+#     ax.set_xlim(plot_params["xlim"])
+#     ax.set_ylim(plot_params["ylim"])
+#     fig.savefig(save_path)
+#     plt.close()
+
+
+# def plot_contour_with_mask(plot_params):
+#     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+#     # Transform raw data to processed data
+#     df, zero_vel_df = transform_raw_csv_to_processed_df(plot_params["alpha"])
+
+#     # Extract unique x, y, and w values
+#     x_unique = df["x"].values
+#     y_unique = df["y"].values
+#     color_values = df[plot_params["color_data_col_name"]].values
+
+#     # Create a regular grid based on unique x and y values
+#     x_grid = np.linspace(
+#         x_unique.min(),
+#         x_unique.max(),
+#         int(len(x_unique) / plot_params["subsample_color"]),
+#     )
+#     y_grid = np.linspace(
+#         y_unique.min(),
+#         y_unique.max(),
+#         int(len(y_unique) / plot_params["subsample_color"]),
+#     )
+
+#     # Create a meshgrid
+#     X_grid, Y_grid = np.meshgrid(x_grid, y_grid)
+
+#     # Interpolate the w values onto the grid using griddata
+#     color_data = griddata(
+#         (x_unique, y_unique), color_values, (X_grid, Y_grid), method="linear"
+#     )
+
+#     if plot_params["min_cbar_value"] is None or plot_params["max_cbar_value"] is None:
+#         mean_val = np.nanmean(color_data)
+#         std_val = np.nanstd(color_data)
+#         plot_params["min_cbar_value"] = (
+#             mean_val - plot_params["cbar_value_factor_of_std"] * std_val
+#         )
+#         plot_params["max_cbar_value"] = (
+#             mean_val + plot_params["cbar_value_factor_of_std"] * std_val
+#         )
+
+#     # First plot: Original data
+#     ax1 = axes[0]
+#     plot_params["cax"] = ax1.contourf(
+#         X_grid,
+#         Y_grid,
+#         color_data,
+#         levels=plot_params["countour_levels"],
+#         cmap=plot_params["cmap"],
+#         vmin=plot_params["min_cbar_value"],
+#         vmax=plot_params["max_cbar_value"],
+#     )
+
+#     # Plotting zeros on the first plot
+#     ax1.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
+
+#     # Second plot: Masked data (abs(color_values) > 4)
+#     mask = np.abs(color_values) <= 4  # Mask values greater than 4
+#     x_unique_masked = x_unique[mask]
+#     y_unique_masked = y_unique[mask]
+#     color_values_masked = color_values[mask]
+
+#     # Interpolate the masked w values onto the grid using griddata
+#     color_data_masked = griddata(
+#         (x_unique_masked, y_unique_masked),
+#         color_values_masked,
+#         (X_grid, Y_grid),
+#         method="linear",
+#     )
+
+#     ax2 = axes[1]
+#     plot_params["cax"] = ax2.contourf(
+#         X_grid,
+#         Y_grid,
+#         color_data_masked,
+#         levels=plot_params["countour_levels"],
+#         cmap=plot_params["cmap"],
+#         vmin=plot_params["min_cbar_value"],
+#         vmax=plot_params["max_cbar_value"],
+#     )
+
+#     # Plotting zeros on the second plot
+#     ax2.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
+
+#     # Adjusting axes and adding colorbars
+#     for ax in axes:
+#         ax.set_aspect("equal")
+#         ax.set_xlim(plot_params["xlim"])
+#         ax.set_ylim(plot_params["ylim"])
+
+#     add_colorbar(fig, axes[0], plot_params)
+
+#     # Save the figure
+#     save_path = (
+#         Path(plot_params["save_dir"])
+#         / f"alpha_{plot_params['alpha']}_Y{plot_params['y_num']}_{plot_params['color_data_col_name']}_with_mask.pdf"
+#     )
+#     fig.savefig(save_path)
+#     plt.close()
+
+
+# def plot_contour_with_colored_data(plot_params):
+#     fig, ax = plt.subplots(figsize=(5, 5))
+
+#     # Transform raw data to processed data
+#     df, zero_vel_df = transform_raw_csv_to_processed_df(plot_params["alpha"])
+
+#     # Extract unique x, y, and w values
+#     x_unique = df["x"].values
+#     y_unique = df["y"].values
+#     color_values = df[plot_params["color_data_col_name"]].values
+
+#     # Mask the values where abs(color_values) > 4 and color them pink
+#     mask_pink = np.abs(color_values) > 3
+#     color_values_pink = np.copy(color_values)
+#     color_values_pink[mask_pink] = (
+#         np.nan
+#     )  # Set masked values to NaN to avoid interpolation interference
+
+#     # Create a regular grid based on unique x and y values
+#     x_grid = np.linspace(
+#         x_unique.min(),
+#         x_unique.max(),
+#         int(len(x_unique) / plot_params["subsample_color"]),
+#     )
+#     y_grid = np.linspace(
+#         y_unique.min(),
+#         y_unique.max(),
+#         int(len(y_unique) / plot_params["subsample_color"]),
+#     )
+
+#     # Create a meshgrid
+#     X_grid, Y_grid = np.meshgrid(x_grid, y_grid)
+
+#     # Interpolate the w values onto the grid using griddata
+#     color_data = griddata(
+#         (x_unique, y_unique), color_values_pink, (X_grid, Y_grid), method="linear"
+#     )
+
+#     if plot_params["min_cbar_value"] is None or plot_params["max_cbar_value"] is None:
+#         mean_val = np.nanmean(color_data)
+#         std_val = np.nanstd(color_data)
+#         plot_params["min_cbar_value"] = (
+#             mean_val - plot_params["cbar_value_factor_of_std"] * std_val
+#         )
+#         plot_params["max_cbar_value"] = (
+#             mean_val + plot_params["cbar_value_factor_of_std"] * std_val
+#         )
+
+#     # # Plot the contour
+#     plot_params["cax"] = ax.contourf(
+#         X_grid,
+#         Y_grid,
+#         color_data,
+#         levels=plot_params["countour_levels"],
+#         cmap=plot_params["cmap"],
+#         vmin=plot_params["min_cbar_value"],
+#         vmax=plot_params["max_cbar_value"],
+#     )
+
+#     # Plot the points where abs(color_values) > 4 in pink
+#     ax.scatter(
+#         x_unique[mask_pink],
+#         y_unique[mask_pink],
+#         c="yellow",
+#         s=1,  # Adjust point size as needed
+#         label="abs(w) > 3",
+#     )
+#     ax.grid(False)
+#     # ax.tick_params(
+#     #     axis="both", which="both", bottom=False, top=False, left=False, right=False
+#     # )
+
+#     # Add colorbar and labels
+#     add_colorbar(fig, ax, plot_params)
+
+#     # Plotting zeros
+#     ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
+
+#     # Adjust plot settings
+#     ax.set_aspect("equal")
+#     ax.set_xlim(plot_params["xlim"])
+#     ax.set_ylim(plot_params["ylim"])
+
+#     # Save the plot
+#     save_path = (
+#         Path(plot_params["save_dir"])
+#         / f"alpha_{plot_params['alpha']}_Y{plot_params['y_num']}_{plot_params['color_data_col_name']}_colored.pdf"
+#     )
+#     fig.savefig(save_path)
+#     plt.close()
+
+
+#################################################
+#################################################
+
+
 def scaling_velocity(data_array, headers, vel_scaling=15):
     """Scale velocity components in the data array by the given factor, ignoring x, y, z columns."""
     # Find the indices of velocity-related columns (anything except 'x', 'y', 'z')
@@ -28,14 +337,6 @@ def scaling_velocity(data_array, headers, vel_scaling=15):
     # Scale the velocity components by the given factor
     data_array[:, velocity_indices] *= vel_scaling
     return data_array
-
-
-# def scaling_velocity(df, velocity_columns, vel_scaling=15):
-#     """Scale velocity components in the DataFrame."""
-#     for col in velocity_columns:
-#         if col not in ["x", "y", "z"]:
-#             df[col] *= vel_scaling
-#     return df
 
 
 def transform_raw_csv_to_processed_df(alpha=6) -> pd.DataFrame:
@@ -103,304 +404,7 @@ def transform_raw_csv_to_processed_df(alpha=6) -> pd.DataFrame:
     return final_df, zero_vel_df
 
 
-# def preprocess_data(df, plot_params):
-#     """
-#     Create a subsampled grid of (x, y) pairs and extract matching data
-#     without using a costly merge operation.
-#     """
-#     # Extract unique x and y values
-#     x_unique = np.sort(df["x"].unique())
-#     y_unique = np.sort(df["y"].unique())
-
-#     # Subsample x and y values
-#     subsample_factor = 10  # Default to 10
-#     x_subsampled = x_unique[::subsample_factor]
-#     y_subsampled = y_unique[::subsample_factor]
-
-#     # Create a subsampled grid of (x, y) pairs
-#     x_grid, y_grid = np.meshgrid(x_subsampled, y_subsampled)
-
-#     # Use broadcasting to find the rows in the DataFrame that match the subsampled grid
-#     mask_x = df["x"].isin(x_subsampled)
-#     mask_y = df["y"].isin(y_subsampled)
-#     df_subsampled = df[mask_x & mask_y]
-
-#     # Optional: Ensure grid completeness by filling missing values
-#     # Pivot the data into a grid-like structure to fill gaps
-#     color_column = plot_params["color_data_col_name"]
-#     pivot_table = df_subsampled.pivot(index="y", columns="x", values=color_column)
-#     pivot_table = pivot_table.reindex(
-#         index=y_subsampled, columns=x_subsampled, fill_value=0
-#     )
-
-#     # Flatten back into a DataFrame for compatibility with plotting
-#     df_processed = pivot_table.stack().reset_index()
-#     df_processed.columns = ["y", "x", color_column]
-
-#     return df_processed, x_grid, y_grid
-
-
-def main(plot_params: dict) -> None:
-    """Create a single plot with the specified parameters."""
-    fig, ax = plt.subplots()
-
-    # Transform raw data to processed data
-    df, zero_vel_df = transform_raw_csv_to_processed_df(plot_params["alpha"])
-
-    # Extract unique x, y, and w values
-    x_unique = df["x"].values
-    y_unique = df["y"].values
-    color_values = df[plot_params["color_data_col_name"]].values
-
-    # Create a regular grid based on unique x and y values
-    x_grid = np.linspace(
-        x_unique.min(),
-        x_unique.max(),
-        int(len(x_unique) / plot_params["subsample_color"]),
-    )
-    y_grid = np.linspace(
-        y_unique.min(),
-        y_unique.max(),
-        int(len(y_unique) / plot_params["subsample_color"]),
-    )
-
-    # Create a meshgrid
-    X_grid, Y_grid = np.meshgrid(x_grid, y_grid)
-
-    # Interpolate the w values onto the grid using griddata
-    color_data = griddata(
-        (x_unique, y_unique), color_values, (X_grid, Y_grid), method="linear"
-    )
-
-    if plot_params["min_cbar_value"] is None or plot_params["max_cbar_value"] is None:
-        mean_val = np.nanmean(color_data)
-        std_val = np.nanstd(color_data)
-        plot_params["min_cbar_value"] = (
-            mean_val - plot_params["cbar_value_factor_of_std"] * std_val
-        )
-        plot_params["max_cbar_value"] = (
-            mean_val + plot_params["cbar_value_factor_of_std"] * std_val
-        )
-    # Plot the contour
-    plot_params["cax"] = ax.contourf(
-        X_grid,
-        Y_grid,
-        color_data,
-        levels=plot_params["countour_levels"],
-        cmap=plot_params["cmap"],
-        vmin=plot_params["min_cbar_value"],
-        vmax=plot_params["max_cbar_value"],
-    )
-
-    # Plotting zeros
-    ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
-
-    add_colorbar(fig, ax, plot_params)
-    save_path = (
-        Path(plot_params["save_dir"])
-        / f"alpha_{plot_params['alpha']}_Y{plot_params['y_num']}_{plot_params['color_data_col_name']}.pdf"
-    )
-    ax.set_aspect("equal")
-    ax.set_xlim(plot_params["xlim"])
-    ax.set_ylim(plot_params["ylim"])
-    fig.savefig(save_path)
-    plt.close()
-
-
-def plot_contour_with_mask(plot_params):
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-
-    # Transform raw data to processed data
-    df, zero_vel_df = transform_raw_csv_to_processed_df(plot_params["alpha"])
-
-    # Extract unique x, y, and w values
-    x_unique = df["x"].values
-    y_unique = df["y"].values
-    color_values = df[plot_params["color_data_col_name"]].values
-
-    # Create a regular grid based on unique x and y values
-    x_grid = np.linspace(
-        x_unique.min(),
-        x_unique.max(),
-        int(len(x_unique) / plot_params["subsample_color"]),
-    )
-    y_grid = np.linspace(
-        y_unique.min(),
-        y_unique.max(),
-        int(len(y_unique) / plot_params["subsample_color"]),
-    )
-
-    # Create a meshgrid
-    X_grid, Y_grid = np.meshgrid(x_grid, y_grid)
-
-    # Interpolate the w values onto the grid using griddata
-    color_data = griddata(
-        (x_unique, y_unique), color_values, (X_grid, Y_grid), method="linear"
-    )
-
-    if plot_params["min_cbar_value"] is None or plot_params["max_cbar_value"] is None:
-        mean_val = np.nanmean(color_data)
-        std_val = np.nanstd(color_data)
-        plot_params["min_cbar_value"] = (
-            mean_val - plot_params["cbar_value_factor_of_std"] * std_val
-        )
-        plot_params["max_cbar_value"] = (
-            mean_val + plot_params["cbar_value_factor_of_std"] * std_val
-        )
-
-    # First plot: Original data
-    ax1 = axes[0]
-    plot_params["cax"] = ax1.contourf(
-        X_grid,
-        Y_grid,
-        color_data,
-        levels=plot_params["countour_levels"],
-        cmap=plot_params["cmap"],
-        vmin=plot_params["min_cbar_value"],
-        vmax=plot_params["max_cbar_value"],
-    )
-
-    # Plotting zeros on the first plot
-    ax1.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
-
-    # Second plot: Masked data (abs(color_values) > 4)
-    mask = np.abs(color_values) <= 4  # Mask values greater than 4
-    x_unique_masked = x_unique[mask]
-    y_unique_masked = y_unique[mask]
-    color_values_masked = color_values[mask]
-
-    # Interpolate the masked w values onto the grid using griddata
-    color_data_masked = griddata(
-        (x_unique_masked, y_unique_masked),
-        color_values_masked,
-        (X_grid, Y_grid),
-        method="linear",
-    )
-
-    ax2 = axes[1]
-    plot_params["cax"] = ax2.contourf(
-        X_grid,
-        Y_grid,
-        color_data_masked,
-        levels=plot_params["countour_levels"],
-        cmap=plot_params["cmap"],
-        vmin=plot_params["min_cbar_value"],
-        vmax=plot_params["max_cbar_value"],
-    )
-
-    # Plotting zeros on the second plot
-    ax2.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
-
-    # Adjusting axes and adding colorbars
-    for ax in axes:
-        ax.set_aspect("equal")
-        ax.set_xlim(plot_params["xlim"])
-        ax.set_ylim(plot_params["ylim"])
-
-    add_colorbar(fig, axes[0], plot_params)
-
-    # Save the figure
-    save_path = (
-        Path(plot_params["save_dir"])
-        / f"alpha_{plot_params['alpha']}_Y{plot_params['y_num']}_{plot_params['color_data_col_name']}_with_mask.pdf"
-    )
-    fig.savefig(save_path)
-    plt.close()
-
-
-def plot_contour_with_colored_data(plot_params):
-    fig, ax = plt.subplots(figsize=(5, 5))
-
-    # Transform raw data to processed data
-    df, zero_vel_df = transform_raw_csv_to_processed_df(plot_params["alpha"])
-
-    # Extract unique x, y, and w values
-    x_unique = df["x"].values
-    y_unique = df["y"].values
-    color_values = df[plot_params["color_data_col_name"]].values
-
-    # Mask the values where abs(color_values) > 4 and color them pink
-    mask_pink = np.abs(color_values) > 3
-    color_values_pink = np.copy(color_values)
-    color_values_pink[mask_pink] = (
-        np.nan
-    )  # Set masked values to NaN to avoid interpolation interference
-
-    # Create a regular grid based on unique x and y values
-    x_grid = np.linspace(
-        x_unique.min(),
-        x_unique.max(),
-        int(len(x_unique) / plot_params["subsample_color"]),
-    )
-    y_grid = np.linspace(
-        y_unique.min(),
-        y_unique.max(),
-        int(len(y_unique) / plot_params["subsample_color"]),
-    )
-
-    # Create a meshgrid
-    X_grid, Y_grid = np.meshgrid(x_grid, y_grid)
-
-    # Interpolate the w values onto the grid using griddata
-    color_data = griddata(
-        (x_unique, y_unique), color_values_pink, (X_grid, Y_grid), method="linear"
-    )
-
-    if plot_params["min_cbar_value"] is None or plot_params["max_cbar_value"] is None:
-        mean_val = np.nanmean(color_data)
-        std_val = np.nanstd(color_data)
-        plot_params["min_cbar_value"] = (
-            mean_val - plot_params["cbar_value_factor_of_std"] * std_val
-        )
-        plot_params["max_cbar_value"] = (
-            mean_val + plot_params["cbar_value_factor_of_std"] * std_val
-        )
-
-    # # Plot the contour
-    plot_params["cax"] = ax.contourf(
-        X_grid,
-        Y_grid,
-        color_data,
-        levels=plot_params["countour_levels"],
-        cmap=plot_params["cmap"],
-        vmin=plot_params["min_cbar_value"],
-        vmax=plot_params["max_cbar_value"],
-    )
-
-    # Plot the points where abs(color_values) > 4 in pink
-    ax.scatter(
-        x_unique[mask_pink],
-        y_unique[mask_pink],
-        c="yellow",
-        s=1,  # Adjust point size as needed
-        label="abs(w) > 3",
-    )
-    ax.grid(False)
-    # ax.tick_params(
-    #     axis="both", which="both", bottom=False, top=False, left=False, right=False
-    # )
-
-    # Add colorbar and labels
-    add_colorbar(fig, ax, plot_params)
-
-    # Plotting zeros
-    ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
-
-    # Adjust plot settings
-    ax.set_aspect("equal")
-    ax.set_xlim(plot_params["xlim"])
-    ax.set_ylim(plot_params["ylim"])
-
-    # Save the plot
-    save_path = (
-        Path(plot_params["save_dir"])
-        / f"alpha_{plot_params['alpha']}_Y{plot_params['y_num']}_{plot_params['color_data_col_name']}_colored.pdf"
-    )
-    fig.savefig(save_path)
-    plt.close()
-
-
-def plot_contour_with_colored_data(plot_params):
+def plot_contour_with_colored_data(plot_params, mask_bound=3):
     # Create a figure with two side-by-side subplots
     fig, axes = plt.subplots(
         1,
@@ -431,7 +435,7 @@ def plot_contour_with_colored_data(plot_params):
         color_values = df[curr_plot_params["color_data_col_name"]].values
 
         # Mask the values where abs(color_values) > 4 and color them pink
-        mask_pink = np.abs(color_values) > 3
+        mask_pink = np.abs(color_values) > mask_bound
         color_values_pink = np.copy(color_values)
         color_values_pink[mask_pink] = (
             np.nan
@@ -577,7 +581,7 @@ if __name__ == "__main__":
 
     # main(plot_params)
     # plot_contour_with_mask(plot_params)
-    plot_contour_with_colored_data(plot_params)
+    plot_contour_with_colored_data(plot_params, 3)
     print(
         f'spanwise CFD plot with color = {plot_params["color_data_col_name"]} | Y{plot_params["y_num"]} | α = {plot_params["alpha"]}°'
     )

@@ -691,11 +691,17 @@ def plotting_on_ax(
 
     if plot_params.get("is_with_interpolation", False):
 
+        if plot_params["n_lim"] is None:
+            n_lim = None
+        else:
+            n_lim = plot_params["n_lim"]
+
         plot_params["interpolation_zones"] = find_areas_needing_interpolation(
             df,
             plot_params["alpha"],
             plot_params["y_num"],
             plot_params["rectangle_size"],
+            n_lim=n_lim,
         )
 
         for interpolation_zone_i in plot_params["interpolation_zones"]:
@@ -710,9 +716,9 @@ def plotting_on_ax(
                 d2curve_rectangle_interpolated_zone[
                     :, 1
                 ],  # y-coordinates of the boundary
-                color="purple",  # Boundary color (e.g., red)
+                color="black",  # Boundary color (e.g., red)
                 linestyle="-",  # Dashed line for visibility
-                linewidth=1.5,  # Line width for boundary
+                linewidth=0.5,  # Line width for boundary
                 alpha=1.0,
                 # marker="o",
             )

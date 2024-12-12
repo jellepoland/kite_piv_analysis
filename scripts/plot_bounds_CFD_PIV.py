@@ -10,7 +10,7 @@ def main(plot_params: dict) -> None:
     # Set up alpha and y_num values
     alphas = [6, 6]
 
-    y_nums = [1, 5]
+    y_nums = [2, 5]
     is_with_xlabel = False
 
     n_rows = len(alphas)
@@ -141,9 +141,9 @@ if __name__ == "__main__":
         "drot": 0.0,
         "iP": 65,
         ##
-        "ellipse_color": "yellow",
-        "rectangle_color": "yellow",
-        "bound_linewidth": 2.0,
+        "ellipse_color": "black",
+        "rectangle_color": "white",
+        "bound_linewidth": 1.5,
         "bound_alpha": 1.0,
         # Circulation analysis
         "is_with_circulation_analysis": False,
@@ -161,5 +161,6 @@ if __name__ == "__main__":
         "is_with_interpolation": True,
         "interpolation_method": "nearest",
         "rectangle_size": 0.05,
+        "n_lim": 100,
     }
     main(plot_params)
