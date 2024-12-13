@@ -340,18 +340,79 @@ def scaling_velocity(data_array, headers, vel_scaling=15):
 
 
 def transform_raw_csv_to_processed_df(alpha=6) -> pd.DataFrame:
+
     file_path = (
         Path(project_dir)
         / "data"
         / "CFD_slices"
         / "spanwise_slices"
-        / f"alpha_{alpha}_CFD_spanwise_slice_25cm_1.csv"
+        / f"alpha_{alpha}_CFD_spanwise_slice_25cm_1_all.csv"
     )
+
     # Load the raw data
     df = pd.read_csv(file_path)
 
+    ### new
     # Transform the headers
-    df.columns = ["z", "y", "x", "u", "v", "w"]
+    header_mapping = {
+        "Points:0": "z",
+        "Points:1": "y",
+        "Points:2": "x",
+        "Time": "time",
+        "ReThetat": "ReTheta",
+        "U:0": "u",
+        "U:1": "v",
+        "U:2": "w",
+        "gammaInt": "gamma_int",
+        "grad(U):0": "dudx",
+        "grad(U):1": "dudy",
+        "grad(U):2": "dudz",
+        "grad(U):3": "dvdx",
+        "grad(U):4": "dvdy",
+        "grad(U):5": "dvdz",
+        "grad(U):6": "dwdx",
+        "grad(U):7": "dwdy",
+        "grad(U):8": "dwdz",
+        "vorticity:2": "vort_z",
+        "k": "tke",
+        "nut": "nu_t",
+        "omega": "omega",
+        "p": "pressure",
+        "vorticity:0": "vort_x",
+        "vorticity:1": "vort_y",
+        # "vorticity:2": "vorticity_z",
+        "wallShearStress:0": "tau_w_x",
+        "wallShearStress:1": "tau_w_y",
+        "wallShearStress:2": "tau_w_z",
+        "yPlus": "y_plus",
+    }
+    df = df.rename(columns=header_mapping)
+    df["V"] = np.sqrt(df["u"] ** 2 + df["v"] ** 2 + df["w"] ** 2)
+    variable_list = [
+        "x",
+        "y",
+        "u",
+        "v",
+        "w",
+        "V",
+        "dudx",
+        "dudy",
+        "dvdx",
+        "dvdy",
+        "dwdx",
+        "dwdy",
+        "vort_z",
+        "pressure",
+        "tau_w_x",
+        "tau_w_y",
+        # "is_valid",
+    ]
+    df = df[variable_list]
+    headers = variable_list
+
+    ### old
+    # headers = ["z", "y", "x", "u", "v", "w"]
+    # df.columns = ["z", "y", "x", "u", "v", "w"]
 
     # filter data
     y_range = (-1.6, 0.5)
@@ -370,7 +431,6 @@ def transform_raw_csv_to_processed_df(alpha=6) -> pd.DataFrame:
     zero_vel_df = df[vel_mask]
 
     # scale velocity
-    headers = ["z", "y", "x", "u", "v", "w"]
     scaled_data = scaling_velocity(df.values, headers, vel_scaling=15)
     final_df = pd.DataFrame(scaled_data, columns=headers)
 
@@ -392,15 +452,15 @@ def transform_raw_csv_to_processed_df(alpha=6) -> pd.DataFrame:
     print(f"max w: {df['w'].max()}")
     print(f"min w: {df['w'].min()}")
 
-    # Saving df
-    save_path = (
-        Path(project_dir)
-        / "processed_data"
-        / "CFD"
-        / "spanwise_slices"
-        / f"alpha_{alpha}_CFD_spanwise_slice_50cm_1.csv"
-    )
-    final_df.to_csv(save_path, index=False)
+    # # Saving df
+    # save_path = (
+    #     Path(project_dir)
+    #     / "processed_data"
+    #     / "CFD"
+    #     / "spanwise_slices"
+    #     / f"alpha_{alpha}_CFD_spanwise_slice_50cm_1.csv"
+    # )
+    # final_df.to_csv(save_path, index=False)
     return final_df, zero_vel_df
 
 
@@ -581,7 +641,7 @@ if __name__ == "__main__":
 
     # main(plot_params)
     # plot_contour_with_mask(plot_params)
-    plot_contour_with_colored_data(plot_params, 3)
+    plot_contour_with_colored_data(plot_params, mask_bound=3)
     print(
         f'spanwise CFD plot with color = {plot_params["color_data_col_name"]} | Y{plot_params["y_num"]} | α = {plot_params["alpha"]}°'
     )
