@@ -867,7 +867,7 @@ def add_colorbar(fig, ax, plot_params, is_horizontal: bool = True):
 
 
 def add_vertical_colorbar_for_row(
-    fig, axes_row, plot_params, label=None, fontsize=17, labelpad=10
+    fig, axes_row, plot_params, label=None, fontsize=17, labelpad=10, x_offset=0.03
 ):
     cax = plot_params["cax"]
     vmin = plot_params["min_cbar_value"]
@@ -875,7 +875,7 @@ def add_vertical_colorbar_for_row(
 
     # Move colorbar further left by increasing the offset (e.g., from 0.08 to 0.1)
     bbox = axes_row[0].get_position()
-    cbar_ax = fig.add_axes([bbox.x0 - 0.03, bbox.y0, 0.02, bbox.height])
+    cbar_ax = fig.add_axes([bbox.x0 - x_offset, bbox.y0, 0.02, bbox.height])
 
     cbar = plt.colorbar(
         ScalarMappable(norm=cax.norm, cmap=cax.cmap),

@@ -346,7 +346,7 @@ def transform_raw_csv_to_processed_df(alpha=6) -> pd.DataFrame:
         / "data"
         / "CFD_slices"
         / "spanwise_slices"
-        / f"alpha_{alpha}_CFD_spanwise_slice_25cm_1_all.csv"
+        / f"alpha_{alpha}_CFD_spanwise_slice_25cm_1.csv"
     )
 
     # Load the raw data
@@ -594,9 +594,9 @@ def plot_contour_with_colored_data(plot_params, mask_bound=3):
         Path(project_dir)
         / "results"
         / "paper_plots"
-        / "spanwise_CFD_alpha_comparison.pdf"
+        / "spanwise_CFD_alpha_comparison.png"
     )
-    fig.savefig(save_path)
+    fig.savefig(save_path, dpi=600)
     plt.close()
 
 

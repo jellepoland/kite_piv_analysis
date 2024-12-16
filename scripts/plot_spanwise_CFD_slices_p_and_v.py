@@ -254,10 +254,71 @@ def transform_raw_csv_to_processed_df(alpha=6, x_cm=25) -> pd.DataFrame:
     return final_df, zero_vel_df
 
 
+def compute_lambda2(df: pd.DataFrame) -> pd.DataFrame:
+    # Define the components of the strain-rate tensor (S) and the rotation-rate tensor (Omega)
+    dudx = df["dudx"]
+    dvdy = df["dvdy"]
+    dwdz = df["dwdz"]
+    dudy = df["dudy"]
+    dvdx = df["dvdx"]
+    dudz = df["dudz"]
+    dvdz = df["dvdz"]
+    dwdy = df["dwdy"]
+    dwdx = df["dwdx"]
+
+    # Strain-rate tensor components
+    Sxx = dudx
+    Syy = dvdy
+    Szz = dwdz
+    Sxy = 0.5 * (dudy + dvdx)
+    Sxz = 0.5 * (dudz + dwdx)
+    Syz = 0.5 * (dvdz + dwdy)
+
+    # Rotation-rate tensor components
+    Oxy = 0.5 * (dudy - dvdx)
+    Oxz = 0.5 * (dudz - dwdx)
+    Oyz = 0.5 * (dvdz - dwdy)
+
+    # Compute the combined tensor S^2 + Omega^2 for each point in the domain
+    Axx = Sxx**2 + Oxy**2 + Oxz**2
+    Ayy = Syy**2 + Oxy**2 + Oyz**2
+    Azz = Szz**2 + Oxz**2 + Oyz**2
+    Axy = Sxy**2 + Oxy * Sxy
+    Axz = Sxz**2 + Oxz * Sxz
+    Ayz = Syz**2 + Oyz * Syz
+
+    # Construct the tensor for each point and calculate eigenvalues
+    Lambda2 = []
+
+    for i in range(len(Sxx)):
+        # Construct the 3x3 tensor A
+        A = np.array(
+            [
+                [Axx[i], Axy[i], Axz[i]],
+                [Axy[i], Ayy[i], Ayz[i]],
+                [Axz[i], Ayz[i], Azz[i]],
+            ]
+        )
+
+        # Compute eigenvalues and sort them in ascending order
+        eigenvalues = np.linalg.eigvalsh(A)
+        eigenvalues.sort()
+
+        # Lambda-2 is the second-largest eigenvalue
+        Lambda2.append(eigenvalues[1])
+
+    # Store Lambda-2 in the dataframe
+    print(
+        f"lambda2 mean,min,max: {np.mean(Lambda2):.2f}, {np.min(Lambda2):.2f}, {np.max(Lambda2):.2f}"
+    )
+    df["lambda2"] = Lambda2
+    return df
+
+
 def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
 
     # x_cm values to plot
-    n_rows = 4
+    n_rows = 5
     x_cm_values = [10, 25, 40, 50, 60, 75]
     x_cm_values = [5, 50, 100]
     # x_cm_values = [10, 20, 30, 40, 50]
@@ -378,6 +439,12 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
                 curr_plot_params["color_data_col_name"] = color_name
                 curr_plot_params["min_cbar_value"] = -2000  # -2000
                 curr_plot_params["max_cbar_value"] = 2000  # 2000
+            elif row == 4:
+                df = compute_lambda2(df)
+                color_name = "lambda2"
+                curr_plot_params["color_data_col_name"] = color_name
+                curr_plot_params["min_cbar_value"] = -500  # -2000
+                curr_plot_params["max_cbar_value"] = 20000  # 2000
 
             # Extract unique x, y, and color values
             x_unique = df["x"].values
@@ -437,27 +504,27 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
             #         alpha=0.4,
             #     )
 
-            if "Q" in color_name or "vort" in color_name:
-                curr_plot_params["cax"] = ax.pcolormesh(
-                    X_grid,
-                    Y_grid,
-                    color_data,
-                    cmap=curr_plot_params["cmap"],
-                    shading="auto",
-                    vmin=curr_plot_params["min_cbar_value"],
-                    vmax=curr_plot_params["max_cbar_value"],
-                )
-            else:
-                #### Plot the contour
-                curr_plot_params["cax"] = ax.contourf(
-                    X_grid,
-                    Y_grid,
-                    color_data,
-                    levels=curr_plot_params["countour_levels"],
-                    cmap=curr_plot_params["cmap"],
-                    vmin=curr_plot_params["min_cbar_value"],
-                    vmax=curr_plot_params["max_cbar_value"],
-                )
+            # if "Q" in color_name or "vort" in color_name or "lambda" in color_name:
+            curr_plot_params["cax"] = ax.pcolormesh(
+                X_grid,
+                Y_grid,
+                color_data,
+                cmap=curr_plot_params["cmap"],
+                shading="auto",
+                vmin=curr_plot_params["min_cbar_value"],
+                vmax=curr_plot_params["max_cbar_value"],
+            )
+            # else:
+            #     #### Plot the contour
+            #     curr_plot_params["cax"] = ax.contourf(
+            #         X_grid,
+            #         Y_grid,
+            #         color_data,
+            #         levels=curr_plot_params["countour_levels"],
+            #         cmap=curr_plot_params["cmap"],
+            #         vmin=curr_plot_params["min_cbar_value"],
+            #         vmax=curr_plot_params["max_cbar_value"],
+            #     )
             # curr_plot_params["cax"] = ax.streamplot(
             #     X_grid,
             #     Y_grid,
@@ -490,13 +557,30 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
                 ax.set_xlabel("y [m]")
                 ax.tick_params(labelbottom=True)
             if row == 0:
-                ax.set_title(f"x/c = {x_cm:.0f} \%")
+                ax.set_title(f"x/c = {x_cm/100:.1f}")
             elif row == n_rows - 1:
                 ax.tick_params(labelbottom=True)
 
             # Add colorbar for each row
             if col == 0:
-                add_vertical_colorbar_for_row(fig, ax_row_list[row], curr_plot_params)
+                if color_name == "u":
+                    label = r"$u$ [m/s]"
+                elif color_name == "v":
+                    label = r"$v$ [m/s]"
+                elif color_name == "w":
+                    label = r"$w$ [m/s]"
+                elif color_name == "Q":
+                    label = r"$Q$ [1/s]"
+                elif color_name == "lambda2":
+                    label = r"$\lambda_{\mathrm{2}}$ [1/s]"
+                add_vertical_colorbar_for_row(
+                    fig,
+                    ax_row_list[row],
+                    curr_plot_params,
+                    label=label,
+                    labelpad=25,
+                    x_offset=0.03,
+                )
 
     # Save the plot
     save_path = (
@@ -505,7 +589,7 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
         / "paper_plots"
         / f"spanwise_CFD_comparison_v_and_p_x_{x_cm_values[0]}_to_{x_cm_values[-1]}.png"
     )
-    fig.savefig(save_path)
+    fig.savefig(save_path, dpi=500)
     plt.close()
 
 
@@ -539,7 +623,7 @@ if __name__ == "__main__":
         "max_cbar_value": 1,
         "is_with_cbar": True,
         "cbar_value_factor_of_std": 2.0,
-        "subsample_color": 25,
+        "subsample_color": 25,  # 25,
         "countour_levels": 100,
         "cmap": "coolwarm",
         # Quiver settings

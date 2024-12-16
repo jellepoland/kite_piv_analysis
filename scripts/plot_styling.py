@@ -311,6 +311,7 @@ def plot_on_ax(
     is_with_y_tick_label: bool = True,
     is_with_x_ticks: bool = True,
     is_with_y_ticks: bool = True,
+    title: str = None,
 ):
     """
     Plot data on a given axis with customizable markers, lines, and labels.
@@ -371,6 +372,8 @@ def plot_on_ax(
     if is_with_y_label:
         ax.set_ylabel(y_label)
 
+    if title:
+        ax.set_title(title)
     # Return the axis object if requested
     if is_return_ax:
         return ax

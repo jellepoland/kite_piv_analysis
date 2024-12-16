@@ -247,7 +247,7 @@ def parameter_sweep_noca(
                     )
             else:
                 print(
-                    f"---> SKIPPED perc_of_interpolated_points: {perc_of_interpolated_points}%, dLx: {current_params.dLx:.2f}, dLy: {current_params.dLy:.2f}"
+                    f"---> SKIPPED perc_of_interpolated_points: {perc_of_interpolated_points:.2f}%, dLx: {current_params.dLx:.2f}, dLy: {current_params.dLy:.2f}"
                 )
                 is_skip_this_parameter = True
         if is_skip_this_parameter:
