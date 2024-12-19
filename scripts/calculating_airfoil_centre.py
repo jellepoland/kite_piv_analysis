@@ -69,8 +69,9 @@ def main(
 
 if __name__ == "__main__":
     alpha = 6
-    y_num = 7
-    x_center, y_center = main(alpha, y_num)
+    y_num = 1
+    x_center, y_center, chord = main(alpha, y_num, is_with_chord=True)
     print(
         f"Translated center for alpha {alpha}deg and Y{y_num} ({x_center:.6f}, {y_center:.6f})"
     )
+    print(f"chord: {chord:.6f}")

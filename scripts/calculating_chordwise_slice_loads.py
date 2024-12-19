@@ -686,129 +686,118 @@ def main(alpha: int):
             alpha=alpha,
         )
 
-        ### Compute circulation
-        gamma_ellipse = computing_circulation(
-            interpolated_df, alpha, y_num, is_ellipse=True
+        ## setting constants
+        df = non_interpolated_df.copy()
+        df2 = non_interpolated_df.copy()
+        df3 = non_interpolated_df.copy()
+        rho = 1
+        U_inf = 15
+        spatial_scale = 2.584
+        is_with_plot = True
+
+        ## Use actual airfoils as surface points
+        surface_x, surface_y = plotting.plot_airfoil(
+            None, {"y_num": y_num, "alpha": alpha}, is_return_surface_points=True
         )
-        gamma_rectangle = computing_circulation(
-            interpolated_df, alpha, y_num, is_ellipse=False
+
+        ## NOCA
+        Fx, Fy, C_l, C_d = running_NOCA(interpolated_df, alpha, y_num)
+        print(f"NOCA \nFx: {Fx:.4f}, Fy: {Fy:.4f}, C_l: {C_l:.4f}, C_d: {C_d:.4f}")
+
+        ## no scaling
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(
+                df, surface_x, surface_y, y_num, alpha, is_plot=is_with_plot
+            )
+        )
+        print(f"\n[p = p] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}")
+
+        ## rho scaling
+        df["pressure"] *= rho
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
         )
         print(
-            f"gamma_ellipse: {gamma_ellipse:.3f}, gamma_rectangle: {gamma_rectangle:.3f}"
+            f"\n[p = p/rho] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
+        )
+        df["pressure"] /= rho
+
+        ## Roland scaling
+        df["pressure"] *= rho * U_inf**2
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
+        )
+        print(
+            f"\n[p = p * (0.5*rho*Uinf^2)] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
+        )
+        df["pressure"] /= rho * U_inf**2
+
+        ## Spatial scaling
+        df["pressure"] *= spatial_scale
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
+        )
+        print(
+            f"\n[p = p * spatial_scale] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
+        )
+        df["pressure"] /= spatial_scale
+
+        ## Spatial^2 scaling
+        df["pressure"] *= spatial_scale**2
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
+        )
+        print(
+            f"\n[p = p * spatial_scale^2] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
+        )
+        df["pressure"] /= spatial_scale**2
+
+        ## Spatial^2 / Velocity^2
+        df["pressure"] /= (spatial_scale**2) / (U_inf**2)
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
+        )
+        print(
+            f"\n[p = p * spatial_scale^2 / U_inf^2] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
+        )
+        df["pressure"] *= (spatial_scale**2) / (U_inf**2)
+
+        ## Lebesque I scaling
+        print(
+            f'part 1: {np.sum(df["pressure"] / (0.5 * rho * (U_inf**2)))} part 2: {np.sum((df["V"] ** 2) / (U_inf**2))}'
+        )
+        df["pressure"] = df["pressure"] / (0.5 * rho * (U_inf**2)) + (
+            (df["V"] ** 2) / (U_inf**2)
+        )
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
+        )
+        print(
+            f"\n[Cp,t = (p/(0.5*rho*Uinf^2)) + ((V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}"
         )
 
-        ### setting constants
-        # df = non_interpolated_df.copy()
-        # df2 = non_interpolated_df.copy()
-        # df3 = non_interpolated_df.copy()
-        # rho = 1
-        # U_inf = 15
-        # spatial_scale = 2.584
-        # is_with_plot = False
+        ## Lebesque I * (1/rho) scaling
+        df3["pressure"] = (1 / 1.2) * (
+            df3["pressure"] / (0.5 * rho * (U_inf**2)) + ((df["V"] ** 2) / (U_inf**2))
+        )
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(df3, surface_x, surface_y, y_num, alpha)
+        )
+        # cl, cd = fy, fx
+        # fx, fy = cd * (0.5 * rho * (U_inf**2) * chord), cl * (
+        #     0.5 * rho * (U_inf**2) * chord
+        # )
+        print(f"x_airfoil_center: {x_airfoil_center:.4f}, {z_airfoil_center:.4f}")
+        print(
+            f"\n[Cp,t = (1/rho_windtunnel)*(p/(0.5*rho*Uinf^2)) + ((V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}"
+        )
 
-        # ## Use actual airfoils as surface points
-        # surface_x, surface_y = plotting.plot_airfoil(
-        #     None, {"y_num": y_num, "alpha": alpha}, is_return_surface_points=True
-        # )
-
-        # ## NOCA
-        # Fx, Fy, C_l, C_d = running_NOCA(interpolated_df, alpha, y_num)
-        # print(f"NOCA \nFx: {Fx:.4f}, Fy: {Fy:.4f}, C_l: {C_l:.4f}, C_d: {C_d:.4f}")
-
-        # ## no scaling
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(
-        #         df, surface_x, surface_y, y_num, alpha, is_plot=is_with_plot
-        #     )
-        # )
-        # print(f"\n[p = p] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}")
-
-        # ## rho scaling
-        # df["pressure"] *= rho
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p/rho] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] /= rho
-
-        # ## Roland scaling
-        # df["pressure"] *= rho * U_inf**2
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p * (0.5*rho*Uinf^2)] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] /= rho * U_inf**2
-
-        # ## Spatial scaling
-        # df["pressure"] *= spatial_scale
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p * spatial_scale] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] /= spatial_scale
-
-        # ## Spatial^2 scaling
-        # df["pressure"] *= spatial_scale**2
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p * spatial_scale^2] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] /= spatial_scale**2
-
-        # ## Spatial^2 / Velocity^2
-        # df["pressure"] /= (spatial_scale**2) / (U_inf**2)
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p * spatial_scale^2 / U_inf^2] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] *= (spatial_scale**2) / (U_inf**2)
-
-        # ## Lebesque I scaling
-        # print(
-        #     f'part 1: {np.sum(df["pressure"] / (0.5 * rho * (U_inf**2)))} part 2: {np.sum((df["V"] ** 2) / (U_inf**2))}'
-        # )
-        # df["pressure"] = df["pressure"] / (0.5 * rho * (U_inf**2)) + (
-        #     (df["V"] ** 2) / (U_inf**2)
-        # )
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[Cp,t = (p/(0.5*rho*Uinf^2)) + ((V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}"
-        # )
-
-        # ## Lebesque I * (1/rho) scaling
-        # df3["pressure"] = (1 / 1.2) * (
-        #     df3["pressure"] / (0.5 * rho * (U_inf**2)) + ((df["V"] ** 2) / (U_inf**2))
-        # )
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df3, surface_x, surface_y, y_num, alpha)
-        # )
-        # # cl, cd = fy, fx
-        # # fx, fy = cd * (0.5 * rho * (U_inf**2) * chord), cl * (
-        # #     0.5 * rho * (U_inf**2) * chord
-        # # )
-        # print(f"x_airfoil_center: {x_airfoil_center:.4f}, {z_airfoil_center:.4f}")
-        # print(
-        #     f"\n[Cp,t = (1/rho_windtunnel)*(p/(0.5*rho*Uinf^2)) + ((V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}"
-        # )
-
-        # ## Lebesque II scaling
-        # df2["pressure"] = 2 * (df2["pressure"] + 0.5 * ((df2["V"] / U_inf) ** 2))
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df2, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(f"\n[Cp,t = 2*(p+0.5*(V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}")
+        ## Lebesque II scaling
+        df2["pressure"] = 2 * (df2["pressure"] + 0.5 * ((df2["V"] / U_inf) ** 2))
+        fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
+            compute_surface_forces(df2, surface_x, surface_y, y_num, alpha)
+        )
+        print(f"\n[Cp,t = 2*(p+0.5*(V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}")
 
 
 # Example usage

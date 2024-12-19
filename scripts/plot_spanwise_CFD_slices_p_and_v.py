@@ -557,7 +557,7 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
                 ax.set_xlabel("y [m]")
                 ax.tick_params(labelbottom=True)
             if row == 0:
-                ax.set_title(f"x/c = {x_cm/100:.1f}")
+                ax.set_title(f"x/c = {x_cm/100:.2f}")
             elif row == n_rows - 1:
                 ax.tick_params(labelbottom=True)
 

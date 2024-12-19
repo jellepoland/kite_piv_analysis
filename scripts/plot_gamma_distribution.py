@@ -12,6 +12,7 @@ from VSM.WingGeometry import Wing
 from VSM.WingAerodynamics import WingAerodynamics
 from VSM.Solver import Solver
 from plot_styling import set_plot_style, plot_on_ax
+import force_from_noca
 from plotting import (
     load_data,
     find_areas_needing_interpolation,
@@ -112,14 +113,64 @@ def get_VSM_gamma_distribution():
     return VSM_gamma_distribution, CAD_y_coordinates
 
 
-def computing_circulation(df, plot_params, is_ellipse=True):
+def running_NOCA(
+    df,
+    alpha: int,
+    y_num: int,
+    mu: float = 1.7894e-5,
+    is_with_maximim_vorticity_location_correction: bool = True,
+    U_inf: float = 15,
+):
+
+    import calculating_airfoil_centre
+    import force_from_noca
+    from utils import reading_optimal_bound_placement
+    from defining_bound_volume import boundary_ellipse, boundary_rectangle
+
+    x_airfoil, y_airfoil, chord = calculating_airfoil_centre.main(
+        alpha, y_num, is_with_chord=True
+    )
+    d1centre = (x_airfoil, y_airfoil)
+    drot = 0
+    iP = 360
+
+    # Run NOCA analysis
+    if alpha == 6:
+        rho = 1.20
+    else:
+        rho = 1.18
+    dLx, dLy, iP = reading_optimal_bound_placement(
+        alpha, y_num, is_with_N_datapoints=True
+    )
+    d2curve = boundary_ellipse(
+        d1centre,
+        drot,
+        dLx,
+        dLy,
+        iP,
+    )
+    F_x, F_y, C_l, C_d = force_from_noca.main(
+        df,
+        d2curve,
+        mu=mu,
+        is_with_maximim_vorticity_location_correction=is_with_maximim_vorticity_location_correction,
+        rho=rho,
+        U_inf=U_inf,
+        c=chord,
+    )
+    return F_x, F_y, C_l, C_d
+
+
+def computing_circulation(df, plot_params, is_ellipse=True, n_points=10):
 
     alpha = plot_params["alpha"]
     y_num = plot_params["y_num"]
     U_inf = 15
 
     # Calculate airfoil center
-    x_airfoil, y_airfoil = calculating_airfoil_centre.main(alpha, y_num)
+    x_airfoil, y_airfoil, chord = calculating_airfoil_centre.main(
+        alpha, y_num, is_with_chord=True
+    )
     d1centre = (x_airfoil, y_airfoil)
     drot = 0
 
@@ -130,9 +181,12 @@ def computing_circulation(df, plot_params, is_ellipse=True):
 
     # Initialize list to store circulation values
     circulation_values = []
+    F_x_list = []
+    F_y_list = []
+    C_l_list = []
+    C_d_list = []
 
     # Create ranges for dLx and dLy: ±5% with 10 datapoints
-    n_points = 10
     dLx_range = np.linspace(dLx * 0.95, dLx * 1.05, n_points)
     dLy_range = np.linspace(dLy * 0.95, dLy * 1.05, n_points)
 
@@ -212,16 +266,44 @@ def computing_circulation(df, plot_params, is_ellipse=True):
             circulation = calculate_circulation(current_df, d2curve)
             circulation_values.append(circulation)
 
+            # Computing NOCA
+            mu = 1.7894e-5
+            is_with_maximim_vorticity_location_correction = True
+            if alpha == 6:
+                rho = 1.20
+            else:
+                rho = 1.18
+
+            F_x, F_y, C_l, C_d = force_from_noca.main(
+                df,
+                d2curve,
+                mu=mu,
+                is_with_maximim_vorticity_location_correction=is_with_maximim_vorticity_location_correction,
+                rho=rho,
+                U_inf=U_inf,
+                c=chord,
+            )
+            F_x_list.append(F_x)
+            F_y_list.append(F_y)
+            C_l_list.append(C_l)
+            C_d_list.append(C_d)
+
     # Return average circulation
-    return np.mean(circulation_values) if circulation_values else None
+    return (
+        np.mean(circulation_values),
+        np.mean(F_x),
+        np.mean(F_y),
+        np.mean(C_l),
+        np.mean(C_d),
+    )
 
 
 def get_PIV_and_CFD_gamma_distribution(alpha: int = 6):
 
-    cfd_gamma_ellipse_list = []
-    cfd_gamma_rectangle_list = []
-    piv_gamma_ellipse_list = []
-    piv_gamma_rectangle_list = []
+    cfd_ellipse_list = []
+    cfd_rectangle_list = []
+    piv_ellipse_list = []
+    piv_rectangle_list = []
     for y_num in range(1, 8):
         print(f"\n-----> y_num: {y_num}")
 
@@ -239,48 +321,124 @@ def get_PIV_and_CFD_gamma_distribution(alpha: int = 6):
             "rectangle_size": 0.05,
         }
         df, x_mesh, y_mesh, plot_params_cfd = load_data(plot_params_cfd)
-        cfd_gamma_ellipse = computing_circulation(df, plot_params_cfd, is_ellipse=True)
-        cfd_gamma_rectangle = computing_circulation(
-            df, plot_params_cfd, is_ellipse=False
+        (
+            cfd_gamma_ellipse,
+            cfd_fx_ellipse,
+            cfd_fy_ellipse,
+            cfd_cl_ellipse,
+            cfd_cd_ellipse,
+        ) = computing_circulation(df, plot_params_cfd, is_ellipse=True)
+        (
+            cfd_gamma_rectangle,
+            cfd_fx_rectangle,
+            cfd_fy_rectangle,
+            cfd_cl_rectangle,
+            cfd_cd_rectangle,
+        ) = computing_circulation(df, plot_params_cfd, is_ellipse=False)
+        cfd_ellipse_list.append(
+            [
+                cfd_gamma_ellipse,
+                cfd_fx_ellipse,
+                cfd_fy_ellipse,
+                cfd_cl_ellipse,
+                cfd_cd_ellipse,
+            ]
         )
-        cfd_gamma_ellipse_list.append(cfd_gamma_ellipse)
-        cfd_gamma_rectangle_list.append(cfd_gamma_rectangle)
+        cfd_rectangle_list.append(
+            [
+                cfd_gamma_rectangle,
+                cfd_fx_rectangle,
+                cfd_fy_rectangle,
+                cfd_cl_rectangle,
+                cfd_cd_rectangle,
+            ]
+        )
 
         ## PIV
+
         if y_num >= 7:
-            continue
-        print(f"PIV")
-        plot_params_piv = {
-            "is_CFD": False,
-            "y_num": y_num,
-            "alpha": alpha,
-            "d_alpha_rod": 7.25,
-            "project_dir": project_dir,
-            "plot_type": ".pdf",
-            "title": None,
-            "spanwise_CFD": False,
-            "rectangle_size": 0.05,
-        }
-        df, x_mesh, y_mesh, plot_params_piv = load_data(plot_params_piv)
-        piv_gamma_ellipse = computing_circulation(df, plot_params_piv, is_ellipse=True)
-        piv_gamma_rectangle = computing_circulation(
-            df, plot_params_piv, is_ellipse=False
-        )
-        piv_gamma_ellipse_list.append(piv_gamma_ellipse)
-        piv_gamma_rectangle_list.append(piv_gamma_rectangle)
+            piv_ellipse_list.append(
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                ]
+            )
+            piv_rectangle_list.append(
+                [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                ]
+            )
+        else:
+            print(f"PIV")
+            plot_params_piv = {
+                "is_CFD": False,
+                "y_num": y_num,
+                "alpha": alpha,
+                "d_alpha_rod": 7.25,
+                "project_dir": project_dir,
+                "plot_type": ".pdf",
+                "title": None,
+                "spanwise_CFD": False,
+                "rectangle_size": 0.05,
+            }
+            df, x_mesh, y_mesh, plot_params_piv = load_data(plot_params_piv)
+            (
+                piv_gamma_ellipse,
+                piv_fx_ellipse,
+                piv_fy_ellipse,
+                piv_cl_ellipse,
+                piv_cd_ellipse,
+            ) = computing_circulation(df, plot_params_piv, is_ellipse=True)
+            (
+                piv_gamma_rectangle,
+                piv_fx_rectangle,
+                piv_fy_rectangle,
+                piv_cl_rectangle,
+                piv_cd_rectangle,
+            ) = computing_circulation(df, plot_params_piv, is_ellipse=False)
+
+            piv_ellipse_list.append(
+                [
+                    piv_gamma_ellipse,
+                    piv_fx_ellipse,
+                    piv_fy_ellipse,
+                    piv_cl_ellipse,
+                    piv_cd_ellipse,
+                ]
+            )
+            piv_rectangle_list.append(
+                [
+                    piv_gamma_rectangle,
+                    piv_fx_rectangle,
+                    piv_fy_rectangle,
+                    piv_cl_rectangle,
+                    piv_cd_rectangle,
+                ]
+            )
+
     return (
-        cfd_gamma_ellipse_list,
-        cfd_gamma_rectangle_list,
-        piv_gamma_ellipse_list,
-        piv_gamma_rectangle_list,
+        cfd_ellipse_list,
+        cfd_rectangle_list,
+        piv_ellipse_list,
+        piv_rectangle_list,
     )
 
 
 def plot_gamma_distribution(save_path):
 
+    csv_path = (
+        Path(project_dir) / "processed_data" / "quantitative_chordwise_analysis.csv"
+    )
+
     ## acquiring data
-    VSM_gamma_distribution, CAD_y_coordinates = get_VSM_gamma_distribution()
-    cfd_ellipse_gamma, cfd_rectangle_gamma, piv_ellipse_gamma, piv_rectangle_gamma = (
+    cfd_ellipse, cfd_rectangle, piv_ellipse, piv_rectangle = (
         get_PIV_and_CFD_gamma_distribution()
     )
     df_y_locations = pd.read_csv(
@@ -289,10 +447,45 @@ def plot_gamma_distribution(save_path):
     )
     y_numbers = df_y_locations["PIV_mm"] / 1000
 
+    df = pd.DataFrame(
+        {
+            "y_numbers": y_numbers,
+            "cfd_gamma_ellipse": [x[0] for x in cfd_ellipse],
+            "cfd_fx_ellipse": [x[1] for x in cfd_ellipse],
+            "cfd_fy_ellipse": [x[2] for x in cfd_ellipse],
+            "cfd_cl_ellipse": [x[3] for x in cfd_ellipse],
+            "cfd_cd_ellipse": [x[4] for x in cfd_ellipse],
+            "cfd_gamma_rectangle": [x[0] for x in cfd_rectangle],
+            "cfd_fx_rectangle": [x[1] for x in cfd_rectangle],
+            "cfd_fy_rectangle": [x[2] for x in cfd_rectangle],
+            "cfd_cl_rectangle": [x[3] for x in cfd_rectangle],
+            "cfd_cd_rectangle": [x[4] for x in cfd_rectangle],
+            "piv_gamma_ellipse": [x[0] for x in piv_ellipse],
+            "piv_fx_ellipse": [x[1] for x in piv_ellipse],
+            "piv_fy_ellipse": [x[2] for x in piv_ellipse],
+            "piv_cl_ellipse": [x[3] for x in piv_ellipse],
+            "piv_cd_ellipse": [x[4] for x in piv_ellipse],
+            "piv_gamma_rectangle": [x[0] for x in piv_rectangle],
+            "piv_fx_rectangle": [x[1] for x in piv_rectangle],
+            "piv_fy_rectangle": [x[2] for x in piv_rectangle],
+            "piv_cl_rectangle": [x[3] for x in piv_rectangle],
+            "piv_cd_rectangle": [x[4] for x in piv_rectangle],
+        }
+    )
+    df.to_csv(csv_path, index=False)
+
+    # loading data
+    df = pd.read_csv(csv_path)
+    cfd_gamma_ellipse = df["cfd_gamma_ellipse"]
+    cfd_gamma_rectangle = df["cfd_gamma_rectangle"]
+    piv_gamma_ellipse = df["piv_gamma_ellipse"]
+    piv_gamma_rectangle = df["piv_gamma_rectangle"]
+
     ## plotting
     set_plot_style()
     fig, ax = plt.subplots(figsize=(8, 5))
 
+    VSM_gamma_distribution, CAD_y_coordinates = get_VSM_gamma_distribution()
     plot_on_ax(
         ax,
         x=CAD_y_coordinates,
@@ -305,7 +498,7 @@ def plot_gamma_distribution(save_path):
     plot_on_ax(
         ax,
         y_numbers,
-        cfd_ellipse_gamma,
+        cfd_gamma_ellipse,
         label="CFD Ellipse",
         color="blue",
         marker="o",
@@ -314,7 +507,7 @@ def plot_gamma_distribution(save_path):
     plot_on_ax(
         ax,
         y_numbers,
-        cfd_rectangle_gamma,
+        cfd_gamma_rectangle,
         label="CFD Rectangle",
         color="blue",
         marker="s",
@@ -323,7 +516,7 @@ def plot_gamma_distribution(save_path):
     plot_on_ax(
         ax,
         y_numbers[:6],
-        piv_ellipse_gamma[:6],
+        piv_gamma_ellipse[:6],
         label="PIV Ellipse",
         color="red",
         marker="p",
@@ -332,20 +525,104 @@ def plot_gamma_distribution(save_path):
     plot_on_ax(
         ax,
         y_numbers[:6],
-        piv_rectangle_gamma[:6],
+        piv_gamma_rectangle[:6],
         label="PIV Rectangle",
         color="red",
         marker="*",
         linestyle="--",
     )
 
-    ax.set_xlim(-0.01, 0.7)
-    ax.set_ylim(0, 2.55)
+    ax.set_xlim(0, 0.7)
+    ax.set_ylim(0, 2.5)
     ax.set_xlabel(r"y [m]")
     ax.set_ylabel(r"$\Gamma$ [m$^2$/s]")
     plt.legend()
     plt.tight_layout()
     plt.savefig(save_path)
+
+    # ## plotting CL, CD
+    # # fig, ax = plt.subplots((1,2), figsize=(8, 5))
+    # fig, axes = plt.subplots(1, 2, figsize=(8, 5))
+    # y_numbers =
+    # plot_on_ax(
+    #     axes[0],
+    #     y_numbers,
+    #     df["cfd_cl_ellipse"],
+    #     label="CFD Ellipse",
+    #     color="blue",
+    #     marker="o",
+    #     linestyle="-",
+    # )
+    # plot_on_ax(
+    #     axes[0],
+    #     y_numbers,
+    #     df["cfd_cl_rectangle"],
+    #     label="CFD Rectangle",
+    #     color="blue",
+    #     marker="s",
+    #     linestyle="--",
+    # )
+    # plot_on_ax(
+    #     axes[0],
+    #     y_numbers[:6],
+    #     df["piv_cl_ellipse"][:6],
+    #     label="PIV Ellipse",
+    #     color="red",
+    #     marker="p",
+    #     linestyle="-",
+    # )
+    # plot_on_ax(
+    #     axes[0],
+    #     y_numbers[:6],
+    #     df["piv_cl_rectangle"][:6],
+    #     label="PIV Rectangle",
+    #     color="red",
+    #     marker="*",
+    #     linestyle="--",
+    # )
+    # plot_on_ax(
+    #     axes[1],
+    #     y_numbers,
+    #     df["cfd_cd_ellipse"],
+    #     label="CFD Ellipse",
+    #     color="blue",
+    #     marker="o",
+    #     linestyle="-",
+    # )
+    # plot_on_ax(
+    #     axes[1],
+    #     y_numbers,
+    #     df["cfd_cd_rectangle"],
+    #     label="CFD Rectangle",
+    #     color="blue",
+    #     marker="s",
+    #     linestyle="--",
+    # )
+    # plot_on_ax(
+    #     axes[1],
+    #     y_numbers[:6],
+    #     df["piv_cd_ellipse"][:6],
+    #     label="PIV Ellipse",
+    #     color="red",
+    #     marker="p",
+    #     linestyle="-",
+    # )
+    # plot_on_ax(
+    #     axes[1],
+    #     y_numbers[:6],
+    #     df["piv_cd_rectangle"][:6],
+    #     label="PIV Rectangle",
+    #     color="red",
+    #     marker="*",
+    #     linestyle="--",
+    # )
+    # axes[0].set_xlabel(r"y [m]")
+    # axes[0].set_ylabel(r"$C_{\mathrm{l}}$")
+    # axes[1].set_xlabel(r"y [m]")
+    # axes[1].set_ylabel(r"$C_{\mathrm{d}}$")
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.savefig(save_path.parent / "quantitative_cl_cd.pdf")
 
 
 def main():
