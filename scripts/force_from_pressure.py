@@ -221,7 +221,7 @@ def calculate_force_guanqun(
     V = np.sqrt(u**2 + v**2)
     # Pressure
     d1p = interp2d_batch(d2x, d2y, d2pressure, d2curve)
-    p = d1p
+    p = d1p - 0.5 * 15**2
     # p = (d1p / (0.5 * rho * U_inf**2)) + (V**2 / U_inf**2)
     ### Spatial gradients of first and second order
     ddx = d2x[1, 1] - d2x[0, 0]
@@ -570,8 +570,9 @@ if __name__ == "__main__":
 
     spatial_scale = 2.584
     velocity_scale = 15
-    Re = 10e5
+    Re = 1e6
     mu = ((1 / 2.584) * velocity_scale) / Re
+    mu = 1e-6
     y_num = 1
     alpha = 6
     print(f"mu: {mu}")
@@ -583,15 +584,17 @@ if __name__ == "__main__":
         input_path, output_path, spatial_scale, velocity_scale, y_num, alpha
     )
     df_1D = interpolated_df.copy()
-    df_1D["pressure"] = df_1D["pressure"] * (velocity_scale**2) / (spatial_scale**2)
+    df_1D["pressure"] = df_1D["pressure"]  # * (velocity_scale**2) / (spatial_scale**2)
 
     # df_1D = csv_reader(is_CFD=True, alpha=6, y_num=1, alpha_d_rod=7.25)
     ### Running for Ellipse ###
+    0.22117388, 0.159773525
+
     is_ellipse = True
-    d1centre = np.array([0.27, 0.13])
+    d1centre = np.array([0.22117388, 0.159773525])
     drot = 0
-    dLx = 0.8
-    dLy = 0.4
+    dLx = 0.65
+    dLy = 0.37
     iP = 360
 
     # create d2curve
@@ -612,10 +615,10 @@ if __name__ == "__main__":
 
     ### Running for Rectangle ###
     is_ellipse = False
-    d1centre = np.array([0.27, 0.13])
+    d1centre = np.array([0.22117388, 0.159773525])
     drot = 0
-    dLx = 0.8
-    dLy = 0.4
+    dLx = 0.65
+    dLy = 0.37
     iP = 360
 
     # create d2curve
