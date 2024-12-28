@@ -689,8 +689,7 @@ def plot_noca_coefficients_grid(
     return fig, axes
 
 
-if __name__ == "__main__":
-
+def main():
     # Settings
     is_CFD = True
     alpha = 6
@@ -741,3 +740,7 @@ if __name__ == "__main__":
                 data_types=["CFD", "PIV"],
                 fast_factor=fast_factor,
             )
+
+
+if __name__ == "__main__":
+    main()

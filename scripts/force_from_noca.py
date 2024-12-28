@@ -586,52 +586,134 @@ def main(
     return F_x, F_y, C_l, C_d
 
 
+def extracting_fx_fy_cl_cd(
+    alpha: int,
+    y_num: int,
+    is_ellipse: bool,
+    is_CFD: bool = True,
+    rho: float = 1.2,
+    U_inf: float = 15,
+    spatial_scale: float = 2.584,
+    velocity_scale: float = 15,
+):
+    from force_from_pressure import process_csv
+    import calculating_airfoil_centre
+    from utils import reading_optimal_bound_placement
+
+    # Reading in the airfoil centers
+    x_airfoil, y_airfoil, chord = calculating_airfoil_centre.main(
+        alpha, y_num, is_with_chord=True
+    )
+    drot = 0
+    d1centre = (x_airfoil, y_airfoil)
+    dLx, dLy, iP = reading_optimal_bound_placement(
+        alpha, y_num, is_with_N_datapoints=True
+    )
+    if is_ellipse:
+        d2curve = boundary_ellipse(d1centre, drot, dLx, dLy, iP)
+    else:
+        d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
+
+    if is_CFD:
+        input_path = (
+            Path(project_dir)
+            / "data"
+            / "CFD_slices"
+            / f"alpha_{alpha}"
+            / f"Y{y_num}_1.csv"
+        )
+        output_path = None
+        interpolated_df = process_csv(
+            input_path, output_path, spatial_scale, velocity_scale, y_num, alpha
+        )
+        df_1D = interpolated_df.copy()
+        Rey = 1e6
+        mu = (rho * U_inf * chord) / Rey
+    else:
+        df_1D = csv_reader(is_CFD=False, alpha=alpha, y_num=y_num, alpha_d_rod=7)
+        Rey = 5.6e5
+        mu = (rho * U_inf * chord) / Rey
+
+    n_rows = len(np.unique(df_1D["y"].values))
+    n_cols = len(np.unique(df_1D["x"].values))
+    d2x = reshape_remove_nans(df_1D["x"], n_rows, n_cols)
+    d2y = reshape_remove_nans(df_1D["y"], n_rows, n_cols)
+    d2u = reshape_remove_nans(df_1D["u"], n_rows, n_cols)
+    d2v = reshape_remove_nans(df_1D["v"], n_rows, n_cols)
+    d2vort_z = reshape_remove_nans(df_1D["vort_z"], n_rows, n_cols)
+    d1Fn, d1Ft = forceFromVelNoca2D_V3(
+        d2x=d2x,
+        d2y=d2y,
+        d2u=d2u,
+        d2v=d2v,
+        d2vortZ=d2vort_z,
+        d2dudt=np.zeros_like(d2x),  # zero for steady flow
+        d2dvdt=np.zeros_like(d2x),  # zero for steady flow
+        d2curve=d2curve,
+        dmu=mu,
+        bcorMaxVort=True,
+    )
+    q_infc = 0.5 * rho * U_inf**2 * chord
+    print(f"\n alpha: {alpha}, y_num: {y_num} (NOCA, mu:{mu:.3e})")
+    print(f"Fx: {d1Fn[0]:.3f}N      ")
+    print(f"Fy: {d1Ft[0]:.3f}N      ")
+    print(f"Cl: {d1Ft[0]/q_infc:.3f}")
+    print(f"Cd: {d1Fn[0]/q_infc:.3f}")
+
+    return d1Fn[0], d1Ft[0], d1Ft[0] / q_infc, d1Fn[0] / q_infc
+
+
 if __name__ == "__main__":
 
-    df_1D = csv_reader(is_CFD=True, alpha=6, y_num=1, alpha_d_rod=7.25)
+    Fx, Fy, Cl, Cd = extracting_fx_fy_cl_cd(6, 1, is_ellipse=True, is_CFD=True)
+    Fx, Fy, Cl, Cd = extracting_fx_fy_cl_cd(6, 1, is_ellipse=True, is_CFD=False)
+    # Fx, Fy, Cl, Cd = extracting_fx_fy_cl_cd_CFD(6, 1, is_ellipse=False)
+    # Fx, Fy, Cl, Cd = extracting_fx_fy_cl_cd_CFD(6, 1, is_ellipse=False)
 
-    ### Running for Ellipse ###
-    is_ellipse = True
-    d1centre = np.array([0.27, 0.13])
-    drot = 0
-    dLx = 0.8
-    dLy = 0.4
-    iP = 35
+    # df_1D = csv_reader(is_CFD=False, alpha=6, y_num=1, alpha_d_rod=7.25)
 
-    # create d2curve
-    if is_ellipse:
-        d2curve = boundary_ellipse(d1centre, drot, dLx, dLy, iP)
-        # print(f"Running NOCA on Ellipse, will take a while...")
-    else:
-        d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
-        # print(f"Running NOCA on Rectangle, will take a while...")
+    # ### Running for Ellipse ###
+    # is_ellipse = True
+    # d1centre = np.array([0.27, 0.13])
+    # drot = 0
+    # dLx = 0.8
+    # dLy = 0.4
+    # iP = 35
 
-    main(
-        df_1D,
-        d2curve,
-        mu=1.7894e-5,
-        is_with_maximim_vorticity_location_correction=True,
-    )
+    # # create d2curve
+    # if is_ellipse:
+    #     d2curve = boundary_ellipse(d1centre, drot, dLx, dLy, iP)
+    #     # print(f"Running NOCA on Ellipse, will take a while...")
+    # else:
+    #     d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
+    #     # print(f"Running NOCA on Rectangle, will take a while...")
 
-    ### Running for Rectangle ###
-    is_ellipse = False
-    d1centre = np.array([0.27, 0.13])
-    drot = 0
-    dLx = 0.8
-    dLy = 0.4
-    iP = 35
+    # main(
+    #     df_1D,
+    #     d2curve,
+    #     mu=1.7894e-5,
+    #     is_with_maximim_vorticity_location_correction=True,
+    # )
 
-    # create d2curve
-    if is_ellipse:
-        d2curve = boundary_ellipse(d1centre, drot, dLx, dLy, iP)
-        # print(f"Running NOCA on Ellipse, will take a while...")
-    else:
-        d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
-        # print(f"Running NOCA on Rectangle, will take a while...")
+    # ### Running for Rectangle ###
+    # is_ellipse = False
+    # d1centre = np.array([0.27, 0.13])
+    # drot = 0
+    # dLx = 0.8
+    # dLy = 0.4
+    # iP = 35
 
-    main(
-        df_1D,
-        d2curve,
-        mu=1.7894e-5,
-        is_with_maximim_vorticity_location_correction=True,
-    )
+    # # create d2curve
+    # if is_ellipse:
+    #     d2curve = boundary_ellipse(d1centre, drot, dLx, dLy, iP)
+    #     # print(f"Running NOCA on Ellipse, will take a while...")
+    # else:
+    #     d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
+    #     # print(f"Running NOCA on Rectangle, will take a while...")
+
+    # main(
+    #     df_1D,
+    #     d2curve,
+    #     mu=1.7894e-5,
+    #     is_with_maximim_vorticity_location_correction=True,
+    # )

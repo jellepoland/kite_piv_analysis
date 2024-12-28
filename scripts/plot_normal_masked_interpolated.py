@@ -231,8 +231,7 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
     plt.close()
 
 
-if __name__ == "__main__":
-
+def main():
     set_plot_style()
 
     plot_params: PlotParams = {
@@ -317,3 +316,7 @@ if __name__ == "__main__":
     print(
         f'{type_label} plot with color = {plot_params["color_data_col_name"]} | Y{plot_params["y_num"]} | α = {plot_params["alpha"]}°'
     )
+
+
+if __name__ == "__main__":
+    main()

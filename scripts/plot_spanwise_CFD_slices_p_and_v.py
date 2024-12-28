@@ -15,19 +15,9 @@ from io import StringIO
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
 import force_from_noca
 from calculating_circulation import calculate_circulation
-
+import extract_spanwise_contour
+import transforming_paraview_output
 from plotting import *
-
-
-def scaling_velocity(data_array, headers, vel_scaling=15):
-    """Scale velocity components in the data array by the given factor, ignoring x, y, z columns."""
-    # Find the indices of velocity-related columns (anything except 'x', 'y', 'z')
-    velocity_indices = [
-        i for i, header in enumerate(headers) if header not in ["x", "y", "z"]
-    ]
-    # Scale the velocity components by the given factor
-    data_array[:, velocity_indices] *= vel_scaling
-    return data_array
 
 
 def transform_raw_csv_to_processed_df(alpha=6, x_cm=25) -> pd.DataFrame:
@@ -138,23 +128,23 @@ def transform_raw_csv_to_processed_df(alpha=6, x_cm=25) -> pd.DataFrame:
         & (np.abs(df["tau_w_y"]) > 1e-16)
     )
     zero_vel_df = df[vel_mask]
-    df = df[~vel_mask]
+    # df = df[~vel_mask]
 
-    # masking for vorticity
-    vort_mask = (
-        (np.abs(df["vort_x"]) > 1e-1)
-        & (np.abs(df["vort_y"]) > 1e-1)
-        & (np.abs(df["vort_z"]) > 1e-1)
-        & (np.abs(df["vort_x"]) < 2e2)
-        & (np.abs(df["vort_y"]) < 2e2)
-        & (np.abs(df["vort_z"]) < 2e2)
-    )
-    df = df[vort_mask]
+    # # masking for vorticity
+    # vort_mask = (
+    #     (np.abs(df["vort_x"]) > 1e-1)
+    #     & (np.abs(df["vort_y"]) > 1e-1)
+    #     & (np.abs(df["vort_z"]) > 1e-1)
+    #     & (np.abs(df["vort_x"]) < 2e2)
+    #     & (np.abs(df["vort_y"]) < 2e2)
+    #     & (np.abs(df["vort_z"]) < 2e2)
+    # )
+    # df = df[vort_mask]
 
     df["vort_mag"] = np.sqrt(df["vort_x"] ** 2 + df["vort_y"] ** 2 + df["vort_z"] ** 2)
 
     # scale velocity
-    scaled_data = scaling_velocity(df.values, headers, vel_scaling=15)
+    scaled_data = transforming_paraview_output.scaling_CFD(df.values, headers)
     final_df = pd.DataFrame(scaled_data, columns=headers)
 
     # scale dimensions
@@ -162,10 +152,6 @@ def transform_raw_csv_to_processed_df(alpha=6, x_cm=25) -> pd.DataFrame:
     final_df["y"] *= 2.584 / 6.5
     zero_vel_df["x"] *= 2.584 / 6.5
     zero_vel_df["y"] *= 2.584 / 6.5
-
-    # remove columns
-    # final_df.drop(columns=["z", "u", "v"], inplace=True)
-    # print(f"final header: {final_df.columns}")
 
     # Print max and min values
     print(f"max u: {df['u'].max()}")
@@ -178,79 +164,6 @@ def transform_raw_csv_to_processed_df(alpha=6, x_cm=25) -> pd.DataFrame:
     print(f'vort_y min: {df["vort_y"].min():.1f}, min {df["vort_y"].max():.1f}')
     print(f'vort_z min: {df["vort_z"].min():.1f}, min {df["vort_z"].max():.1f}')
 
-    # # Saving df
-    # save_path = (
-    #     Path(project_dir)
-    #     / "processed_data"
-    #     / "CFD"
-    #     / "spanwise_slices"
-    #     / f"alpha_{alpha}_CFD_spanwise_slice_50cm_1.csv"
-    # )
-    # final_df.to_csv(save_path, index=False)
-
-    # from scipy.spatial import ConvexHull
-
-    # plt.figure(figsize=(5, 5))
-
-    # # Step 2: Split points into two groups (manually or algorithmically)
-    # df = zero_vel_df
-
-    # # sort on x values
-    # df = df.sort_values(by="x")
-
-    # # interpolat the data to a fix x range, while maintaing the y value
-    # x_range = np.linspace(0.2, 0.4, 10000)
-    # y_range = np.interp(x_range, df["x"], df["y"])
-    # df = pd.DataFrame({"x": x_range, "y": y_range})
-    # plt.scatter(df["x"], df["y"], c="black", s=30)
-
-    # # find the outer edge of the points
-    # hull = ConvexHull(df[["x", "y"]])
-
-    # hull_points = df.iloc[hull.vertices]
-
-    # # Separate top and bottom lines (example logic: split by y-value)
-    # hull_points = hull_points.sort_values("x")  # Sort by x to ensure proper order
-
-    # # put hull points in a df
-    # hull_points = pd.DataFrame(hull_points, columns=["x", "y"])
-
-    # # middle_y = hull_points["y"].mean()
-    # # line1 = hull_points[hull_points["y"] >= middle_y]  # Top line
-    # # line2 = hull_points[hull_points["y"] < middle_y]  # Bottom line
-
-    # # # Sort each line by x for plotting
-    # # line1 = line1.sort_values("x")
-    # # line2 = line2.sort_values("x")
-
-    # # Step 3: Plot the lines and fill the area between them
-    # # plt.plot(line1["x"], line1["y"], label="Line 1 (Top)", color="blue")
-    # # plt.plot(line2["x"], line2["y"], label="Line 2 (Bottom)", color="red")
-
-    # # Fill the area between the two lines
-    # # plt.fill_between(
-    # # line1["x"],
-    # # line1["y"],
-    # # np.interp(line1["x"], line2["x"], line2["y"]),
-    # # color="gray",
-    # # alpha=0.5,
-    # # label="Filled Area",
-    # # )
-
-    # # df = pd.DataFrame({"x": x_range, "y": y_range})
-    # # Fill the area between the two lines
-    # # plt.scatter(hull_points["x"], hull_points["y"], c="red", s=0.3)
-
-    # # plot a line thru the hull points
-    # plt.plot(hull_points["x"], hull_points["y"], label="Hull Points", color="blue")
-
-    # plt.xlabel("X")
-    # plt.ylabel("Y")
-    # plt.title("Filled Area Between Two Lines")
-    # plt.legend()
-    # plt.show()
-
-    # breakpoint()
     return final_df, zero_vel_df
 
 
@@ -319,8 +232,8 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
 
     # x_cm values to plot
     n_rows = 5
-    x_cm_values = [10, 25, 40, 50, 60, 75]
-    x_cm_values = [5, 50, 100]
+    # x_cm_values = [10, 25, 40, 50, 60, 75]
+    # x_cm_values = [5, 50, 100]
     # x_cm_values = [10, 20, 30, 40, 50]
     x_cm_values = [10, 15, 20, 25, 30]
     # x_cm_values = [10, 20]
@@ -536,8 +449,25 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
             #     density=1,
             # )
 
-            # Plotting zeros
-            ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
+            ## masking zero based on limits
+            # x_min = curr_plot_params["xlim"][0] * 0.9
+            # x_max = curr_plot_params["xlim"][1] * 1.1
+            # y_min = curr_plot_params["ylim"][0] * 0.9
+            # y_max = curr_plot_params["ylim"][1] * 1.1
+            # mask_x = (zero_vel_df["x"] >= x_min) & (zero_vel_df["x"] <= x_max)
+            # mask_y = (zero_vel_df["y"] >= y_min) & (zero_vel_df["y"] <= y_max)
+            # mask = mask_x & mask_y
+            # zero_vel_df = zero_vel_df[mask]
+            ## plotting zero
+            # ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
+            ax = extract_spanwise_contour.main(
+                ax,
+                csv_path=Path(project_dir)
+                / "processed_data"
+                / "CFD"
+                / "spanwise_slices"
+                / f"alpha_{alpha}_CFD_{int(x_cm)}cm_outline_wing.csv",
+            )
 
             # Adjust plot settings
             ax.set_aspect("equal")
@@ -593,7 +523,7 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
     plt.close()
 
 
-if __name__ == "__main__":
+def main():
     from plot_styling import set_plot_style
 
     set_plot_style()
@@ -640,3 +570,7 @@ if __name__ == "__main__":
     # plot_contour_with_colored_data(plot_params, mask_bound=30)
     # plot_contour_with_colored_data_two_rows(plot_params, x_cm=25)
     plot_contour_with_colored_data_two_rows_three_cols(plot_params)
+
+
+if __name__ == "__main__":
+    main()

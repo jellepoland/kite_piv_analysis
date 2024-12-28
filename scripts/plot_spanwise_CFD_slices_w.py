@@ -15,7 +15,7 @@ from io import StringIO
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
 import force_from_noca
 from calculating_circulation import calculate_circulation
-
+import extract_spanwise_contour
 from plotting import *
 
 
@@ -555,8 +555,26 @@ def plot_contour_with_colored_data(plot_params, mask_bound=3):
         )
         ax.grid(False)
 
-        # Plotting zeros
-        ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.3)
+        ## masking zero based on limits
+        mask = (zero_vel_df["x"] >= curr_plot_params["xlim"][0]) & (
+            zero_vel_df["x"] <= curr_plot_params["xlim"][1]
+        )
+        mask = (
+            mask
+            & (zero_vel_df["y"] >= curr_plot_params["ylim"][0])
+            & (zero_vel_df["y"] <= curr_plot_params["ylim"][1])
+        )
+        zero_vel_df = zero_vel_df[mask]
+        ## plotting zero
+        # ax.scatter(zero_vel_df["x"], zero_vel_df["y"], c="black", s=0.1)
+        csv_path = (
+            Path(project_dir)
+            / "processed_data"
+            / "CFD"
+            / "spanwise_slices"
+            / f"alpha_{curr_plot_params['alpha']}_CFD_25cm_outline_wing.csv"
+        )
+        ax = extract_spanwise_contour.main(ax, csv_path)
 
         # Adjust plot settings
         ax.set_aspect("equal")
@@ -600,7 +618,7 @@ def plot_contour_with_colored_data(plot_params, mask_bound=3):
     plt.close()
 
 
-if __name__ == "__main__":
+def main():
     from plot_styling import set_plot_style
 
     set_plot_style()
@@ -645,3 +663,7 @@ if __name__ == "__main__":
     print(
         f'spanwise CFD plot with color = {plot_params["color_data_col_name"]} | Y{plot_params["y_num"]} | α = {plot_params["alpha"]}°'
     )
+
+
+if __name__ == "__main__":
+    main()

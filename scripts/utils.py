@@ -55,7 +55,7 @@ def csv_reader(
             / "processed_data"
             / "stichted_planes_erik"
             / f"aoa_{int(alpha+alpha_d_rod)}"
-            / f"aoa_{int(alpha+alpha_d_rod)}_Y{y_num}_stichted.csv"
+            / f"aoa_{int(alpha+alpha_d_rod)}_Y{y_num}_stitched.csv"
         )
 
     df_1D = pd.read_csv(csv_path)

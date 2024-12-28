@@ -3,8 +3,74 @@ from plot_styling import set_plot_style
 from matplotlib.gridspec import GridSpec
 
 
-def main(plot_params: dict) -> None:
+def main() -> None:
 
+    plot_params: PlotParams = {
+        # Basic configuration
+        "is_CFD": False,
+        "y_num": 3,
+        "alpha": 6,
+        "project_dir": project_dir,
+        "plot_type": ".pdf",
+        "title": None,
+        "spanwise_CFD": False,
+        "is_CFD_PIV_comparison": True,
+        "color_data_col_name": "V",
+        "is_CFD_PIV_comparison_multicomponent_masked": False,
+        "run_for_all_planes": False,
+        # Plot_settings
+        "xlim": (-0.2, 0.8),
+        "ylim": (-0.2, 0.4),
+        # Color and contour settings
+        "is_with_cbar": True,
+        "cbar_value_factor_of_std": 2.0,
+        "min_cbar_value": None,
+        "max_cbar_value": None,
+        "subsample_color": 1,
+        "countour_levels": 100,
+        "cmap": "coolwarm",
+        # Quiver settings
+        "is_with_quiver": False,
+        "subsample_quiver": 5,
+        "u_inf": 15.0,
+        # PIV specific settings
+        "d_alpha_rod": 7.25,
+        # Overlay settings
+        "is_with_overlay": False,
+        "overlay_alpha": 0.4,
+        # Airfoil settings
+        "is_with_airfoil": True,
+        "airfoil_transparency": 1.0,
+        # Raw image settings
+        "subsample_factor_raw_images": 1,
+        "intensity_lower_bound": 10000,
+        # Boundary settings
+        "is_with_bound": True,
+        "drot": 0.0,
+        "iP": 65,
+        ##
+        "ellipse_color": "black",
+        "rectangle_color": "white",
+        "bound_linewidth": 1.5,
+        "bound_alpha": 1.0,
+        # Circulation analysis
+        "is_with_circulation_analysis": False,
+        "rho": 1.225,
+        "mu": 1.7894e-5,
+        "is_with_maximim_vorticity_location_correction": True,
+        "chord": 0.37,
+        # Mask settings
+        "is_with_mask": True,
+        "column_to_mask": "w",
+        "mask_lower_bound": -3,
+        "mask_upper_bound": 3,
+        "normal_masked_interpolated": False,
+        ## Interpolation settings
+        "is_with_interpolation": True,
+        "interpolation_method": "nearest",
+        "rectangle_size": 0.05,
+        "n_lim": 100,
+    }
     set_plot_style()
 
     # Set up alpha and y_num values
@@ -96,71 +162,4 @@ def main(plot_params: dict) -> None:
 
 
 if __name__ == "__main__":
-
-    plot_params: PlotParams = {
-        # Basic configuration
-        "is_CFD": False,
-        "y_num": 3,
-        "alpha": 6,
-        "project_dir": project_dir,
-        "plot_type": ".pdf",
-        "title": None,
-        "spanwise_CFD": False,
-        "is_CFD_PIV_comparison": True,
-        "color_data_col_name": "V",
-        "is_CFD_PIV_comparison_multicomponent_masked": False,
-        "run_for_all_planes": False,
-        # Plot_settings
-        "xlim": (-0.2, 0.8),
-        "ylim": (-0.2, 0.4),
-        # Color and contour settings
-        "is_with_cbar": True,
-        "cbar_value_factor_of_std": 2.0,
-        "min_cbar_value": None,
-        "max_cbar_value": None,
-        "subsample_color": 1,
-        "countour_levels": 100,
-        "cmap": "coolwarm",
-        # Quiver settings
-        "is_with_quiver": False,
-        "subsample_quiver": 5,
-        "u_inf": 15.0,
-        # PIV specific settings
-        "d_alpha_rod": 7.25,
-        # Overlay settings
-        "is_with_overlay": False,
-        "overlay_alpha": 0.4,
-        # Airfoil settings
-        "is_with_airfoil": True,
-        "airfoil_transparency": 1.0,
-        # Raw image settings
-        "subsample_factor_raw_images": 1,
-        "intensity_lower_bound": 10000,
-        # Boundary settings
-        "is_with_bound": True,
-        "drot": 0.0,
-        "iP": 65,
-        ##
-        "ellipse_color": "black",
-        "rectangle_color": "white",
-        "bound_linewidth": 1.5,
-        "bound_alpha": 1.0,
-        # Circulation analysis
-        "is_with_circulation_analysis": False,
-        "rho": 1.225,
-        "mu": 1.7894e-5,
-        "is_with_maximim_vorticity_location_correction": True,
-        "chord": 0.37,
-        # Mask settings
-        "is_with_mask": True,
-        "column_to_mask": "w",
-        "mask_lower_bound": -3,
-        "mask_upper_bound": 3,
-        "normal_masked_interpolated": False,
-        ## Interpolation settings
-        "is_with_interpolation": True,
-        "interpolation_method": "nearest",
-        "rectangle_size": 0.05,
-        "n_lim": 100,
-    }
-    main(plot_params)
+    main()

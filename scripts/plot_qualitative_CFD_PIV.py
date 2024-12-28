@@ -3,7 +3,7 @@ from plot_styling import set_plot_style
 from matplotlib.gridspec import GridSpec
 
 
-def main(plot_params: dict) -> None:
+def plotting_qualitative_CFD_PIV(plot_params: dict) -> None:
 
     set_plot_style()
 
@@ -99,8 +99,7 @@ def main(plot_params: dict) -> None:
     plt.close()
 
 
-if __name__ == "__main__":
-
+def main():
     plot_params: PlotParams = {
         # Basic configuration
         "is_CFD": False,
@@ -166,4 +165,8 @@ if __name__ == "__main__":
         "interpolation_method": "nearest",
         "rectangle_size": 0.05,
     }
-    main(plot_params)
+    plotting_qualitative_CFD_PIV(plot_params)
+
+
+if __name__ == "__main__":
+    main()

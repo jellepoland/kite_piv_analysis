@@ -127,7 +127,7 @@ def read_results(alpha, y_num, is_CFD, is_ellipse):
     return results
 
 
-if __name__ == "__main__":
+def main():
     # Settings
     parameter_names = ["iP", "dLx", "dLy"]
 
@@ -211,3 +211,7 @@ if __name__ == "__main__":
         / "y_locations_with_gamma.csv",
         index=False,
     )
+
+
+if __name__ == "__main__":
+    main()

@@ -8,22 +8,30 @@ from utils import project_dir
 import matplotlib.pyplot as plt
 
 
-def scaling_velocity(data_array, headers, vel_scaling=15):
+def scaling_CFD(
+    data_array, headers, vel_scaling=15, spatial_scaling=2.584, rho_scaling=1.2
+):
     """Scale velocity components in the data array by the given factor, ignoring x, y, z columns."""
     # Find the indices of velocity-related columns (anything except 'x', 'y', 'z')
     for i, header in enumerate(headers):
         if header in ["x", "y", "z"]:
-            continue
-        elif header in ["pressure"]:
-            continue
-            # data_array[:, i] *= vel_scaling**2
-        else:
+            data_array[:, i] /= 1
+        elif header in ["u", "v", "w"]:
             data_array[:, i] *= vel_scaling
-    # velocity_indices = [
-    #     i for i, header in enumerate(headers) if header not in ["x", "y", "z"]
-    # ]
-    # # Scale the velocity components by the given factor
-    # data_array[:, velocity_indices] *= vel_scaling
+        elif header in [
+            "dudx",
+            "dudy",
+            "dvdx",
+            "dvdy",
+            "dwdx",
+            "dwdy",
+            "vort_z",
+        ]:
+            data_array[:, i] *= vel_scaling * spatial_scaling
+        elif header in ["tau_w_x", "tau_w_y", "pressure"]:
+            data_array[:, i] *= vel_scaling**2 * rho_scaling
+        else:
+            data_array[:, i] = data_array[:, i]
 
     return data_array
 
@@ -186,7 +194,15 @@ def filter_data(points, data_dict, y_num, alpha):
     return filtered_df
 
 
-def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, alpha):
+def process_csv(
+    input_path,
+    output_path,
+    spatial_scale,
+    velocity_scale,
+    y_num,
+    alpha,
+    rho_scaling=1.2,
+):
     """Process CSV file with scaling, filtering, and header remapping."""
 
     ### ERIKs definition
@@ -249,10 +265,12 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         # Convert DataFrame to numpy array for velocity scaling
         data_array = filtered_df.values
         headers = filtered_df.columns.tolist()
-        print(f"headers: {headers}")
+        # print(f"headers: {headers}")
 
-        # Scale velocities
-        scaled_data = scaling_velocity(data_array, headers, velocity_scale)
+        # Scaling
+        scaled_data = scaling_CFD(
+            data_array, headers, velocity_scale, spatial_scale, rho_scaling
+        )
 
         # Create final DataFrame with scaled data
         final_df = pd.DataFrame(scaled_data, columns=headers)
@@ -301,7 +319,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         ## From mm to m
         x_global = np.arange(-210, 840, 2.4810164835164836) / 1000
         y_global = np.arange(-205, 405, 2.4810164835164836) / 1000
-        print(f"grid-shape: x_global:{x_global.shape}, y_global:{y_global.shape}")
+        # print(f"grid-shape: x_global:{x_global.shape}, y_global:{y_global.shape}")
         x_meshgrid_global, y_meshgrid_global = np.meshgrid(x_global, y_global)
         # x_meshgrid_global *= 100
         # y_meshgrid_global *= 100
@@ -355,12 +373,13 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         interpolated_df = interpolated_df[variable_list]
 
         # Save to new CSV
-        interpolated_df.to_csv(output_path, index=False)
+        if output_path is not None:
+            interpolated_df.to_csv(output_path, index=False)
 
-        print(f"Successfully processed data and saved to {output_path}")
-        print(f"Final columns: {', '.join(final_df.columns)}")
+            print(f"Successfully processed data and saved to {output_path}")
+            # print(f"Final columns: {', '.join(final_df.columns)}")
 
-        return final_df, interpolated_df
+        return interpolated_df
 
     except FileNotFoundError:
         print(f"Error: The file {input_path} was not found.")
@@ -368,9 +387,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         print(f"An error occurred: {str(e)}")
 
 
-def main(alpha: int):
-
-    import plotting
+def running_for_1_alpha(alpha: int, rho_scaling=1.2):
 
     slices_folder = Path(project_dir) / "data" / "CFD_slices" / f"alpha_{alpha}"
     # f"/home/jellepoland/ownCloud/phd/data/V3A/Lebesque_folder/results/1e6/{alpha}/slices"
@@ -389,7 +406,7 @@ def main(alpha: int):
             / f"alpha_{alpha}"
             / f"Y{y_num}_paraview_corrected.csv"
         )
-        non_interpolated_df, interpolated_df = process_csv(
+        interpolated_df = process_csv(
             input_path,
             output_path,
             spatial_scale=2.584,
@@ -399,6 +416,15 @@ def main(alpha: int):
         )
 
 
+def main():
+    for alpha in [6, 16]:
+        if alpha == 6:
+            rho_scaling = 1.2
+        else:
+            rho_scaling = 1.18
+        running_for_1_alpha(alpha, rho_scaling)
+
+
 # Example usage
 if __name__ == "__main__":
-    main(alpha=6)
+    main()

@@ -19,7 +19,7 @@ from calculating_circulation import calculate_circulation
 from plotting import *
 
 
-def main(plot_params: dict) -> None:
+def plotting_reflection_and_reinterpolation(plot_params: dict) -> None:
     """Create a 4x3 comparison of CFD and PIV data, with PIV masked/unmasked."""
     fig, axes = plt.subplots(4, 3, figsize=(18, 20))
     fig.suptitle(
@@ -104,7 +104,7 @@ def main(plot_params: dict) -> None:
     plt.close()
 
 
-if __name__ == "__main__":
+def main():
 
     plot_params: PlotParams = {
         # Basic configuration
@@ -241,7 +241,7 @@ if __name__ == "__main__":
             },
         )
 
-    main(plot_params)
+    plotting_reflection_and_reinterpolation(plot_params)
     if plot_params["is_CFD_PIV_comparison"]:
         type_label = "CFD_PIV"
     else:
@@ -250,3 +250,7 @@ if __name__ == "__main__":
     print(
         f'{type_label} plot with color = {plot_params["color_data_col_name"]} | Y{plot_params["y_num"]} | α = {plot_params["alpha"]}°'
     )
+
+
+if __name__ == "__main__":
+    main()
