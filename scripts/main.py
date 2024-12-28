@@ -50,10 +50,8 @@ def main():
     print_uncertainty.main()  # works
 
     # calculates loads on the chordwise slices, using p-integration of surface
-    calculating_chordwise_slice_loads.main()  # works
-
-    ##TODO: NOT NEEDED?
-    ## print_quantitative_results.main()
+    # calculating_chordwise_slice_loads.main()  # works, but integrated in next function
+    print_quantitative_results.main()
 
     ##TODO: NOT NEEDED?
     ## plot_reflection_and_reinterpolation.main() #works

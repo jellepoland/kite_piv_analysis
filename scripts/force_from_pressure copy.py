@@ -393,7 +393,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
     """Process CSV file with scaling, filtering, and header remapping."""
 
     from scipy.interpolate import griddata
-    from transforming_paraview_output import filter_data, scaling_velocity, rotate_data
+    from transforming_paraview_output import filter_data, scaling_CFD, rotate_data
 
     ### ERIKs definition
     header_mapping = {
@@ -458,7 +458,7 @@ def process_csv(input_path, output_path, spatial_scale, velocity_scale, y_num, a
         # print(f"headers: {headers}")
 
         # Scale velocities
-        scaled_data = scaling_velocity(data_array, headers, velocity_scale)
+        scaled_data = scaling_CFD(data_array, headers, velocity_scale)
 
         # Create final DataFrame with scaled data
         final_df = pd.DataFrame(scaled_data, columns=headers)

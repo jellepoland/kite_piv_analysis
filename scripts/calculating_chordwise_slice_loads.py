@@ -391,7 +391,7 @@ def compute_surface_forces(
     Fx_total = Fx_p + Fx_v
     Fy_total = Fy_p + Fy_v
     q_infc = 0.5 * density * (15**2) * chord
-    # print(f"Fx_p: {Fx_p:.2f}, Fy_p: {Fy_p:.2f}, Fx_v: {Fx_v:.4f}, Fy_v: {Fy_v:.4f}")
+    print(f"Fx_p: {Fx_p:.2f}, Fy_p: {Fy_p:.2f}, Fx_v: {Fx_v:.4f}, Fy_v: {Fy_v:.4f}")
     print(
         f"P-integration --- Fx: {Fx_total:.2f}, Fy: {Fy_total:.2f}, C_l: {Fy_total/q_infc:.2f}, C_d: {Fx_total/q_infc:.2f}"
     )
@@ -439,6 +439,7 @@ def main():
     Re = 1e6
     p_ref = 0
     is_with_plot = False
+    is_with_NOCA = False
 
     # # List files in the specified directory
     # for file in os.listdir(slices_folder):
@@ -462,6 +463,7 @@ def main():
     #     )
     alpha = 6
     for y_num in [1, 2, 3, 4, 5]:
+        print(f"\nProcessing alpha: {alpha}, y_num: {y_num}")
         df = csv_reader(is_CFD=True, alpha=alpha, y_num=y_num, alpha_d_rod=7)
         # Reading in the airfoil centers
         x_airfoil, y_airfoil, chord = calculating_airfoil_centre.main(
@@ -475,11 +477,12 @@ def main():
         # Flip point order
         surface_x = surface_x[::-1]
         surface_y = surface_y[::-1]
-        ## NOCA
-        Fx, Fy, C_l, C_d = running_NOCA(df, alpha, y_num)
-        print(
-            f"NOCA          --- Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}"
-        )
+        if is_with_NOCA:
+            ## NOCA
+            Fx, Fy, C_l, C_d = running_NOCA(df, alpha, y_num)
+            print(
+                f"NOCA          --- Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}"
+            )
 
         ### Compute surface forces
         Fx_total, Fy_total = compute_surface_forces(
@@ -490,9 +493,11 @@ def main():
             y_surface=surface_y,
             p_ref=p_ref,
             is_plot=is_with_plot,
+            chord=chord,
         )
     alpha = 16
     for y_num in [1]:
+        print(f"\nProcessing alpha: {alpha}, y_num: {y_num}")
         df = csv_reader(is_CFD=True, alpha=alpha, y_num=y_num, alpha_d_rod=7)
         # Reading in the airfoil centers
         x_airfoil, y_airfoil, chord = calculating_airfoil_centre.main(
@@ -506,11 +511,12 @@ def main():
         # Flip point order
         surface_x = surface_x[::-1]
         surface_y = surface_y[::-1]
-        ## NOCA
-        Fx, Fy, C_l, C_d = running_NOCA(df, alpha, y_num)
-        print(
-            f"NOCA          --- Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}"
-        )
+        if is_with_NOCA:
+            ## NOCA
+            Fx, Fy, C_l, C_d = running_NOCA(df, alpha, y_num)
+            print(
+                f"NOCA          --- Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}"
+            )
 
         ### Compute surface forces
         Fx_total, Fy_total = compute_surface_forces(
@@ -521,6 +527,7 @@ def main():
             y_surface=surface_y,
             p_ref=p_ref,
             is_plot=is_with_plot,
+            chord=chord,
         )
 
         # ## no scaling

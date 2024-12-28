@@ -549,7 +549,7 @@ def plot_contour_with_colored_data(plot_params, mask_bound=3):
         ax.scatter(
             x_unique[mask_pink],
             y_unique[mask_pink],
-            c="lightgreen",
+            c="white",
             s=1,  # Adjust point size as needed
             label="abs(w) > 3",
         )
