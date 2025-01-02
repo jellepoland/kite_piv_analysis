@@ -207,7 +207,7 @@ def apply_mask(
     return df_to_return
 
 
-def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
+def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params, is_pcolormesh=None):
 
     ## Getting the color data
     x_unique = df["x"].unique()
@@ -258,28 +258,28 @@ def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params):
     #     plot_params["min_cbar_value"] = -7
     #     plot_params["max_cbar_value"] = 7
 
-    # ### USING PCOLORMESH
-    # cax = ax.pcolormesh(
-    #     x_mesh_sub,
-    #     y_mesh_sub,
-    #     color_data_sub,
-    #     # shading="auto",
-    #     cmap=plot_params["cmap"],
-    #     vmin=plot_params["min_cbar_value"],
-    #     vmax=plot_params["max_cbar_value"],
-    # )  # 'shading' set to 'auto' to avoid warning
-
-    #### USING CONTOURF
-    cax = ax.contourf(
-        x_mesh_sub,
-        y_mesh_sub,
-        color_data_sub,
-        levels=plot_params["countour_levels"],
-        cmap=plot_params["cmap"],
-        vmin=plot_params["min_cbar_value"],
-        vmax=plot_params["max_cbar_value"],
-        antialiased=False,
-    )
+    if is_pcolormesh == None:
+        cax = ax.contourf(
+            x_mesh_sub,
+            y_mesh_sub,
+            color_data_sub,
+            levels=plot_params["countour_levels"],
+            cmap=plot_params["cmap"],
+            vmin=plot_params["min_cbar_value"],
+            vmax=plot_params["max_cbar_value"],
+            antialiased=False,
+        )
+    else:
+        ### USING PCOLORMESH
+        cax = ax.pcolormesh(
+            x_mesh_sub,
+            y_mesh_sub,
+            color_data_sub,
+            shading="auto",
+            cmap=plot_params["cmap"],
+            vmin=plot_params["min_cbar_value"],
+            vmax=plot_params["max_cbar_value"],
+        )  # 'shading' set to 'auto' to avoid warning
 
     plot_params["cax"] = cax
 
@@ -682,6 +682,7 @@ def plotting_on_ax(
     is_with_ylabel: bool = True,
     is_label_left: bool = True,
     is_with_grid: bool = False,
+    is_pcolormesh=None,
 ) -> None:
 
     ax.set_aspect("equal", adjustable="box")
@@ -722,7 +723,9 @@ def plotting_on_ax(
                 alpha=1.0,
                 # marker="o",
             )
-    plot_params = plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params)
+    plot_params = plot_color_contour(
+        ax, df, x_meshgrid, y_meshgrid, plot_params, is_pcolormesh=is_pcolormesh
+    )
 
     # # Add optional elements
     # if plot_params.get("is_with_cbar", False):
@@ -890,6 +893,14 @@ def add_vertical_colorbar_for_row(
 
     cbar.ax.tick_params(direction="out")
     cbar.ax.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.1f"))
+
+    # # set number of ticks
+    # if plot_params["color_data_col_name"] == "u":
+    #     cbar.ax.yaxis.set_major_locator(plt.MaxNLocator(6))
+    # elif plot_params["color_data_col_name"] == "v":
+    #     cbar.ax.yaxis.set_major_locator(plt.MaxNLocator(5))
+    # elif plot_params["color_data_col_name"] == "w":
+    #     cbar.ax.yaxis.set_major_locator(plt.MaxNLocator(6))
 
     if label is None:
         label = plot_params["color_data_col_name"]

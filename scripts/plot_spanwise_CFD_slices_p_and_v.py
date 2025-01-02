@@ -228,15 +228,49 @@ def compute_lambda2(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def compute_lambda2_corrected(df):
+    # Extract velocity gradients
+    dudx, dvdy, dwdz = df["dudx"], df["dvdy"], df["dwdz"]
+    dudy, dvdx = df["dudy"], df["dvdx"]
+    dudz, dwdx = df["dudz"], df["dwdx"]
+    dvdz, dwdy = df["dvdz"], df["dwdy"]
+
+    # Strain tensor
+    S = np.zeros((len(df), 3, 3))
+    S[:, 0, 0], S[:, 1, 1], S[:, 2, 2] = dudx, dvdy, dwdz
+    S[:, 0, 1] = S[:, 1, 0] = 0.5 * (dudy + dvdx)
+    S[:, 0, 2] = S[:, 2, 0] = 0.5 * (dudz + dwdx)
+    S[:, 1, 2] = S[:, 2, 1] = 0.5 * (dvdz + dwdy)
+
+    # Rotation tensor
+    Ω = np.zeros((len(df), 3, 3))
+    Ω[:, 0, 1] = 0.5 * (dudy - dvdx)
+    Ω[:, 1, 0] = -Ω[:, 0, 1]
+    Ω[:, 0, 2] = 0.5 * (dudz - dwdx)
+    Ω[:, 2, 0] = -Ω[:, 0, 2]
+    Ω[:, 1, 2] = 0.5 * (dvdz - dwdy)
+    Ω[:, 2, 1] = -Ω[:, 1, 2]
+
+    lambda2 = np.zeros(len(df))
+    for i in range(len(df)):
+        # Compute S² + Ω² correctly
+        S2_O2 = np.matmul(S[i], S[i]) + np.matmul(Ω[i], Ω[i])
+        eigvals = np.sort(np.linalg.eigvalsh(S2_O2))
+        lambda2[i] = np.real(eigvals[1])
+
+    return lambda2
+
+
 def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
 
     # x_cm values to plot
-    n_rows = 5
+    n_rows = 4
     # x_cm_values = [10, 25, 40, 50, 60, 75]
     # x_cm_values = [5, 50, 100]
     # x_cm_values = [10, 20, 30, 40, 50]
     x_cm_values = [10, 15, 20, 25, 30]
     # x_cm_values = [10, 20]
+    x_cm_values = [10, 15, 20, 30]
     # x_cm_values = [10, 25]
     n_cols = len(x_cm_values)
 
@@ -274,6 +308,7 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
             # Current subplot and plot parameters
             ax = axes[row, col]
             curr_plot_params = plot_params.copy()
+            is_with_quiver = False
 
             # Set x_cm value
             x_cm = x_cm_values[col]
@@ -304,6 +339,7 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
                 curr_plot_params["color_data_col_name"] = color_name
                 curr_plot_params["min_cbar_value"] = -4
                 curr_plot_params["max_cbar_value"] = 4
+                is_with_quiver = False
             elif row == 1:
                 color_name = "v"
                 curr_plot_params["color_data_col_name"] = color_name
@@ -314,50 +350,59 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
                 curr_plot_params["color_data_col_name"] = color_name
                 curr_plot_params["min_cbar_value"] = -2
                 curr_plot_params["max_cbar_value"] = 2
+            # elif row == 3:
+            # if row == 0:
+            #     dudx = df["dudx"]
+            #     dvdy = df["dvdy"]
+            #     dwdz = df["dwdz"]
+            #     dudy = df["dudy"]
+            #     dvdx = df["dvdx"]
+            #     dudz = df["dudz"]
+            #     dvdz = df["dvdz"]
+            #     dwdy = df["dwdy"]
+            #     dwdx = df["dwdx"]
+            #     Sxx = dudx
+            #     Syy = dvdy
+            #     Szz = dwdz
+            #     Sxy = 0.5 * (dudy + dvdx)
+            #     Sxz = 0.5 * (dudz + dwdx)
+            #     Syz = 0.5 * (dvdz + dwdy)
+
+            #     # ||S||^2: Frobenius norm of the rate-of-strain tensor
+            #     S_squared = Sxx**2 + Syy**2 + Szz**2 + 2 * (Sxy**2 + Sxz**2 + Syz**2)
+
+            #     # Compute the rate-of-rotation tensor Omega_ij
+            #     Oxy = 0.5 * (dudy - dvdx)
+            #     Oxz = 0.5 * (dudz - dwdx)
+            #     Oyz = 0.5 * (dvdz - dwdy)
+
+            #     # ||Omega||^2: Frobenius norm of the rate-of-rotation tensor
+            #     Omega_squared = 2 * (Oxy**2 + Oxz**2 + Oyz**2)
+
+            #     # Compute Q-criterion
+            #     Q = 0.5 * (Omega_squared - S_squared)
+            #     df["Q"] = Q
+            #     # print(f"Q_mean: {Q.mean()}")
+            #     # print(f"Q_max: {Q.max()}")
+            #     # print(f"Q_min: {Q.min()}")
+            #     color_name = "Q"
+            #     curr_plot_params["color_data_col_name"] = color_name
+            #     curr_plot_params["min_cbar_value"] = -2000  # -2000
+            #     curr_plot_params["max_cbar_value"] = 2000  # 2000
+            # elif row == 4:
+            # df = compute_lambda2(df)
+            # color_name = "lambda2"
+            # curr_plot_params["color_data_col_name"] = color_name
+            # curr_plot_params["min_cbar_value"] = -500  # -2000
+            # curr_plot_params["max_cbar_value"] = 20000  # 2000
             elif row == 3:
-                dudx = df["dudx"]
-                dvdy = df["dvdy"]
-                dwdz = df["dwdz"]
-                dudy = df["dudy"]
-                dvdx = df["dvdx"]
-                dudz = df["dudz"]
-                dvdz = df["dvdz"]
-                dwdy = df["dwdy"]
-                dwdx = df["dwdx"]
-                Sxx = dudx
-                Syy = dvdy
-                Szz = dwdz
-                Sxy = 0.5 * (dudy + dvdx)
-                Sxz = 0.5 * (dudz + dwdx)
-                Syz = 0.5 * (dvdz + dwdy)
-
-                # ||S||^2: Frobenius norm of the rate-of-strain tensor
-                S_squared = Sxx**2 + Syy**2 + Szz**2 + 2 * (Sxy**2 + Sxz**2 + Syz**2)
-
-                # Compute the rate-of-rotation tensor Omega_ij
-                Oxy = 0.5 * (dudy - dvdx)
-                Oxz = 0.5 * (dudz - dwdx)
-                Oyz = 0.5 * (dvdz - dwdy)
-
-                # ||Omega||^2: Frobenius norm of the rate-of-rotation tensor
-                Omega_squared = 2 * (Oxy**2 + Oxz**2 + Oyz**2)
-
-                # Compute Q-criterion
-                Q = 0.5 * (Omega_squared - S_squared)
-                df["Q"] = Q
-                # print(f"Q_mean: {Q.mean()}")
-                # print(f"Q_max: {Q.max()}")
-                # print(f"Q_min: {Q.min()}")
-                color_name = "Q"
-                curr_plot_params["color_data_col_name"] = color_name
-                curr_plot_params["min_cbar_value"] = -2000  # -2000
-                curr_plot_params["max_cbar_value"] = 2000  # 2000
-            elif row == 4:
-                df = compute_lambda2(df)
+                # df = compute_lambda2(df)
+                df["lambda2"] = compute_lambda2_corrected(df)
                 color_name = "lambda2"
+                curr_plot_params["cmap"] = "jet"
                 curr_plot_params["color_data_col_name"] = color_name
-                curr_plot_params["min_cbar_value"] = -500  # -2000
-                curr_plot_params["max_cbar_value"] = 20000  # 2000
+                curr_plot_params["min_cbar_value"] = -5000
+                curr_plot_params["max_cbar_value"] = 5000
 
             # Extract unique x, y, and color values
             x_unique = df["x"].values
@@ -468,6 +513,27 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
                 / "spanwise_slices"
                 / f"alpha_{alpha}_CFD_{int(x_cm)}cm_outline_wing.csv",
             )
+
+            if is_with_quiver:
+                subsample_quiver = 15
+                x_sub = X_grid[::subsample_quiver, ::subsample_quiver]
+                y_sub = Y_grid[::subsample_quiver, ::subsample_quiver]
+                u_sub = u_data[::subsample_quiver, ::subsample_quiver]
+                v_sub = v_data[::subsample_quiver, ::subsample_quiver]
+                w_sub = w_data[::subsample_quiver, ::subsample_quiver]
+
+                # Remove NaN values
+                valid_mask = ~(np.isnan(u_sub) | np.isnan(v_sub))
+
+                ax.quiver(
+                    x_sub[valid_mask],
+                    y_sub[valid_mask],
+                    w_sub[valid_mask],
+                    v_sub[valid_mask],
+                    color="black",
+                    # angles="xz",
+                    # scale_units="yz",
+                )
 
             # Adjust plot settings
             ax.set_aspect("equal")

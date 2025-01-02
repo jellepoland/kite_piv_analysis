@@ -186,6 +186,7 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
             plot_params,
             is_with_xlabel=is_with_xlabel,
             is_with_ylabel=False,
+            is_pcolormesh=True,
         )
 
         ### PIV Mask (right column)
@@ -203,6 +204,7 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
             is_with_xlabel=is_with_xlabel,
             is_with_ylabel=True,  # Only for the 2nd row
             is_label_left=False,
+            is_pcolormesh=True,
         )
 
         # setting titles
