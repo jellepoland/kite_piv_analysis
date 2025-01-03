@@ -547,7 +547,7 @@ def main(
     is_with_maximim_vorticity_location_correction: bool = True,
     rho: float = 1.20,
     U_inf: float = 15,
-    c: float = 0.37,
+    ref_chord: float = 0.39834712,
 ):
     # print(f"\nRunning NOCA calculating F_x, F_y, C_l, C_d")
     # reshape df
@@ -576,8 +576,8 @@ def main(
     )
     F_x = d1Fn[0]
     F_y = d1Ft[0]
-    C_l = F_y / (0.5 * rho * U_inf**2 * c)
-    C_d = F_x / (0.5 * rho * U_inf**2 * c)
+    C_l = F_y / (0.5 * rho * U_inf**2 * ref_chord)
+    C_d = F_x / (0.5 * rho * U_inf**2 * ref_chord)
     # print(f"F_x = {d1Fn[0]:.3f}N (F_n Normal force)")
     # print(f"F_y = {d1Ft[0]:.3f}N (F_t Tangential force)")
     # print(f"C_l = {C_l:.3f} (C_l Lift coefficient)")

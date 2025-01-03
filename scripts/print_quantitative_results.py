@@ -212,9 +212,9 @@ def main():
     #     index=False,
     # )
 
-    import calculating_chordwise_slice_loads
+    import scripts.calculating_integrated_surface_pressure as calculating_integrated_surface_pressure
 
-    calculating_chordwise_slice_loads.main()
+    calculating_integrated_surface_pressure.main()
 
 
 if __name__ == "__main__":

@@ -149,6 +149,7 @@ def normal_masked_interpolated(plot_params: dict) -> None:
 
 def normal_masked_interpolated_3by2(plot_params: dict) -> None:
     """Create a 3x2 comparison of CFD and PIV data, with PIV masked/unmasked."""
+    is_pcolormesh = None
     fig, axes = plt.subplots(
         3,
         2,
@@ -186,7 +187,7 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
             plot_params,
             is_with_xlabel=is_with_xlabel,
             is_with_ylabel=False,
-            is_pcolormesh=True,
+            is_pcolormesh=is_pcolormesh,
         )
 
         ### PIV Mask (right column)
@@ -204,7 +205,7 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
             is_with_xlabel=is_with_xlabel,
             is_with_ylabel=True,  # Only for the 2nd row
             is_label_left=False,
-            is_pcolormesh=True,
+            is_pcolormesh=is_pcolormesh,
         )
 
         # setting titles
