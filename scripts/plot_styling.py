@@ -296,7 +296,7 @@ def plot_on_ax(
     ax,
     x,
     y,
-    label: str,
+    label: str = None,
     color: str = None,
     linestyle: str = "-",
     marker: Optional[str] = None,
@@ -312,6 +312,7 @@ def plot_on_ax(
     is_with_x_ticks: bool = True,
     is_with_y_ticks: bool = True,
     title: str = None,
+    is_with_legend: bool = True,
 ):
     """
     Plot data on a given axis with customizable markers, lines, and labels.
@@ -355,10 +356,12 @@ def plot_on_ax(
 
     # Plot the data
     plot_kwargs = {
-        "label": label,
         "linestyle": linestyle,
         "color": color,
     }
+    if label:
+        plot_kwargs["label"] = label
+
     if marker:
         plot_kwargs["marker"] = marker
     if markersize:
@@ -372,8 +375,12 @@ def plot_on_ax(
     if is_with_y_label:
         ax.set_ylabel(y_label)
 
+    # Set legend
+    if is_with_legend:
+        ax.legend()
     if title:
         ax.set_title(title)
+
     # Return the axis object if requested
     if is_return_ax:
         return ax

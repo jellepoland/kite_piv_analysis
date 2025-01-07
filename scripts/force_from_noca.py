@@ -343,7 +343,7 @@ def forceFromVelNoca2D_V3(
     iN = 2
 
     # Data smoothing
-    bsmooth = False
+    bsmooth = True
     ismooth = 9
     if bsmooth:
         d2u = conv2(d2u, np.ones((ismooth, ismooth)) / (ismooth**2), mode="same")

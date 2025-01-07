@@ -1224,9 +1224,9 @@ if __name__ == "__main__":
 
     plot_params: PlotParams = {
         # Basic configuration
-        "is_CFD": True,
+        "is_CFD": False,
         "spanwise_CFD": False,
-        "y_num": 1,
+        "y_num": 4,
         "alpha": 6,
         "project_dir": project_dir,
         "plot_type": ".pdf",
@@ -1253,7 +1253,7 @@ if __name__ == "__main__":
         # PIV specific settings
         "d_alpha_rod": 7.25,
         # Overlay settings
-        "is_with_overlay": False,
+        "is_with_overlay": True,
         "overlay_alpha": 0.4,
         # Airfoil settings
         "is_with_airfoil": True,
@@ -1286,6 +1286,7 @@ if __name__ == "__main__":
         "is_with_interpolation": True,
         "interpolation_method": "nearest",
         "rectangle_size": 0.05,
+        "n_lim": 100,
     }
     main(plot_params)
     if plot_params["is_CFD_PIV_comparison"]:

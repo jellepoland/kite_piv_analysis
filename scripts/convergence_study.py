@@ -90,6 +90,7 @@ def parameter_sweep_noca(
     n_datapoints: int = 104304,
     parameter_values=None,
     dLx=None,
+    ref_chord: float = 0.39834712,
 ) -> pd.DataFrame:
     """
     Perform parameter sweep for NOCA analysis.
@@ -250,6 +251,13 @@ def parameter_sweep_noca(
                     f"---> SKIPPED perc_of_interpolated_points: {perc_of_interpolated_points:.2f}%, dLx: {current_params.dLx:.2f}, dLy: {current_params.dLy:.2f}"
                 )
                 is_skip_this_parameter = True
+
+            ## setting the smoothing on
+            is_with_smoothing = True
+
+        else:  # if CFD data
+            is_with_smoothing = False
+
         if is_skip_this_parameter:
             continue
 
@@ -262,14 +270,16 @@ def parameter_sweep_noca(
             df,
             d2curve,
             mu=mu,
-            is_with_maximim_vorticity_location_correction=is_with_maximim_vorticity_location_correction,
+            is_with_maximim_vorticity_location_correction=True,
             rho=rho,
             U_inf=U_inf,
-            c=chord,
+            ref_chord=ref_chord,
         )
 
         # Calculating Circulation
-        Gamma = calculating_circulation.calculate_circulation(df, d2curve)
+        Gamma = calculating_circulation.calculate_circulation(
+            df, d2curve, is_with_smoothing
+        )
 
         F_kutta = rho * U_inf * Gamma / (0.5 * rho * U_inf**2 * chord)
 
@@ -506,6 +516,55 @@ def load_saved_results(
     return results_dict
 
 
+def load_saved_results_skip_first_line(
+    alpha,
+    y_num,
+    parameter_names,
+    data_types=["CFD", "PIV"],
+):
+    """
+    Load parameter sweep results from CSV files into a nested dictionary,
+    skipping the first line of data but retaining the headers.
+
+    Args:
+        alpha: Angle of attack.
+        y_num: Y value index.
+        parameter_names: List of parameters to load.
+        data_types: Types of data to collect.
+        project_dir: Base directory for loading the files.
+
+    Returns:
+        dict: Nested dictionary of loaded results.
+    """
+
+    # Define the folder path
+    folder_path = Path(project_dir) / "processed_data" / "convergence_study"
+
+    # Initialize the results dictionary
+    results_dict = {data_type: {} for data_type in data_types}
+
+    # Iterate over data types and parameters
+    for data_type in data_types:
+        for param in parameter_names:
+            results_dict[data_type][param] = {}
+
+            # Load results for Ellipse and Rectangle
+            for shape in ["Ellipse", "Rectangle"]:
+                file_path = (
+                    folder_path
+                    / f"alpha_{alpha}_Y{y_num}_{data_type}_{shape}_{param}.csv"
+                )
+                if file_path.exists():
+                    df = pd.read_csv(file_path)
+                    # skipping the first line of data is this somehow fucks up the plots
+                    df = df.iloc[1:]
+                    results_dict[data_type][param][shape] = df
+                else:
+                    print(f"File not found: {file_path}")
+
+    return results_dict
+
+
 def plot_noca_coefficients_grid(
     alpha: int,
     y_num: int,
@@ -536,8 +595,8 @@ def plot_noca_coefficients_grid(
     # results_dict = _collect_parameter_results(
     #     alpha, y_num, parameter_names, data_types, is_small_piv, fast_factor
     # )
-    # results_dict = load_results_to_dict(alpha, y_num, parameter_names)
-    results_dict = load_saved_results(alpha, y_num, parameter_names)
+    # results_dict = load_saved_results(alpha, y_num, parameter_names)
+    results_dict = load_saved_results_skip_first_line(alpha, y_num, parameter_names)
 
     # Create figure and axes
     fig, axes = plt.subplots(2, 3, figsize=(16, 10))
@@ -564,11 +623,17 @@ def plot_noca_coefficients_grid(
             "ylabel": "$C_l$ [-]",
             "title_template": "{param} Effect on $C_l$",
         },
-        "C_d": {
+        # "C_d": {
+        #     "row": 1,
+        #     "ylim": (-0.2, 0.4),
+        #     "ylabel": "$C_d$ [-]",
+        #     "title_template": "{param} Effect on $C_d$",
+        # },
+        "Gamma": {
             "row": 1,
-            "ylim": (-0.2, 0.4),
-            "ylabel": "$C_d$ [-]",
-            "title_template": "{param} Effect on $C_d$",
+            "ylim": (-0.3, 4),
+            "ylabel": "$\Gamma$ [-]",
+            "title_template": "{param} Effect on $\Gamma$",
         },
     }
 
@@ -603,8 +668,10 @@ def plot_noca_coefficients_grid(
                     linestyle = "-" if key == "Ellipse" else "--"
                     if coef_type == "C_l" and param == "iP":
                         label = f"{data_type} {key}"
+                        is_with_legend = True
                     else:
-                        label = None
+                        label = False
+                        is_with_legend = False
 
                     # determine if y-label/x-label should be present
                     if param == "iP":
@@ -612,7 +679,7 @@ def plot_noca_coefficients_grid(
                     else:
                         is_ylabel = False
 
-                    if coef_type == "C_d":
+                    if coef_type == "C_d" or coef_type == "Gamma":
                         is_xlabel = True
                     else:
                         is_xlabel = False
@@ -631,6 +698,7 @@ def plot_noca_coefficients_grid(
                         is_with_y_label=is_ylabel,
                         is_with_x_tick_label=is_xlabel,
                         is_with_y_tick_label=is_ylabel,
+                        is_with_legend=is_with_legend,
                     )
 
                     # Adding markers with coloring based on perc_of_interpolated_points
@@ -652,32 +720,32 @@ def plot_noca_coefficients_grid(
             # ax.set_title(plot_config["title_template"].format(param=param))
             ax.set_ylim(plot_config["ylim"])
 
-    ## Adding legend
-    # Initialize an empty list to collect all handles and labels
-    handles, labels = [], []
-
-    # Loop through each axis and collect handles and labels
-    for ax in fig.axes:
-        ax_handles, ax_labels = ax.get_legend_handles_labels()
-        handles.extend(ax_handles)
-        labels.extend(ax_labels)
-
     plt.tight_layout()
 
-    fig.legend(
-        handles,
-        labels,
-        loc="lower center",  # Position the legend at the bottom center
-        ncol=4,
-        bbox_to_anchor=(
-            0.5,
-            0.001,
-        ),  # Fine-tune position (centered, slightly below the figure)
-    )
-    # Add a combined legend at the bottom of the figure
-    fig.subplots_adjust(
-        bottom=0.1
-    )  # Increase the bottom margin (0.3 is an example, adjust as needed)
+    # ## Adding legend
+    # # Initialize an empty list to collect all handles and labels
+    # handles, labels = [], []
+
+    # # Loop through each axis and collect handles and labels
+    # for ax in fig.axes:
+    #     ax_handles, ax_labels = ax.get_legend_handles_labels()
+    #     handles.extend(ax_handles)
+    #     labels.extend(ax_labels)
+
+    # fig.legend(
+    #     handles,
+    #     labels,
+    #     loc="lower center",  # Position the legend at the bottom center
+    #     ncol=4,
+    #     bbox_to_anchor=(
+    #         0.5,
+    #         0.001,
+    #     ),  # Fine-tune position (centered, slightly below the figure)
+    # )
+    # # Add a combined legend at the bottom of the figure
+    # fig.subplots_adjust(
+    #     bottom=0.1
+    # )  # Increase the bottom margin (0.3 is an example, adjust as needed)
 
     # Save figure if path provided
     if save_path is not None:
@@ -687,6 +755,10 @@ def plot_noca_coefficients_grid(
         print(f"Figure saved to {save_path}")
 
     return fig, axes
+
+
+# TODO: if you are happy with noca and kutta results
+# then rerun all these, but change hte size to 5% width instead of 10%
 
 
 def main():
@@ -699,10 +771,10 @@ def main():
 
     for alpha in [6]:
         for y_num in [1, 2, 3, 4, 5]:
-            storing_and_collecting_results(
-                alpha, y_num, parameter_names, fast_factor=fast_factor
-            )
-            storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
+            # storing_and_collecting_results(
+            #     alpha, y_num, parameter_names, fast_factor=fast_factor
+            # )
+            # storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
             save_path = (
                 Path(project_dir)
@@ -721,10 +793,10 @@ def main():
 
     for alpha in [16]:
         for y_num in [1]:
-            storing_and_collecting_results(
-                alpha, y_num, parameter_names, fast_factor=fast_factor
-            )
-            storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
+            # storing_and_collecting_results(
+            #     alpha, y_num, parameter_names, fast_factor=fast_factor
+            # )
+            # storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
             save_path = (
                 Path(project_dir)

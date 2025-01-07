@@ -8,8 +8,7 @@ from defining_bound_volume import boundary_ellipse, boundary_rectangle
 
 
 def calculate_circulation(
-    df_1D: pd.DataFrame,
-    d2curve: np.ndarray,
+    df_1D: pd.DataFrame, d2curve: np.ndarray, is_with_smoothing: bool = False
 ) -> float:
     """
     Calculates the circulation around a boundary curve using linear interpolation and trapezoidal integration.
@@ -42,6 +41,20 @@ def calculate_circulation(
     d2u = reshape_remove_nans(df_1D["u"], n_rows, n_cols)
     d2v = reshape_remove_nans(df_1D["v"], n_rows, n_cols)
 
+    if is_with_smoothing:
+        # Smooth data
+        from scipy.signal import convolve2d
+
+        def conv2(x, y, mode="same"):
+            return np.rot90(convolve2d(np.rot90(x, 2), np.rot90(y, 2), mode=mode), 2)
+
+        # Data smoothing
+        bsmooth = True
+        ismooth = 9
+        if bsmooth:
+            d2u = conv2(d2u, np.ones((ismooth, ismooth)) / (ismooth**2), mode="same")
+            d2v = conv2(d2v, np.ones((ismooth, ismooth)) / (ismooth**2), mode="same")
+
     # Interpolate u and v values at each boundary point on the curve
     d1u = interp2d_batch(d2x, d2y, d2u, d2curve)
     d1v = interp2d_batch(d2x, d2y, d2v, d2curve)
@@ -61,6 +74,7 @@ def main(
     dLx: float,
     dLy: float,
     iP: int,
+    is_with_smoothing: bool = False,
 ) -> float:
     """
     Defines an elliptical boundary and calculates the circulation using data from a CSV file.
@@ -91,7 +105,7 @@ def main(
         d2curve = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
 
     # Calculate circulation using the previously defined function
-    dGamma = calculate_circulation(df, d2curve)
+    dGamma = calculate_circulation(df, d2curve, is_with_smoothing)
 
     return dGamma
 

@@ -112,6 +112,12 @@ def computing_gamma_and_noca_fx_fy(
                     )
                     continue
 
+                ## setting the smoothing on
+                is_with_smoothing = True
+
+            else:  # if CFD data
+                is_with_smoothing = False
+
             # Determine boundary based on shape (ellipse or rectangle)
             if is_ellipse:
                 d2curve = boundary_ellipse(
@@ -131,7 +137,7 @@ def computing_gamma_and_noca_fx_fy(
                 )
 
             # Calculate circulation for current parameters
-            circulation = calculate_circulation(current_df, d2curve)
+            circulation = calculate_circulation(current_df, d2curve, is_with_smoothing)
             gamma_list.append(circulation)
 
             # Computing NOCA
