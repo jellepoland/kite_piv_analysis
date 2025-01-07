@@ -620,7 +620,7 @@ def plot_noca_coefficients_grid(
         "C_l": {
             "row": 0,
             "ylim": (0.2, 1.2),
-            "ylabel": "$C_l$ [-]",
+            "ylabel": "$C_{\mathrm{l, NOCA}}$ [-]",
             "title_template": "{param} Effect on $C_l$",
         },
         # "C_d": {
