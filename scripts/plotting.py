@@ -905,6 +905,9 @@ def add_vertical_colorbar_for_row(
     if label is None:
         label = plot_params["color_data_col_name"]
 
+        if label == "u" or label == "v" or label == "w" or label == "V":
+            label = f"${label}$\n" + r"[ms$^{{-1}}$]"
+
     cbar.set_label(
         label,
         labelpad=labelpad,

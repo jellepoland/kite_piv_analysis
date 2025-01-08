@@ -19,7 +19,7 @@ def plotting_qualitative_CFD_PIV(plot_params: dict) -> None:
     fig, axes = plt.subplots(
         n_rows,
         n_cols,
-        figsize=(10, int(20 * (n_rows / 6))),
+        figsize=(10.5, 13.6),  # int(20 * (n_rows / 6))),
         gridspec_kw={
             "hspace": -0.01,  # A bit more vertical space for labels
             "wspace": 0.07,
@@ -83,8 +83,8 @@ def plotting_qualitative_CFD_PIV(plot_params: dict) -> None:
             fig,
             axes[row, :],
             current_params_piv,
-            label=f"$Y{y_num}$",
-            labelpad=16,
+            label=f"$Y{y_num}$\n$|V|$\n" + r"[ms$^{-1}$]",
+            labelpad=21,
             fontsize=13,
         )
 
@@ -95,6 +95,7 @@ def plotting_qualitative_CFD_PIV(plot_params: dict) -> None:
         / "paper_plots"
         / "qualitative_comparison_CFD_PIV.pdf"
     )
+    plt.tight_layout()
     fig.savefig(save_path)
     plt.close()
 

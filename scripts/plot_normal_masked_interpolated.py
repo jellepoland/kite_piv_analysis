@@ -153,11 +153,12 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
     fig, axes = plt.subplots(
         3,
         2,
-        figsize=(10, 10),
+        figsize=(10.5, 10),
         gridspec_kw={"hspace": 0.01, "wspace": 0.07},
     )  # Minimal spacing for compact layout
 
     data_labels = ["u", "v", "w"]
+
     plot_params.update(
         {
             "is_with_interpolation": False,
@@ -217,13 +218,14 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
             )
 
         # adding cbar
-        add_vertical_colorbar_for_row(fig, axes[i, :], plot_params)
+        add_vertical_colorbar_for_row(fig, axes[i, :], plot_params, labelpad=21)
 
         ### Reset things
         plot_params["min_cbar_value"] = None
         plot_params["max_cbar_value"] = None
 
-        # Save the plot
+    plt.tight_layout()
+    # Save the plot
     save_path = (
         Path(project_dir)
         / "results"

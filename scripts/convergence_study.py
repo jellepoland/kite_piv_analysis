@@ -610,7 +610,7 @@ def plot_noca_coefficients_grid(
 
     # Mapping of parameters to their bounds and labels
     param_config = {
-        "iP": {"bound": iP, "label": r"$N_{\textrm{b}}$"},
+        "iP": {"bound": iP, "label": r"$N_{\textrm{b}} [-]$"},
         "dLx": {"bound": dLx, "label": r"$W_{\textrm{b}}$ [m]"},
         "dLy": {"bound": dLy, "label": r"$H_{\textrm{b}}$ [m]"},
     }

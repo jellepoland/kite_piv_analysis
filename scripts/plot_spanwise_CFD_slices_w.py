@@ -469,7 +469,7 @@ def plot_contour_with_colored_data(plot_params, mask_bound=3):
     fig, axes = plt.subplots(
         1,
         2,
-        figsize=(10, 5),
+        figsize=(10.5, 5),
         gridspec_kw={
             "hspace": 0.01,  # A bit more vertical space for labels
             "wspace": 0.07,
@@ -605,16 +605,19 @@ def plot_contour_with_colored_data(plot_params, mask_bound=3):
 
     # Add a single colorbar for the entire figure
     plot_params["cax"] = curr_plot_params["cax"]
-    add_vertical_colorbar_for_row(fig, axes[:], plot_params)
+    add_vertical_colorbar_for_row(
+        fig, axes[:], plot_params, label=f"$w$\n" + r"[ms$^{-1}$]", labelpad=21
+    )
 
+    plt.tight_layout()
     # Save the plot
     save_path = (
         Path(project_dir)
         / "results"
         / "paper_plots"
-        / "spanwise_CFD_alpha_comparison.png"
+        / "spanwise_CFD_alpha_comparison.pdf"
     )
-    fig.savefig(save_path, dpi=600)
+    fig.savefig(save_path)  # , dpi=600)
     plt.close()
 
 

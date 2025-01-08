@@ -278,7 +278,7 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
     fig, axes = plt.subplots(
         n_rows,
         n_cols,
-        figsize=(4 * n_cols, 5 * (n_rows - 1)),
+        figsize=(4 * n_cols, 5 * (n_rows - 1) - 1),
         gridspec_kw={
             "hspace": 0.07,  # Vertical space between rows
             "wspace": -0.11,  # Horizontal space between columns
@@ -560,21 +560,21 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
             # Add colorbar for each row
             if col == 0:
                 if color_name == "u":
-                    label = r"$u$ [m/s]"
+                    label = r"$u$" + f"\n" + r"[ms$^{-1}$]"
                 elif color_name == "v":
-                    label = r"$v$ [m/s]"
+                    label = r"$v$" + f"\n" + r"[ms$^{-1}$]"
                 elif color_name == "w":
-                    label = r"$w$ [m/s]"
+                    label = r"$w$" + f"\n" + r"[ms$^{-1}$]"
                 elif color_name == "Q":
-                    label = r"$Q$ [1/s]"
+                    label = r"$Q$"
                 elif color_name == "lambda2":
-                    label = r"$\lambda_{\mathrm{2}}$ [1/s]"
+                    label = r"$\lambda_{\mathrm{2}}$" + f"\n" + r"[s$^{-1}$]"
                 add_vertical_colorbar_for_row(
                     fig,
                     ax_row_list[row],
                     curr_plot_params,
                     label=label,
-                    labelpad=25,
+                    labelpad=21,
                     x_offset=0.03,
                 )
 
@@ -585,6 +585,7 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
         / "paper_plots"
         / f"spanwise_CFD_comparison_v_and_p_x_{x_cm_values[0]}_to_{x_cm_values[-1]}.png"
     )
+    plt.tight_layout()
     fig.savefig(save_path, dpi=500)
     plt.close()
 

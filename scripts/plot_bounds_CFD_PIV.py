@@ -150,8 +150,8 @@ def main() -> None:
             fig,
             axes[row, :],
             current_params_piv,
-            label=f"$Y{y_num}$",
-            labelpad=16,
+            label=f"$Y{y_num}$\n$|V|$\n" + r"[ms$^{-1}$]",
+            labelpad=21,
             fontsize=13,
         )
 
