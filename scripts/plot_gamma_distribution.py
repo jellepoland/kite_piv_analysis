@@ -20,95 +20,162 @@ from plotting import (
 )
 
 
+# def create_wing_aero(
+#     file_path,
+#     n_panels,
+#     spanwise_panel_distribution,
+#     is_with_corrected_polar=False,
+#     path_polar_data_dir="",
+# ):
+#     df = pd.read_csv(file_path, delimiter=",")  # , skiprows=1)
+#     LE_x_array = df["LE_x"].values
+#     LE_y_array = df["LE_y"].values
+#     LE_z_array = df["LE_z"].values
+#     TE_x_array = df["TE_x"].values
+#     TE_y_array = df["TE_y"].values
+#     TE_z_array = df["TE_z"].values
+#     d_tube_array = df["d_tube"].values
+#     camber_array = df["camber"].values
+
+#     print(f"LE_x_array: {LE_x_array}")
+
+#     ## populating this list
+#     rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs = []
+
+#     for i in range(len(LE_x_array)):
+#         LE = np.array([LE_x_array[i], LE_y_array[i], LE_z_array[i]])
+#         TE = np.array([TE_x_array[i], TE_y_array[i], TE_z_array[i]])
+#         rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs.append(
+#             [LE, TE, ["lei_airfoil_breukels", [d_tube_array[i], camber_array[i]]]]
+#         )
+#     CAD_wing = Wing(n_panels, spanwise_panel_distribution)
+
+#     for i, CAD_rib_i in enumerate(
+#         rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs
+#     ):
+#         CAD_rib_i_0 = CAD_rib_i[0]
+#         CAD_rib_i_1 = CAD_rib_i[1]
+
+#         if is_with_corrected_polar:
+#             ### using corrected polar
+#             df_polar_data = pd.read_csv(
+#                 Path(path_polar_data_dir) / f"corrected_polar_{i}.csv"
+#             )
+#             alpha = df_polar_data["alpha"].values
+#             cl = df_polar_data["cl"].values
+#             cd = df_polar_data["cd"].values
+#             cm = df_polar_data["cm"].values
+#             polar_data = ["polar_data", np.array([alpha, cl, cd, cm])]
+#             CAD_wing.add_section(CAD_rib_i_0, CAD_rib_i_1, polar_data)
+#         else:
+#             ### using breukels
+#             CAD_wing.add_section(CAD_rib_i_0, CAD_rib_i_1, CAD_rib_i[2])
+
+#     wing_aero = WingAerodynamics([CAD_wing])
+
+#     return wing_aero
+
+
 def get_VSM_gamma_distribution():
-    # Defining discretisation
-    n_panels = 54
-    spanwise_panel_distribution = "split_provided"
+    # # Defining discretisation
+    # n_panels = 54
+    # spanwise_panel_distribution = "split_provided"
 
-    ### rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs
-    vsm_input_path = Path(project_dir) / "data" / "vsm_input"
-    csv_file_path = (
-        Path(vsm_input_path)
-        / "TUDELFT_V3_LEI_KITE_rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs.csv"
+    # ### rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs
+    # vsm_input_path = Path(project_dir) / "data" / "vsm_input"
+    # csv_file_path = (
+    #     Path(vsm_input_path)
+    #     / "TUDELFT_V3_LEI_KITE_rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs.csv"
+    # )
+    # (
+    #     LE_x_array,
+    #     LE_y_array,
+    #     LE_z_array,
+    #     TE_x_array,
+    #     TE_y_array,
+    #     TE_z_array,
+    #     d_tube_array,
+    #     camber_array,
+    # ) = np.loadtxt(csv_file_path, delimiter=",", skiprows=1, unpack=True)
+    # rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs = []
+
+    # for i in range(len(LE_x_array)):
+    #     LE = np.array([LE_x_array[i], LE_y_array[i], LE_z_array[i]])
+    #     TE = np.array([TE_x_array[i], TE_y_array[i], TE_z_array[i]])
+    #     rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs.append(
+    #         [LE, TE, ["lei_airfoil_breukels", [d_tube_array[i], camber_array[i]]]]
+    #     )
+    # CAD_wing = Wing(n_panels, spanwise_panel_distribution)
+
+    # for i, CAD_rib_i in enumerate(
+    #     rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs
+    # ):
+    #     # Scaling down to WindTunnelModel Size
+    #     CAD_rib_i[0] = CAD_rib_i[0] / 6.5
+    #     CAD_rib_i[1] = CAD_rib_i[1] / 6.5
+
+    #     ### using breukels
+    #     CAD_wing.add_section(CAD_rib_i[0], CAD_rib_i[1], CAD_rib_i[2])
+
+    # # wing_aero = WingAerodynamics([CAD_wing])
+    # vsm_input_path = Path(project_dir) / "data" / "vsm_input"
+    # wing_aero = create_wing_aero(
+    #     file_path=Path(vsm_input_path) / "geometry_corrected.csv",
+    #     n_panels=150,
+    #     spanwise_panel_distribution="linear",
+    #     is_with_corrected_polar=True,
+    #     path_polar_data_dir=Path(vsm_input_path) / "polar_csv_files",
+    # )
+
+    # # Solvers
+
+    # VSM_solver = Solver(
+    #     aerodynamic_model_type="VSM",
+    #     is_with_artificial_damping=False,
+    # )
+
+    # # setting va
+    # def setting_va(
+    #     wing_aero: object,
+    #     Umag: float,
+    #     angle_of_attack: float,
+    #     side_slip: float = 0,
+    #     yaw_rate: float = 0,
+    # ):
+    #     aoa_rad = np.deg2rad(angle_of_attack)
+    #     side_slip = np.deg2rad(side_slip)
+    #     vel_app = (
+    #         np.array(
+    #             [
+    #                 np.cos(aoa_rad) * np.cos(side_slip),
+    #                 np.sin(side_slip),
+    #                 np.sin(aoa_rad),
+    #             ]
+    #         )
+    #         * Umag
+    #     )
+    #     wing_aero.va = (vel_app, yaw_rate)
+    #     return wing_aero
+
+    # Umag = 3.15 * (4.2 / 5.6)
+    # angle_of_attack = 6
+    # side_slip = 0
+    # yaw_rate = 0
+
+    # wing_aero = setting_va(wing_aero, Umag, angle_of_attack, side_slip, yaw_rate)
+    # ### plotting distributions
+    # results = VSM_solver.solve(wing_aero)
+    # CAD_y_coordinates = [panels.aerodynamic_center[1] for panels in wing_aero.panels]
+    # VSM_gamma_distribution = results["gamma_distribution"]
+
+    # # Converting the
+
+    df = pd.read_csv(
+        Path(project_dir) / "data" / "vsm_input" / "PIV_gamma_distribution.csv",
+        index_col=False,
     )
-    (
-        LE_x_array,
-        LE_y_array,
-        LE_z_array,
-        TE_x_array,
-        TE_y_array,
-        TE_z_array,
-        d_tube_array,
-        camber_array,
-    ) = np.loadtxt(csv_file_path, delimiter=",", skiprows=1, unpack=True)
-    rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs = []
-
-    for i in range(len(LE_x_array)):
-        LE = np.array([LE_x_array[i], LE_y_array[i], LE_z_array[i]])
-        TE = np.array([TE_x_array[i], TE_y_array[i], TE_z_array[i]])
-        rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs.append(
-            [LE, TE, ["lei_airfoil_breukels", [d_tube_array[i], camber_array[i]]]]
-        )
-    CAD_wing = Wing(n_panels, spanwise_panel_distribution)
-
-    for i, CAD_rib_i in enumerate(
-        rib_list_from_CAD_LE_TE_and_surfplan_d_tube_camber_19ribs
-    ):
-        # Scaling down to WindTunnelModel Size
-        CAD_rib_i[0] = CAD_rib_i[0] / 6.5
-        CAD_rib_i[1] = CAD_rib_i[1] / 6.5
-
-        ### using breukels
-        CAD_wing.add_section(CAD_rib_i[0], CAD_rib_i[1], CAD_rib_i[2])
-
-    wing_aero_CAD_19ribs = WingAerodynamics([CAD_wing])
-
-    # Solvers
-
-    VSM_solver = Solver(
-        aerodynamic_model_type="VSM",
-        is_with_artificial_damping=True,
-    )
-
-    # setting va
-    def setting_va(
-        wing_aero: object,
-        Umag: float = 3.15,
-        angle_of_attack: float = 10,
-        side_slip: float = 0,
-        yaw_rate: float = 0,
-    ):
-        aoa_rad = np.deg2rad(angle_of_attack)
-        side_slip = np.deg2rad(side_slip)
-        vel_app = (
-            np.array(
-                [
-                    np.cos(aoa_rad) * np.cos(side_slip),
-                    np.sin(side_slip),
-                    np.sin(aoa_rad),
-                ]
-            )
-            * Umag
-        )
-        wing_aero.va = (vel_app, yaw_rate)
-        return wing_aero
-
-    Umag = 15
-    angle_of_attack = 6
-    side_slip = 0
-    yaw_rate = 0
-
-    wing_aero_CAD_19ribs = setting_va(
-        wing_aero_CAD_19ribs, Umag, angle_of_attack, side_slip, yaw_rate
-    )
-    ### plotting distributions
-    results = VSM_solver.solve(wing_aero_CAD_19ribs)
-    CAD_y_coordinates = [
-        panels.aerodynamic_center[1] for panels in wing_aero_CAD_19ribs.panels
-    ]
-    VSM_gamma_distribution = results["gamma_distribution"]
-
-    # Converting the
+    VSM_gamma_distribution = df["gamma_polar"].values
+    CAD_y_coordinates = df["y"].values
 
     return VSM_gamma_distribution, CAD_y_coordinates
 
@@ -143,7 +210,7 @@ def plot_gamma_distribution(save_path):
         x=CAD_y_coordinates,
         y=VSM_gamma_distribution,
         label="VSM",
-        x_label=r"y [m]",
+        x_label=r"$y$ [m]",
         y_label=r"$\Gamma$ [m$^2$/s]",  # r"$\Gamma [$m^2$/s]",
         # title="VSM gamma distribution",
     )
@@ -186,7 +253,7 @@ def plot_gamma_distribution(save_path):
 
     ax.set_xlim(0, 0.7)
     ax.set_ylim(0, 2.5)
-    ax.set_xlabel(r"y [m]")
+    ax.set_xlabel(r"$y$ [m]")
     ax.set_ylabel(r"$\Gamma$ [m$^2$/s]")
     plt.legend()
     plt.tight_layout()

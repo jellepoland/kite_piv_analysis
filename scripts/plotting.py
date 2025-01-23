@@ -758,11 +758,11 @@ def plotting_on_ax(
     if is_label_bottom and is_with_xlabel:
         ax.xaxis.set_label_position("bottom")  # Set the label position to the bottom
         ax.xaxis.tick_bottom()  # Ensure ticks are also on the bottom
-        ax.set_xlabel("x [m]")  # Set the x-axis label
+        ax.set_xlabel("$x$ [m]")  # Set the x-axis label
     elif is_with_xlabel:
         ax.xaxis.set_label_position("top")  # Set the label position to the top
         ax.xaxis.tick_top()  # Ensure ticks are also on the top
-        ax.set_xlabel("x [m]")  # Set the x-axis label
+        ax.set_xlabel("$x$ [m]")  # Set the x-axis label
     else:
         ax.set_xlabel(None)
         ax.tick_params(labelbottom=False, labeltop=False)
@@ -770,11 +770,11 @@ def plotting_on_ax(
     if is_label_left and is_with_ylabel:
         ax.yaxis.set_label_position("left")  # Set the label position to the left
         ax.yaxis.tick_left()  # Ensure ticks are also on the left
-        ax.set_ylabel("z [m]")  # Set the y-axis label
+        ax.set_ylabel("$z$ [m]")  # Set the y-axis label
     elif is_with_ylabel:
         ax.yaxis.set_label_position("right")  # Set the label position to the right
         ax.yaxis.tick_right()  # Ensure ticks are also on the right
-        ax.set_ylabel("z [m]")  # Set the y-axis label
+        ax.set_ylabel("$z$ [m]")  # Set the y-axis label
     else:
         ax.set_ylabel(None)
         ax.tick_params(labelleft=False, labelright=False)

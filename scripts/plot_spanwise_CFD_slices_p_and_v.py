@@ -543,17 +543,17 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
 
             # Tick and label management
             if col == n_cols - 1:
-                ax.set_ylabel("z [m]")
+                ax.set_ylabel("$z$ [m]")
                 ax.yaxis.set_label_position("right")
                 ax.tick_params(labelleft=False, labelright=True, labelbottom=False)
             else:
                 ax.tick_params(labelleft=False, labelbottom=False)
 
             if row == (n_rows - 1):
-                ax.set_xlabel("y [m]")
+                ax.set_xlabel("$y$ [m]")
                 ax.tick_params(labelbottom=True)
             if row == 0:
-                ax.set_title(f"x/c = {x_cm/100:.2f}")
+                ax.set_title(r"$x$/$c$" + f" = {x_cm/100:.2f}")
             elif row == n_rows - 1:
                 ax.tick_params(labelbottom=True)
 

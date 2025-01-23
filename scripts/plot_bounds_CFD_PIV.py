@@ -105,10 +105,16 @@ def main() -> None:
         # Add main figure title for first and last rows
         if row == 0:
             axes[row, 0].set_title(
-                rf"CFD for $\alpha$ = {alpha}", fontsize=14, fontweight="bold", pad=5
+                rf"CFD for $\alpha$ = {alpha}" + r"$^{\circ}$",
+                fontsize=14,
+                fontweight="bold",
+                pad=5,
             )
             axes[row, 1].set_title(
-                rf"PIV for $\alpha$ = {alpha}", fontsize=14, fontweight="bold", pad=5
+                rf"PIV for $\alpha$ = {alpha}" + r"$^{\circ}$",
+                fontsize=14,
+                fontweight="bold",
+                pad=5,
             )
         if row == (n_rows - 1):
             is_with_xlabel = True

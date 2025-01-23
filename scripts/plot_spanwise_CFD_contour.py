@@ -43,8 +43,8 @@ def plot_spanwise_contour(curr_plot_params):
 
     ax.set_aspect("equal", adjustable="box")
     # ax.set_title(f"Spanwise Contour at \u03B1 = {alpha}", fontsize=10)
-    ax.set_xlabel("y [m]")
-    ax.set_ylabel("z [m]")
+    ax.set_xlabel("$y$ [m]")
+    ax.set_ylabel("$z$ [m]")
 
     # Define custom green color (e.g., RGB values or hex code)
     custom_green = "#00FF00"  # Example hex color for a green shade
@@ -75,8 +75,8 @@ def plot_spanwise_contour(curr_plot_params):
             y_coord,
             linewidth=2,
             color=custom_green,
-            x_label="y [m]",
-            y_label="z [m]",
+            x_label="$y$ [m]",
+            y_label="$z$ [m]",
             is_with_grid=False,
         )
         # Add labels at the top of the lines
