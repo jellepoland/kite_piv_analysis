@@ -221,7 +221,7 @@ def plot_variable_on_ax(
         # is_with_x_ticks=is_xlabel,
         is_with_x_tick_label=is_xlabel,
         x_label="Number of samples",
-        y_label=f"${variable}$ " + r"[ms$^{-1}$]",
+        y_label=f"${variable}$ " + r"(ms$^{-1}$)",
         is_with_legend=False,
     )
 

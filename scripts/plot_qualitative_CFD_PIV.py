@@ -89,7 +89,7 @@ def plotting_qualitative_CFD_PIV(plot_params: dict) -> None:
             fig,
             axes[row, :],
             current_params_piv,
-            label=f"$Y{y_num}$\n$|V|$\n" + r"[ms$^{-1}$]",
+            label=f"$Y{y_num}$\n$|V|$\n" + r"(ms$^{-1}$)",
             labelpad=21,
             fontsize=13,
         )

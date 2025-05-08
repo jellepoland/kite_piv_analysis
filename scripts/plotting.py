@@ -579,6 +579,7 @@ def add_boundaries(ax, plot_params):
             alpha=bound_alpha,
         )
     d2curve_rectangle = boundary_rectangle(d1centre, drot, dLx, dLy, iP)
+
     ax.plot(
         d2curve_rectangle[:, 0],  # x-coordinates of the boundary
         d2curve_rectangle[:, 1],  # y-coordinates of the boundary
@@ -758,11 +759,11 @@ def plotting_on_ax(
     if is_label_bottom and is_with_xlabel:
         ax.xaxis.set_label_position("bottom")  # Set the label position to the bottom
         ax.xaxis.tick_bottom()  # Ensure ticks are also on the bottom
-        ax.set_xlabel("$x$ [m]")  # Set the x-axis label
+        ax.set_xlabel("$x$ (m)")  # Set the x-axis label
     elif is_with_xlabel:
         ax.xaxis.set_label_position("top")  # Set the label position to the top
         ax.xaxis.tick_top()  # Ensure ticks are also on the top
-        ax.set_xlabel("$x$ [m]")  # Set the x-axis label
+        ax.set_xlabel("$x$ (m)")  # Set the x-axis label
     else:
         ax.set_xlabel(None)
         ax.tick_params(labelbottom=False, labeltop=False)
@@ -770,11 +771,11 @@ def plotting_on_ax(
     if is_label_left and is_with_ylabel:
         ax.yaxis.set_label_position("left")  # Set the label position to the left
         ax.yaxis.tick_left()  # Ensure ticks are also on the left
-        ax.set_ylabel("$z$ [m]")  # Set the y-axis label
+        ax.set_ylabel("$z$ (m)")  # Set the y-axis label
     elif is_with_ylabel:
         ax.yaxis.set_label_position("right")  # Set the label position to the right
         ax.yaxis.tick_right()  # Ensure ticks are also on the right
-        ax.set_ylabel("$z$ [m]")  # Set the y-axis label
+        ax.set_ylabel("$z$ (m)")  # Set the y-axis label
     else:
         ax.set_ylabel(None)
         ax.tick_params(labelleft=False, labelright=False)
@@ -870,7 +871,7 @@ def add_colorbar(fig, ax, plot_params, is_horizontal: bool = True):
 
 
 def add_vertical_colorbar_for_row(
-    fig, axes_row, plot_params, label=None, fontsize=17, labelpad=10, x_offset=0.03
+    fig, axes_row, plot_params, label=None, fontsize=17, labelpad=11, x_offset=0.025
 ):
     cax = plot_params["cax"]
     vmin = plot_params["min_cbar_value"]
@@ -899,14 +900,14 @@ def add_vertical_colorbar_for_row(
     #     cbar.ax.yaxis.set_major_locator(plt.MaxNLocator(6))
     # elif plot_params["color_data_col_name"] == "v":
     #     cbar.ax.yaxis.set_major_locator(plt.MaxNLocator(5))
-    # elif plot_params["color_data_col_name"] == "w":
+    # elif plot_params["color_data_col_name"] == "w(":
     #     cbar.ax.yaxis.set_major_locator(plt.MaxNLocator(6))
 
     if label is None:
         label = plot_params["color_data_col_name"]
 
         if label == "u" or label == "v" or label == "w" or label == "V":
-            label = f"${label}$\n" + r"[ms$^{{-1}}$]"
+            label = f"${label}$\n" + r"(ms$^{{-1}}$)"
 
     cbar.set_label(
         label,

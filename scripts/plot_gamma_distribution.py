@@ -203,7 +203,7 @@ def plot_gamma_distribution(save_path):
 
     ## plotting
     set_plot_style()
-    fig, ax = plt.subplots(figsize=(9, 5.5))
+    fig, ax = plt.subplots(figsize=(10, 5.5))  # 9,5.5
 
     ### bounds
     factor_ci = 1.64  # 1.96 is 95%
@@ -378,7 +378,7 @@ def plot_gamma_distribution(save_path):
         capsize=3,
         color="red",
         ecolor="red",
-        label=r"CI $\sigma_{\Gamma}$ Ellipse",
+        label=r"90\% CI $\sigma_{\Gamma}$ Ellipse",
     )
 
     # Plot rectangle points with error bars
@@ -390,7 +390,7 @@ def plot_gamma_distribution(save_path):
         capsize=3,
         color="red",
         ecolor="red",
-        label=r"CI $\sigma_{\Gamma}$ Ellipse",
+        label=r"90\% CI $\sigma_{\Gamma}$ Rectangle",
     )
 
     ax.fill_between(
@@ -398,7 +398,7 @@ def plot_gamma_distribution(save_path):
         low_bound_vel_ellipse[:6],
         up_bound_vel_ellipse[:6],
         color="red",
-        alpha=0.15,
+        alpha=0.3,
         label=r"CI $\sigma_{\Gamma,\textrm{v}}$ Ellipse",
     )
     ax.fill_between(
@@ -414,7 +414,7 @@ def plot_gamma_distribution(save_path):
     ax.set_ylim(0, 2.5)
     ax.set_xlabel(r"$y$ [m]")
     ax.set_ylabel(r"$\Gamma$ [m$^2$s$^{-1}$]")
-    plt.legend(ncol=2)
+    plt.legend(ncol=3)
     plt.tight_layout()
     plt.savefig(save_path)
 

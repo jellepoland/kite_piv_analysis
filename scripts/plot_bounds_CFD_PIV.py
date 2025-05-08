@@ -82,6 +82,12 @@ def main() -> None:
     n_rows = len(alphas)
     n_cols = 2
 
+    # TODO: create a single row plot
+    # n_rows = 1
+    # n_cols = 2
+    # alphas = [6]
+    # y_nums = [1]
+
     """Create a comparison of CFD and PIV data for different Y positions and alphas."""
     fig, axes = plt.subplots(
         n_rows,
@@ -105,13 +111,13 @@ def main() -> None:
         # Add main figure title for first and last rows
         if row == 0:
             axes[row, 0].set_title(
-                rf"CFD for $\alpha$ = {alpha}" + r"$^{\circ}$",
+                rf"CFD",
                 fontsize=14,
                 fontweight="bold",
                 pad=5,
             )
             axes[row, 1].set_title(
-                rf"PIV for $\alpha$ = {alpha}" + r"$^{\circ}$",
+                rf"PIV",
                 fontsize=14,
                 fontweight="bold",
                 pad=5,
@@ -156,7 +162,7 @@ def main() -> None:
             fig,
             axes[row, :],
             current_params_piv,
-            label=f"$Y{y_num}$\n$|V|$\n" + r"[ms$^{-1}$]",
+            label=f"$Y{y_num}$\n$|V|$\n" + r"(ms$^{-1}$)",
             labelpad=21,
             fontsize=13,
         )

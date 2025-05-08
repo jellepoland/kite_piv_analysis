@@ -543,14 +543,14 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
 
             # Tick and label management
             if col == n_cols - 1:
-                ax.set_ylabel("$z$ [m]")
+                ax.set_ylabel("$z$ (m)")
                 ax.yaxis.set_label_position("right")
                 ax.tick_params(labelleft=False, labelright=True, labelbottom=False)
             else:
                 ax.tick_params(labelleft=False, labelbottom=False)
 
             if row == (n_rows - 1):
-                ax.set_xlabel("$y$ [m]")
+                ax.set_xlabel("$y$ (m)")
                 ax.tick_params(labelbottom=True)
             if row == 0:
                 ax.set_title(r"$x$/$c$" + f" = {x_cm/100:.2f}")
@@ -560,15 +560,15 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
             # Add colorbar for each row
             if col == 0:
                 if color_name == "u":
-                    label = r"$u$" + f"\n" + r"[ms$^{-1}$]"
+                    label = r"$u$" + f"\n" + r"(ms$^{-1}$)"
                 elif color_name == "v":
-                    label = r"$v$" + f"\n" + r"[ms$^{-1}$]"
+                    label = r"$v$" + f"\n" + r"(ms$^{-1}$)"
                 elif color_name == "w":
-                    label = r"$w$" + f"\n" + r"[ms$^{-1}$]"
+                    label = r"$w$" + f"\n" + r"(ms$^{-1}$)"
                 elif color_name == "Q":
                     label = r"$Q$"
                 elif color_name == "lambda2":
-                    label = r"$\lambda_{\mathrm{2}}$" + f"\n" + r"[s$^{-1}$]"
+                    label = r"$\lambda_{\mathrm{2}}$" + f"\n" + r"(s$^{-1}$)"
                 add_vertical_colorbar_for_row(
                     fig,
                     ax_row_list[row],

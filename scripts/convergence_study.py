@@ -610,9 +610,9 @@ def plot_noca_coefficients_grid(
 
     # Mapping of parameters to their bounds and labels
     param_config = {
-        "iP": {"bound": iP, "label": r"$N_{\textrm{b}} [-]$"},
-        "dLx": {"bound": dLx, "label": r"$W_{\textrm{b}}$ [m]"},
-        "dLy": {"bound": dLy, "label": r"$H_{\textrm{b}}$ [m]"},
+        "iP": {"bound": iP, "label": r"$N_{\textrm{b}}$ (-)"},
+        "dLx": {"bound": dLx, "label": r"$W_{\textrm{b}}$ (m)"},
+        "dLy": {"bound": dLy, "label": r"$H_{\textrm{b}}$ (m)"},
     }
 
     # Plot parameters
@@ -620,7 +620,7 @@ def plot_noca_coefficients_grid(
         "C_l": {
             "row": 0,
             "ylim": (0.2, 1.2),
-            "ylabel": "$C_{\mathrm{l, NOCA}}$ [-]",
+            "ylabel": "$C_{\mathrm{l, NOCA}}$ (-)",
             "title_template": "{param} Effect on $C_l$",
         },
         # "C_d": {
@@ -632,7 +632,7 @@ def plot_noca_coefficients_grid(
         "Gamma": {
             "row": 1,
             "ylim": (-0.3, 4),
-            "ylabel": "$\Gamma$ [-]",
+            "ylabel": "$\Gamma$ (-)",
             "title_template": "{param} Effect on $\Gamma$",
         },
     }
@@ -770,7 +770,7 @@ def main():
     fast_factor = 1
 
     for alpha in [6]:
-        for y_num in [1, 2, 3, 4, 5]:
+        for y_num in [2]:  # [1, 2, 3, 4, 5]:
             # storing_and_collecting_results(
             #     alpha, y_num, parameter_names, fast_factor=fast_factor
             # )
@@ -791,27 +791,27 @@ def main():
                 fast_factor=fast_factor,
             )
 
-    for alpha in [16]:
-        for y_num in [1]:
-            # storing_and_collecting_results(
-            #     alpha, y_num, parameter_names, fast_factor=fast_factor
-            # )
-            # storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
+    # for alpha in [16]:
+    #     for y_num in [1]:
+    #         # storing_and_collecting_results(
+    #         #     alpha, y_num, parameter_names, fast_factor=fast_factor
+    #         # )
+    #         # storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
-            save_path = (
-                Path(project_dir)
-                / "results"
-                / "convergence_study"
-                / f"alpha_{alpha}"
-                / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
-            )
-            plot_noca_coefficients_grid(
-                alpha,
-                y_num,
-                save_path,
-                data_types=["CFD", "PIV"],
-                fast_factor=fast_factor,
-            )
+    #         save_path = (
+    #             Path(project_dir)
+    #             / "results"
+    #             / "convergence_study"
+    #             / f"alpha_{alpha}"
+    #             / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
+    #         )
+    #         plot_noca_coefficients_grid(
+    #             alpha,
+    #             y_num,
+    #             save_path,
+    #             data_types=["CFD", "PIV"],
+    #             fast_factor=fast_factor,
+    #         )
 
 
 if __name__ == "__main__":
