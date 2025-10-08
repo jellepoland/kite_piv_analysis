@@ -146,7 +146,7 @@ def main() -> None:
         fig,
         axes,
         current_params_piv,
-        label=f"$Y{y_num}$\n$|V|$\n(ms$^{{-1}}$)",
+        label=f"$Y{y_num}$\n$u$\n(ms$^{{-1}}$)",
         labelpad=21,
         fontsize=13,
     )

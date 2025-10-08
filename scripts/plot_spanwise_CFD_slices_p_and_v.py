@@ -560,11 +560,11 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
             # Add colorbar for each row
             if col == 0:
                 if color_name == "u":
-                    label = r"$u$" + f"\n" + r"(ms$^{-1}$)"
+                    label = r"$u_{{x}}$" + f"\n" + r"(ms$^{-1}$)"
                 elif color_name == "v":
-                    label = r"$v$" + f"\n" + r"(ms$^{-1}$)"
+                    label = r"$u_{{y}}$" + f"\n" + r"(ms$^{-1}$)"
                 elif color_name == "w":
-                    label = r"$w$" + f"\n" + r"(ms$^{-1}$)"
+                    label = r"$u_{{z}}$" + f"\n" + r"(ms$^{-1}$)"
                 elif color_name == "Q":
                     label = r"$Q$"
                 elif color_name == "lambda2":

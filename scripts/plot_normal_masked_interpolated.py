@@ -20,9 +20,10 @@ def normal_masked_interpolated(plot_params: dict) -> None:
     is_with_circulation_analysis = plot_params["is_with_circulation_analysis"]
     is_with_bound = plot_params["is_with_bound"]
     is_with_interpolation = plot_params["is_with_interpolation"]
-    data_labels = ["u", "v", "w"]
+    data_columns = ["u", "v", "w"]
+    data_labels = [r"$u_{{x}}$", r"$u_{{y}}$", r"$u_{{z}}$"]
 
-    for i, label in enumerate(data_labels):
+    for i, (column, label) in enumerate(zip(data_columns, data_labels)):
 
         if i == 2:
             is_with_xlabel = True
@@ -30,7 +31,7 @@ def normal_masked_interpolated(plot_params: dict) -> None:
             is_with_xlabel = False
 
         # Update color data label
-        plot_params["color_data_col_name"] = label
+        plot_params["color_data_col_name"] = column
 
         # ### CFD
         # plot_params["is_with_interpolation"] = False
@@ -157,7 +158,8 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
         gridspec_kw={"hspace": 0.01, "wspace": 0.07},
     )  # Minimal spacing for compact layout
 
-    data_labels = ["u", "v", "w"]
+    data_columns = ["u", "v", "w"]
+    data_labels = [r"$u_{{x}}$", r"$u_{{y}}$", r"$u_{{z}}$"]
 
     plot_params.update(
         {
@@ -167,12 +169,12 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
         }
     )
 
-    for i, label in enumerate(data_labels):
+    for i, (column, label) in enumerate(zip(data_columns, data_labels)):
         # Determine x-axis label settings
         is_with_xlabel = i == 2  # Only for the last row
 
         # Update color data label
-        plot_params["color_data_col_name"] = label
+        plot_params["color_data_col_name"] = column
 
         ### PIV raw (left column)
         plot_params["is_with_mask"] = False
@@ -218,7 +220,9 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
             )
 
         # adding cbar
-        add_vertical_colorbar_for_row(fig, axes[i, :], plot_params, labelpad=21)
+        add_vertical_colorbar_for_row(
+            fig, axes[i, :], plot_params, label=label, labelpad=21
+        )
 
         ### Reset things
         plot_params["min_cbar_value"] = None

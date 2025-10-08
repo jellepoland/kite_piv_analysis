@@ -606,7 +606,11 @@ def plot_contour_with_colored_data(plot_params, mask_bound=3):
     # Add a single colorbar for the entire figure
     plot_params["cax"] = curr_plot_params["cax"]
     add_vertical_colorbar_for_row(
-        fig, axes[:], plot_params, label=f"$w$\n" + r"(ms$^{-1}$)", labelpad=21
+        fig,
+        axes[:],
+        plot_params,
+        label=r"$u_{{y}}$" + "\n" + r"(ms$^{-1}$)",
+        labelpad=21,
     )
 
     plt.tight_layout()

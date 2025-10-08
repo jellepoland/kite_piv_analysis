@@ -33,6 +33,8 @@ def plotting_qualitative_CFD_PIV(plot_params: dict) -> None:
         current_params = plot_params.copy()
         current_params["alpha"] = alpha
         current_params["y_num"] = y_num
+
+        alpha += 1  # corrections
         print(f"Plotting α = {alpha}, Y = {y_num}")
 
         # Add main figure title for first and last rows
@@ -89,7 +91,7 @@ def plotting_qualitative_CFD_PIV(plot_params: dict) -> None:
             fig,
             axes[row, :],
             current_params_piv,
-            label=f"$Y{y_num}$\n$|V|$\n" + r"(ms$^{-1}$)",
+            label=f"$Y{y_num}$\n$u$\n" + r"(ms$^{-1}$)",
             labelpad=21,
             fontsize=13,
         )

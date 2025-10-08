@@ -192,13 +192,18 @@ def calculate_values(point_coords):
 
 
 def plot_variable_on_ax(
-    ax, variable, values_at_point_list, is_xlabel=False, is_legend=False
+    ax,
+    variable_column,
+    variable_label,
+    values_at_point_list,
+    is_xlabel=False,
+    is_legend=False,
 ):
     # Right plot: convergence plot
-    if variable == "V":
-        variable_to_be_plotted = f"Velocity |{variable}| [m/s]"
+    if variable_column == "V":
+        variable_to_be_plotted = f"Velocity |{variable_column}| [m/s]"
     else:
-        variable_to_be_plotted = f"Velocity {variable} [m/s]"
+        variable_to_be_plotted = f"Velocity {variable_column} [m/s]"
 
     # Randomly shuffle the values for convergence analysis
     shuffled_values = values_at_point_list.copy()
@@ -221,7 +226,7 @@ def plot_variable_on_ax(
         # is_with_x_ticks=is_xlabel,
         is_with_x_tick_label=is_xlabel,
         x_label="Number of samples",
-        y_label=f"${variable}$ " + r"(ms$^{-1}$)",
+        y_label=f"{variable_label} " + r"(ms$^{-1}$)",
         is_with_legend=False,
     )
 
@@ -286,9 +291,9 @@ def plot_convergence(variable, values_at_point_list, point_coords, V_values):
     # ax1.grid(False)
     ##TODO: You can add a plot, with the raw image if reviewers ask for it
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 8))
-    plot_variable_on_ax(ax1, "u", values_at_point_list, is_legend=True)
-    plot_variable_on_ax(ax2, "v", values_at_point_list)
-    plot_variable_on_ax(ax3, "w", values_at_point_list, is_xlabel=True)
+    plot_variable_on_ax(ax1, "u", r"$u_{{x}}$", values_at_point_list, is_legend=True)
+    plot_variable_on_ax(ax2, "v", r"$u_{{y}}$", values_at_point_list)
+    plot_variable_on_ax(ax3, "w", r"$u_{{z}}$", values_at_point_list, is_xlabel=True)
 
     # Adjust layout and save
     plt.tight_layout()
