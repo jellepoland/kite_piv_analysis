@@ -1,9 +1,13 @@
-cff-version: 0.0.1
+cff-version: 0.0.2
 message: "If you use this software, please cite it as below."
+authors:
 authors:
 - family-names: Poland
   given-names: Jelle
-orcid: https://orcid.org/0000-0003-3164-5648
-title:
-version: v0.0.1
+  orcid: https://orcid.org/0000-0003-3164-5648
+
+title: "Software for the paper: Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry"
+version: 0.0.2
+doi: 
 date-released: 2025-10-20
+url: "https://github.com/jellepoland/kite_piv_analysis"
