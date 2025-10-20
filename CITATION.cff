@@ -1,30 +1,9 @@
-cff-version: 1.2.0
-message: "If you are using this software, please cite it as shown below."
+cff-version: 0.0.1
+message: "If you use this software, please cite it as below."
 authors:
-  -
-    family-names: "Doe"
-    given-names: "Jane"
-    orcid: "https://orcid.org/9999-9999-9999-9999"
-title: "Name of your software"
-keywords:
-  - Wind Energy
-version: 0.1.0
-doi: "11.1111/11111"
-date-released: YYYY-MM-DD
-license: MIT
-url: "https://github.com/your_repo"
-preferred-citation:
-    type: article
-    authors:
-    - family-names: "Doe"
-      given-names: "Jane"
-      orcid: "https://orcid.org/9999-9999-9999-9999"
-    doi: "11.1111/11111"
-    journal: "The title of the journal"
-    month: 12
-    start: 19 # the first page number
-    end: 29 #the last page number
-    title: "Name of your submitted paper"
-    issue: 9
-    volume: 2
-    year: 2024
+- family-names: Poland
+  given-names: Jelle
+orcid: https://orcid.org/0000-0003-3164-5648
+title:
+version: v0.0.1
+date-released: 2025-10-20

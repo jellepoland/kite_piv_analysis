@@ -8,9 +8,9 @@ from calculating_circulation import calculate_circulation
 from utils import reading_optimal_bound_placement
 import calculating_airfoil_centre
 from defining_bound_volume import boundary_ellipse, boundary_rectangle
-from VSM.WingGeometry import Wing
-from VSM.WingAerodynamics import WingAerodynamics
-from VSM.Solver import Solver
+from VSM.core.WingGeometry import Wing
+from VSM.core.BodyAerodynamics import BodyAerodynamics
+from VSM.core.Solver import Solver
 from plot_styling import set_plot_style, plot_on_ax
 import force_from_noca
 from plotting import (
@@ -540,6 +540,16 @@ def main():
 if __name__ == "__main__":
     # main()
 
-    alpha = 6
-    y_num_list = [1, 2, 3, 4, 5, 6, 7]
-    save_results_single_alpha(alpha, y_num_list)
+    # alpha = 6
+    # y_num_list = [1, 2, 3, 4, 5, 6, 7]
+    # save_results_single_alpha(alpha, y_num_list)
+
+    Re_cfd = 1e6
+    Re_piv = 3.8e5
+    rho = 1.20
+    ref_chord = 0.39834712
+    U_inf = 15
+    mu_cfd = (rho * ref_chord * U_inf) / Re_cfd
+    mu_piv = (rho * ref_chord * U_inf) / Re_piv
+    print(f"mu_cfd: {mu_cfd}, mu_piv: {mu_piv}")
+    breakpoint()
