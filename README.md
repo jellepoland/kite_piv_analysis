@@ -1,4 +1,4 @@
-<!-- [![CODECHECK](https://codecheck.org.uk/img/codeworks-badge.svg)](https://doi.org/10.5281/zenodo.15603144) -->
+[![CODECHECK](https://codecheck.org.uk/img/codeworks-badge.svg)](https://zenodo.org/records/18890103)
 
 # Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry
 This repository contains code that generates the figures a paper, titled: ["Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry"](https://wes.copernicus.org/preprints/wes-2025-217/wes-2025-217.pdf) published open-access in Wind Energy Science.
@@ -7,16 +7,16 @@ This repository contains code that generates the figures a paper, titled: ["Flow
 1. Install the repository:
    Linux: 
     ```bash
-    git clone git@github.com:jellepoland/WES_aero_sim_for_kite_design.git && \
-    cd WES_aero_sim_for_kite_design && \
+    git clone git@github.com:jellepoland/kite_piv_analysis.git && \
+    cd kite_piv_analysis && \
     python3 -m venv venv && \
     source venv/bin/activate && \
     pip install -e .[dev]
     ```
     Windows:
     ```bash
-    git clone git@github.com:jellepoland/WES_aero_sim_for_kite_design.git; `
-    cd WES_aero_sim_for_kite_design; `
+    git clone git@github.com:jellepoland/kite_piv_analysis.git; `
+    cd kite_piv_analysis; `
     python -m venv venv; `
     .\venv\Scripts\Activate.ps1; `
     pip install -e .[dev]
