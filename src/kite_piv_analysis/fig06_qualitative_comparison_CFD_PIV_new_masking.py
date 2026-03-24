@@ -184,6 +184,67 @@ def compute_proxy_snr(df: pd.DataFrame, plot_params: dict) -> np.ndarray | None:
     return proxy
 
 
+def _fit_rear_airfoil_line(
+    plot_params: dict, rear_fraction: float = 0.5
+) -> tuple[float, float] | None:
+    """
+    Fit y = m*x + b through the rear fraction of plotted airfoil surface points.
+    """
+    try:
+        airfoil_x, airfoil_y = plot_airfoil(
+            None, plot_params, is_return_surface_points=True
+        )
+    except Exception as exc:
+        warnings.warn(
+            f"Rear-airfoil line fit skipped: unable to get airfoil points ({exc}).",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return None
+
+    x_vals = pd.to_numeric(np.asarray(airfoil_x), errors="coerce").astype(float)
+    y_vals = pd.to_numeric(np.asarray(airfoil_y), errors="coerce").astype(float)
+    finite = np.isfinite(x_vals) & np.isfinite(y_vals)
+    if finite.sum() < 2:
+        return None
+
+    x_vals = x_vals[finite]
+    y_vals = y_vals[finite]
+
+    rear_fraction = float(rear_fraction)
+    rear_fraction = min(max(rear_fraction, 0.05), 1.0)
+    x_threshold = np.quantile(x_vals, 1.0 - rear_fraction)
+    rear_mask = x_vals >= x_threshold
+    if rear_mask.sum() < 2:
+        return None
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Polyfit may be poorly conditioned")
+        slope, intercept = np.polyfit(x_vals[rear_mask], y_vals[rear_mask], 1)
+
+    if not np.isfinite(slope) or not np.isfinite(intercept):
+        return None
+    return float(slope), float(intercept)
+
+
+def _snr_region_below_rear_airfoil_line(
+    df: pd.DataFrame, plot_params: dict, rear_fraction: float = 0.5
+) -> np.ndarray | None:
+    """
+    Build a boolean mask for points below a fitted rear-airfoil diagonal line.
+    """
+    line = _fit_rear_airfoil_line(plot_params, rear_fraction=rear_fraction)
+    if line is None:
+        return None
+
+    slope, intercept = line
+    x_vals = pd.to_numeric(df["x"], errors="coerce").to_numpy()
+    y_vals = pd.to_numeric(df["y"], errors="coerce").to_numpy()
+    return np.isfinite(x_vals) & np.isfinite(y_vals) & (
+        y_vals <= (slope * x_vals + intercept)
+    )
+
+
 def apply_snr_masking(df: pd.DataFrame, plot_params: dict) -> pd.DataFrame:
     """Apply SNR-based masking if enabled (proxy SNR by default)."""
     alpha = plot_params.get("alpha", 6)
@@ -230,6 +291,16 @@ def apply_snr_masking(df: pd.DataFrame, plot_params: dict) -> pd.DataFrame:
         "snr_mask_strict": _resolve_alpha_pair_param(
             plot_params.get("snr_mask_strict", False), alpha, "snr_mask_strict"
         ),
+        "snr_apply_only_below_rear_airfoil_line": _resolve_alpha_pair_param(
+            plot_params.get("snr_apply_only_below_rear_airfoil_line", [False, True]),
+            alpha,
+            "snr_apply_only_below_rear_airfoil_line",
+        ),
+        "snr_rear_airfoil_fraction": _resolve_alpha_pair_param(
+            plot_params.get("snr_rear_airfoil_fraction", [0.5, 0.5]),
+            alpha,
+            "snr_rear_airfoil_fraction",
+        ),
     }
 
     if snr_params.get("snr_use_proxy", True):
@@ -259,6 +330,26 @@ def apply_snr_masking(df: pd.DataFrame, plot_params: dict) -> pd.DataFrame:
     mask = (snr_values < lower) | (snr_values > upper)
     if snr_params.get("snr_mask_nan_as_invalid", True):
         mask |= ~np.isfinite(snr_values)
+
+    if snr_params.get("snr_apply_only_below_rear_airfoil_line", False):
+        below_line = _snr_region_below_rear_airfoil_line(
+            df,
+            snr_params,
+            rear_fraction=snr_params.get("snr_rear_airfoil_fraction", 0.5),
+        )
+        if below_line is None:
+            if snr_params.get("snr_mask_strict", False):
+                raise ValueError(
+                    "SNR rear-airfoil line masking requested, but line fitting failed."
+                )
+            warnings.warn(
+                "SNR rear-airfoil line masking skipped: unable to fit rear-airfoil line.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+        else:
+            # Restrict SNR filtering to the region below the fitted rear-airfoil line.
+            mask &= below_line
 
     df_masked = df.copy()
     columns_to_nan = [col for col in PIV_COLUMNS_TO_NAN if col in df_masked.columns]
@@ -574,6 +665,8 @@ def main():
         "proxy_snr_min_std": [1e-6, 1e-6],
         "snr_mask_nan_as_invalid": [True, True],
         "snr_mask_strict": [False, False],
+        "snr_apply_only_below_rear_airfoil_line": [False, True],
+        "snr_rear_airfoil_fraction": [0.5, 0.5],
         "is_with_spatial_coherence_mask": False,
         "spatial_coherence_columns": ["u", "v"],
         "spatial_median_window_size": 3,
@@ -585,10 +678,10 @@ def main():
         "interpolation_method": "nearest",
         "rectangle_size": 0.05,
     }
-    # alphas = [6, 6, 6, 16]
-    # y_nums = [1, 3, 4, 1]
-    alphas = [6, 16]
-    y_nums = [1, 1]
+    alphas = [6, 6, 6, 16]
+    y_nums = [1, 3, 4, 1]
+    # alphas = [6, 16]
+    # y_nums = [1, 1]
     # alphas = [6, 6, 6, 6, 6, 6, 16, 16, 16, 16]
     # y_nums = [1, 2, 3, 4, 5, 6, 1, 2, 3, 4]
     file_name = "fig06_qualitative_comparison_CFD_PIV_new_masking"
