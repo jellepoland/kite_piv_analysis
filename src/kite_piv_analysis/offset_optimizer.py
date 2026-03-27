@@ -24,7 +24,7 @@ from kite_piv_analysis.compute_overlap_error import (
     load_dat_file_with_std,
     interpolate_to_grid,
 )
-from kite_piv_analysis.compute_overlap_error_suction_side_plot import (
+from kite_piv_analysis.TableD1_stitching_uncertainty_RMS import (
     print_stitching_uncertainty_table_flipped,
 )
 

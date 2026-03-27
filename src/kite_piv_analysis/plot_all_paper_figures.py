@@ -15,25 +15,14 @@ else:
 
 
 def main() -> None:
-    script_dir = Path(__file__).resolve().parent
-
-    for fig_num in range(4, 16):
-        if fig_num == 5:
-            continue
-
-        if fig_num == 8:
-            continue
-
-        for script_path in sorted(script_dir.glob(f"fig{fig_num:02d}_*.py")):
-            module_name = script_path.stem
-            module = importlib.import_module(f"{BASE_PACKAGE}.{module_name}")
-
-            if not hasattr(module, "main"):
-                print(f"Skipping {module_name}: no main()")
-                continue
-
-            print(f"Running {module_name}.main()")
-            module.main()
+    """
+    Backward-compatible wrapper.
+    For figures + tables, use _plot_all_figures_and_print_all_tables.py.
+    """
+    runner = importlib.import_module(
+        f"{BASE_PACKAGE}._plot_all_figures_and_print_all_tables"
+    )
+    runner.main(run_figures=True, run_tables=False, smoke=False)
 
 
 if __name__ == "__main__":

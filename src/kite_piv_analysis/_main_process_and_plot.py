@@ -31,24 +31,6 @@ if "MPLCONFIGDIR" not in os.environ:
     mpl_cache_dir.mkdir(parents=True, exist_ok=True)
     os.environ["MPLCONFIGDIR"] = str(mpl_cache_dir)
 
-# fig05 script is currently not present in scripts/
-PLOT_MODULES = [
-    "fig04_plane_location",
-    "fig06_qualitative_comparison_CFD_PIV",
-    "fig07_bounds_CFD_PIV_single_row",
-    "fig08_gamma_distribution",
-    "fig09_spanwise_CFD_comparison_v_and_p_x_10_to_50",
-    "fig10_PIV_normal_masked_Y1",
-    "fig11_spanwise_CFD_alpha_comparison",
-    "fig12_bounds_CFD_PIV",
-    "fig13_convergence_study",
-    "fig14_convergence_250im_uvw",
-    "fig15_line_interference_PIV",
-    "Table4_print_quantitative_results",
-]
-
-SMOKE_PLOT_MODULES = ["fig04_plane_location"]
-
 FULL_CONVERGENCE_PAIRS = [(6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (16, 1)]
 SMOKE_CONVERGENCE_PAIRS = [(6, 1)]
 
@@ -63,6 +45,19 @@ SMOKE_SWEEP_N_POINTS = 2
 
 FULL_GAMMA_Y_NUM_LIST = [1, 2, 3, 4, 5, 6, 7]
 SMOKE_GAMMA_Y_NUM_LIST = [1]
+
+FULL_NOCA_ALPHA6_Y = [1, 2, 3, 4, 5, 6, 7]
+FULL_NOCA_ALPHA16_Y = [1]
+SMOKE_NOCA_ALPHA6_Y = [1]
+SMOKE_NOCA_ALPHA16_Y = [1]
+
+FULL_INCLUDE_CFD_NOCA = True
+SMOKE_INCLUDE_CFD_NOCA = True
+FULL_INCLUDE_CFD_CONVERGENCE = True
+SMOKE_INCLUDE_CFD_CONVERGENCE = False
+
+FULL_BERNOULLI_D_PERC = 5.0
+SMOKE_BERNOULLI_D_PERC = 5.0
 
 
 def _import_package_module(module_name: str):
@@ -110,7 +105,10 @@ def spanwise_outline_data_path(alpha: int, cm_offset: int) -> Path:
 
 
 def convergence_paths(
-    alpha: int, y_num: int, parameter_names: list[str] | None = None
+    alpha: int,
+    y_num: int,
+    parameter_names: list[str] | None = None,
+    include_cfd_sweep: bool = True,
 ) -> list[Path]:
     if parameter_names is None:
         parameter_names = FULL_PARAMETER_NAMES
@@ -139,6 +137,21 @@ def convergence_paths(
         / "PIV_sweep"
         / f"alpha_{alpha}_Y{y_num}_PIV_Rectangle.csv"
     )
+    if include_cfd_sweep:
+        files.append(
+            PROJECT_DIR
+            / "processed_data"
+            / "convergence_study"
+            / "PIV_sweep"
+            / f"alpha_{alpha}_Y{y_num}_CFD_Ellipse.csv"
+        )
+        files.append(
+            PROJECT_DIR
+            / "processed_data"
+            / "convergence_study"
+            / "PIV_sweep"
+            / f"alpha_{alpha}_Y{y_num}_CFD_Rectangle.csv"
+        )
     return files
 
 
@@ -405,7 +418,6 @@ def ensure_quantitative_gamma_file(smoke: bool = False) -> None:
         alpha=6,
         y_num_list=y_num_list,
         n_points=n_points,
-        is_with_lower_bound=not smoke,
     )
     if not _quantitative_file_has_y_nums(target, y_num_list):
         raise RuntimeError(f"Failed to generate required file: {target}")
@@ -436,6 +448,62 @@ def ensure_vsm_gamma_cache(smoke: bool = False) -> None:
     print(f"Generated: {target}")
 
 
+def run_processing_pipeline(smoke: bool = False) -> None:
+    process_module = _import_package_module(
+        "_process_calculating_noca_and_kutta__convergence_study"
+    )
+
+    if smoke:
+        alpha6_y_nums = SMOKE_NOCA_ALPHA6_Y
+        alpha16_y_nums = SMOKE_NOCA_ALPHA16_Y
+        noca_n_points = SMOKE_SWEEP_N_POINTS
+        include_cfd_noca = SMOKE_INCLUDE_CFD_NOCA
+        conv_pairs = SMOKE_CONVERGENCE_PAIRS
+        conv_parameter_names = SMOKE_PARAMETER_NAMES
+        conv_data_types = ["PIV"]
+        conv_fast_factor = SMOKE_FAST_FACTOR
+        conv_is_small_piv = True
+        conv_piv_sweep_n_points = SMOKE_SWEEP_N_POINTS
+        include_cfd_convergence = SMOKE_INCLUDE_CFD_CONVERGENCE
+        bernoulli_d_perc = SMOKE_BERNOULLI_D_PERC
+    else:
+        alpha6_y_nums = FULL_NOCA_ALPHA6_Y
+        alpha16_y_nums = FULL_NOCA_ALPHA16_Y
+        noca_n_points = FULL_SWEEP_N_POINTS
+        include_cfd_noca = FULL_INCLUDE_CFD_NOCA
+        conv_pairs = FULL_CONVERGENCE_PAIRS
+        conv_parameter_names = FULL_PARAMETER_NAMES
+        conv_data_types = ["CFD", "PIV"]
+        conv_fast_factor = FULL_FAST_FACTOR
+        conv_is_small_piv = False
+        conv_piv_sweep_n_points = FULL_SWEEP_N_POINTS
+        include_cfd_convergence = FULL_INCLUDE_CFD_CONVERGENCE
+        bernoulli_d_perc = FULL_BERNOULLI_D_PERC
+
+    print("Running processing pipeline (NOCA/Kutta, Bernoulli, convergence)...")
+    process_module.run_calculating_noca_and_kutta(
+        alpha6_y_nums=alpha6_y_nums,
+        alpha16_y_nums=alpha16_y_nums,
+        n_points=noca_n_points,
+        include_cfd=include_cfd_noca,
+    )
+    process_module.run_bernoulli_contour_force_cache(
+        alpha6_y_nums=alpha6_y_nums,
+        alpha16_y_nums=alpha16_y_nums,
+        n_points=noca_n_points,
+        d_perc=bernoulli_d_perc,
+    )
+    process_module.run_convergence_study(
+        pairs=conv_pairs,
+        parameter_names=conv_parameter_names,
+        data_types=conv_data_types,
+        is_small_piv=conv_is_small_piv,
+        fast_factor=conv_fast_factor,
+        piv_sweep_n_points=conv_piv_sweep_n_points,
+        include_cfd=include_cfd_convergence,
+    )
+
+
 def ensure_convergence_cache(smoke: bool = False) -> None:
     required_pairs = SMOKE_CONVERGENCE_PAIRS if smoke else FULL_CONVERGENCE_PAIRS
     parameter_names = SMOKE_PARAMETER_NAMES if smoke else FULL_PARAMETER_NAMES
@@ -444,7 +512,14 @@ def ensure_convergence_cache(smoke: bool = False) -> None:
 
     missing_pairs: list[tuple[int, int]] = []
     for alpha, y_num in required_pairs:
-        pair_missing = missing_paths(convergence_paths(alpha, y_num, parameter_names))
+        pair_missing = missing_paths(
+            convergence_paths(
+                alpha,
+                y_num,
+                parameter_names,
+                include_cfd_sweep=not smoke,
+            )
+        )
         if pair_missing:
             missing_pairs.append((alpha, y_num))
 
@@ -453,27 +528,45 @@ def ensure_convergence_cache(smoke: bool = False) -> None:
         return
 
     print(f"Generating convergence cache for {len(missing_pairs)} alpha/Y pairs...")
-    fig13_convergence_study = _import_package_module("fig13_convergence_study")
+    convergence_study = _import_package_module("convergence_study")
 
     for alpha, y_num in missing_pairs:
         print(f"  - alpha={alpha}, Y={y_num}")
-        fig13_convergence_study.storing_and_collecting_results(
+        convergence_study.storing_and_collecting_results(
             alpha=alpha,
             y_num=y_num,
             parameter_names=parameter_names,
+            data_types=["CFD", "PIV"],
+            is_small_piv=smoke,
             fast_factor=fast_factor,
         )
-        fig13_convergence_study.storing_PIV_percentage_sweep(
+        convergence_study.storing_PIV_percentage_sweep(
             alpha=alpha,
             y_num=y_num,
             n_points=sweep_n_points,
+            data_type="PIV",
             fast_factor=fast_factor,
         )
+        if not smoke:
+            convergence_study.storing_PIV_percentage_sweep(
+                alpha=alpha,
+                y_num=y_num,
+                n_points=sweep_n_points,
+                data_type="CFD",
+                fast_factor=fast_factor,
+            )
 
     missing_after: list[Path] = []
     for alpha, y_num in required_pairs:
         missing_after.extend(
-            missing_paths(convergence_paths(alpha, y_num, parameter_names))
+            missing_paths(
+                convergence_paths(
+                    alpha,
+                    y_num,
+                    parameter_names,
+                    include_cfd_sweep=not smoke,
+                )
+            )
         )
     if missing_after:
         formatted = "\n".join(f"  - {path}" for path in missing_after)
@@ -485,26 +578,10 @@ def ensure_convergence_cache(smoke: bool = False) -> None:
 
 
 def run_plot_scripts(smoke: bool = False) -> None:
-    modules_to_run = SMOKE_PLOT_MODULES if smoke else PLOT_MODULES
-    print("Running plot scripts for fig04 and fig06-fig15 (fig05 not present)...")
-    failures: list[tuple[str, Exception]] = []
-    for module_name in modules_to_run:
-        print(f"  - {module_name}.main()")
-        try:
-            module = _import_package_module(module_name)
-            if not hasattr(module, "main"):
-                raise AttributeError(f"Module has no main(): {module_name}")
-            module.main()
-        except Exception as error:
-            failures.append((module_name, error))
-
-    if failures:
-        details = "\n".join(
-            f"  - {name}: {error.__class__.__name__}: {error}"
-            for name, error in failures
-        )
-        raise RuntimeError("One or more plot scripts failed:\n" + details)
-    print("All requested figure scripts completed.")
+    print("Running figure/table scripts...")
+    runner = _import_package_module("_plot_all_figures_and_print_all_tables")
+    runner.main(run_figures=True, run_tables=True, smoke=smoke)
+    print("All requested figure/table scripts completed.")
 
 
 def main(
@@ -514,12 +591,12 @@ def main(
     if smoke and not skip_process:
         print(
             "Smoke mode enabled: reduced workload "
-            "(n_points=2, y_num_list=[1], reduced convergence sweep)."
+            "(n_points=2, y_num_list=[1], reduced convergence sweep, reduced plotting/tables)."
         )
     if skip_process:
         print(
             "Skipping processing stage (--skip-process). "
-            "Only plotting fig04 and fig06-fig15."
+            "Only running plotting/table scripts."
         )
     else:
         ensure_result_directories()
@@ -527,26 +604,28 @@ def main(
 
         ensure_processed_cfd(smoke=smoke)
         ensure_spanwise_outlines(smoke=smoke)
-        ensure_quantitative_gamma_file(smoke=smoke)
-        ensure_convergence_cache(smoke=smoke)
+        run_processing_pipeline(smoke=smoke)
         ensure_vsm_gamma_cache(smoke=smoke)
 
     if run_plots:
-        run_plot_scripts(smoke=(smoke and not skip_process))
+        run_plot_scripts(smoke=smoke)
     else:
-        print("Skipping plot execution (--skip-plots).")
+        print("Skipping figure/table execution (--skip-plots).")
 
     print("Pipeline complete.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Prepare all files needed by fig04 and fig06-fig15, and optionally run plotting."
+        description=(
+            "Prepare processed_data caches from raw/source data, then optionally run "
+            "all figures (fig04..figE2) and tables (Table04..TableD1)."
+        )
     )
     parser.add_argument(
         "--skip-plots",
         action="store_true",
-        help="Only generate/check dependencies; do not run figure scripts.",
+        help="Only generate/check dependencies; do not run figure/table scripts.",
     )
     parser.add_argument(
         "--smoke",
@@ -556,7 +635,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--skip-process",
         action="store_true",
-        help="Skip preprocessing/cache generation and only run plotting (fig04 and fig06-fig15).",
+        help="Skip preprocessing/cache generation and only run figure/table scripts.",
     )
     args = parser.parse_args()
     main(

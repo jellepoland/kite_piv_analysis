@@ -2,6 +2,7 @@ from kite_piv_analysis.plotting import *
 from kite_piv_analysis.plot_styling import set_plot_style
 from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
+from kite_piv_analysis.masking import apply_snr_masking, apply_w_masking
 
 
 def plotting_qualitative_CFD_PIV(alphas, y_nums, file_name, plot_params: dict) -> None:
@@ -117,6 +118,11 @@ def plotting_qualitative_CFD_PIV(alphas, y_nums, file_name, plot_params: dict) -
                 ax.axis("off")
                 continue
 
+            if current_params_piv.get("is_with_mask", False):
+                df_piv = apply_w_masking(df_piv, current_params_piv)
+                df_piv = apply_snr_masking(df_piv, current_params_piv)
+            current_params_piv = current_params_piv | {"is_with_mask": False}
+
             # Only bottom-most subplot in each column gets an x-label
             is_with_xlabel = row_idx == (len(y_sequence) - 1)
 
@@ -166,11 +172,14 @@ def plotting_qualitative_CFD_PIV(alphas, y_nums, file_name, plot_params: dict) -
             )
 
     # Save the plot
+    # save_path = (
+    #     Path(project_dir) / "results" / "paper_plots_21_10_2025" / f"{file_name}.pdf"
+    # )
     save_path = (
-        Path(project_dir) / "results" / "paper_plots_21_10_2025" / f"{file_name}.pdf"
+        Path(project_dir) / "results" / "paper_plots_24_03_2026" / f"{file_name}.pdf"
     )
-    plt.tight_layout()
-    fig.savefig(save_path)
+    plt.tight_layout(pad=0.02)
+    fig.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
     plt.close()
 
 
@@ -232,9 +241,21 @@ def main():
         "chord": 0.37,
         # Mask settings
         "is_with_mask": True,
-        "column_to_mask": "w",
-        "mask_lower_bound": -3,
-        "mask_upper_bound": 3,
+        "is_with_w_mask": True,
+        "w_mask_lower_bound": -3,
+        "w_mask_upper_bound": 3,
+        "is_with_snr_mask": [True, True],
+        "snr_use_proxy": [True, True],
+        "snr_column_to_mask": ["snr", "snr"],
+        "snr_mask_lower_bound": [2.0, 2.0],
+        "snr_mask_upper_bound": [np.inf, np.inf],
+        "proxy_snr_components": [["u", "v"], ["u", "v"]],
+        "proxy_snr_reduction": ["median", "mean"],
+        "proxy_snr_min_std": [1e-6, 1e-6],
+        "snr_mask_nan_as_invalid": [True, True],
+        "snr_mask_strict": [False, False],
+        "snr_apply_only_below_rear_airfoil_line": [False, True],
+        "snr_rear_airfoil_fraction": [0.5, 0.5],
         "normal_masked_interpolated": False,
         ## Interpolation settings
         "is_with_interpolation": False,
@@ -243,7 +264,8 @@ def main():
     }
     alphas = [6, 6, 6, 6, 6, 6, 16, 16, 16, 16]
     y_nums = [1, 3, 4, 5, 6, 7, 1, 2, 3, 4]
-    file_name = "fig15_line_interference_PIV"
+    # file_name = "fig15_line_interference_PIV"
+    file_name = "figD1"
     plotting_qualitative_CFD_PIV(alphas, y_nums, file_name, plot_params)
 
 

@@ -27,7 +27,7 @@ def run_VSM():
     )
     geom_scaled_path = Path(vsm_input_path) / "aero_geometry_CFD_CAD_derived.yaml"
     body_aero = BodyAerodynamics.instantiate(
-        n_panels=300,
+        n_panels=150,
         file_path=geom_scaled_path,
         spanwise_panel_distribution="uniform",
     )
@@ -99,7 +99,9 @@ def plot_gamma_distribution(save_path):
 
     # only generate data if it does not exist yet, as it takes long
     if not csv_path.exists():
-        from kite_piv_analysis.calculating_noca_and_kutta import save_results_single_alpha
+        from kite_piv_analysis.calculating_noca_and_kutta import (
+            save_results_single_alpha,
+        )
 
         print(f"CSV not found: {csv_path.name} — generating data (this takes ~45 min)")
         alpha = 6
@@ -116,6 +118,21 @@ def plot_gamma_distribution(save_path):
     cfd_gamma_rectangle = df["rectangle_cfd_gamma"]
     piv_gamma_ellipse = df["ellipse_piv_gamma"]
     piv_gamma_rectangle = df["rectangle_piv_gamma"]
+
+    # Plot CFD/PIV only up to Y6 (exclude Y7).
+    plot_count = min(
+        6,
+        len(y_numbers),
+        len(cfd_gamma_ellipse),
+        len(cfd_gamma_rectangle),
+        len(piv_gamma_ellipse),
+        len(piv_gamma_rectangle),
+    )
+    y_plot = np.asarray(y_numbers.iloc[:plot_count], dtype=float)
+    cfd_ellipse_plot = np.asarray(cfd_gamma_ellipse.iloc[:plot_count], dtype=float)
+    cfd_rectangle_plot = np.asarray(cfd_gamma_rectangle.iloc[:plot_count], dtype=float)
+    piv_ellipse_plot = np.asarray(piv_gamma_ellipse.iloc[:plot_count], dtype=float)
+    piv_rectangle_plot = np.asarray(piv_gamma_rectangle.iloc[:plot_count], dtype=float)
 
     print(f"running VSM")
     VSM_gamma_distribution, CAD_y_coordinates = get_VSM_gamma_distribution()
@@ -143,14 +160,14 @@ def plot_gamma_distribution(save_path):
     # =========================================================================
     # CFD: Show mean of ellipse/rectangle with contour shape uncertainty
     # =========================================================================
-    cfd_gamma_mean = (cfd_gamma_ellipse + cfd_gamma_rectangle) / 2
-    cfd_gamma_min = np.minimum(cfd_gamma_ellipse, cfd_gamma_rectangle)
-    cfd_gamma_max = np.maximum(cfd_gamma_ellipse, cfd_gamma_rectangle)
+    cfd_gamma_mean = (cfd_ellipse_plot + cfd_rectangle_plot) / 2
+    cfd_gamma_min = np.minimum(cfd_ellipse_plot, cfd_rectangle_plot)
+    cfd_gamma_max = np.maximum(cfd_ellipse_plot, cfd_rectangle_plot)
 
     # Plot CFD mean line
     plot_on_ax(
         ax,
-        y_numbers,
+        y_plot,
         cfd_gamma_mean,
         label="CFD",
         color="blue",
@@ -160,7 +177,7 @@ def plot_gamma_distribution(save_path):
 
     # CFD contour shape uncertainty (shaded region)
     ax.fill_between(
-        y_numbers,
+        y_plot,
         cfd_gamma_min,
         cfd_gamma_max,
         color="blue",
@@ -171,36 +188,29 @@ def plot_gamma_distribution(save_path):
     # =========================================================================
     # PIV: Show mean of ellipse/rectangle with contour shape uncertainty
     # =========================================================================
-    piv_gamma_mean = (piv_gamma_ellipse[:7] + piv_gamma_rectangle[:7]) / 2
-    piv_gamma_min = np.minimum(piv_gamma_ellipse[:7], piv_gamma_rectangle[:7])
-    piv_gamma_max = np.maximum(piv_gamma_ellipse[:7], piv_gamma_rectangle[:7])
+    piv_gamma_mean = (piv_ellipse_plot + piv_rectangle_plot) / 2
+    piv_gamma_min = np.minimum(piv_ellipse_plot, piv_rectangle_plot)
+    piv_gamma_max = np.maximum(piv_ellipse_plot, piv_rectangle_plot)
 
-    # Error bars span from min to max (errorbar adds yerr above AND below mean)
-    # So we use half-range to get total span = min to max
-    err_piv = (piv_gamma_max - piv_gamma_min) / 2
-
-    # Plot PIV mean with contour shape error bars
-    ax.errorbar(
-        y_numbers[:7],
+    # Plot PIV mean line
+    plot_on_ax(
+        ax,
+        y_plot,
         piv_gamma_mean,
-        yerr=err_piv,
-        fmt=".",
-        capsize=4,
+        label="PIV",
         color="red",
-        ecolor="red",
-        label=r"PIV contour shape range",
-        linewidth=1.5,
-        elinewidth=1.5,
+        marker=".",
+        linestyle="-",
     )
 
-    # Connect PIV points with a line
-    ax.plot(
-        y_numbers[:7],
-        piv_gamma_mean,
+    # PIV contour shape uncertainty (shaded region), same style as CFD
+    ax.fill_between(
+        y_plot,
+        piv_gamma_min,
+        piv_gamma_max,
         color="red",
-        linestyle="-",
-        linewidth=1,
-        alpha=0.7,
+        alpha=0.2,
+        label=r"PIV contour shape range",
     )
 
     # Print diagnostic information
@@ -211,11 +221,11 @@ def plot_gamma_distribution(save_path):
         f"{'Y-plane':<10} {'Ellipse':<12} {'Rectangle':<12} {'Mean':<12} {'Range':<12} {'Rel. range':<12}"
     )
     print("-" * 70)
-    for i in range(7):
-        ell = piv_gamma_ellipse.iloc[i]
-        rect = piv_gamma_rectangle.iloc[i]
-        mean = piv_gamma_mean.iloc[i]
-        range_val = piv_gamma_max.iloc[i] - piv_gamma_min.iloc[i]
+    for i in range(plot_count):
+        ell = piv_ellipse_plot[i]
+        rect = piv_rectangle_plot[i]
+        mean = piv_gamma_mean[i]
+        range_val = piv_gamma_max[i] - piv_gamma_min[i]
         rel_range = range_val / mean * 100 if mean > 0 else 0
         print(
             f"Y{i+1:<9} {ell:<12.3f} {rect:<12.3f} {mean:<12.3f} {range_val:<12.3f} {rel_range:<10.1f}%"
@@ -227,9 +237,9 @@ def plot_gamma_distribution(save_path):
     print("=" * 70)
     print(f"{'Y-plane':<10} {'PIV mean':<12} {'CFD mean':<12} {'Deviation':<12}")
     print("-" * 70)
-    for i in range(7):
-        piv_mean = piv_gamma_mean.iloc[i]
-        cfd_mean = cfd_gamma_mean.iloc[i]
+    for i in range(plot_count):
+        piv_mean = piv_gamma_mean[i]
+        cfd_mean = cfd_gamma_mean[i]
         deviation = (piv_mean - cfd_mean) / cfd_mean * 100 if cfd_mean > 0 else 0
         print(f"Y{i+1:<9} {piv_mean:<12.3f} {cfd_mean:<12.3f} {deviation:+10.1f}%")
 
@@ -237,20 +247,37 @@ def plot_gamma_distribution(save_path):
     ax.set_ylim(0, 2.5)
     ax.set_xlabel(r"$y$ (m)")
     ax.set_ylabel(r"$\Gamma$ (m$^2$s$^{-1}$)")
-    plt.legend(ncol=2, loc="best")
-    plt.tight_layout()
-    plt.savefig(save_path)
+    # Fixed legend order for readability.
+    handles, labels = ax.get_legend_handles_labels()
+    desired_order = [
+        "CFD",
+        "PIV",
+        "VSM",
+        "CFD contour shape range",
+        "PIV contour shape range",
+    ]
+    ordered_handles = []
+    ordered_labels = []
+    for name in desired_order:
+        if name in labels:
+            idx = labels.index(name)
+            ordered_handles.append(handles[idx])
+            ordered_labels.append(labels[idx])
+    ax.legend(ordered_handles, ordered_labels, ncol=2, loc="best")
+    plt.tight_layout(pad=0.02)
+    plt.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
 
     print(f"\n--->saved figure to {save_path}")
 
 
 def main():
-    save_path = (
-        Path(project_dir)
-        / "results"
-        / "paper_plots_21_10_2025"
-        / "fig08_gamma_distribution_std.pdf"
-    )
+    # save_path = (
+    #     Path(project_dir)
+    #     / "results"
+    #     / "paper_plots_24_03_2026"
+    #     / "fig08_gamma_distribution_std.pdf"
+    # )
+    save_path = Path(project_dir) / "results" / "paper_plots_24_03_2026" / "fig08.pdf"
     plot_gamma_distribution(save_path)
 
 

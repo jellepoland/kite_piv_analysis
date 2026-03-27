@@ -1,6 +1,7 @@
 from kite_piv_analysis.plotting import *
 from kite_piv_analysis.plot_styling import set_plot_style
 from matplotlib.gridspec import GridSpec
+from kite_piv_analysis.masking import apply_snr_masking, apply_w_masking
 
 
 def main() -> None:
@@ -61,9 +62,21 @@ def main() -> None:
         "chord": 0.37,
         # Mask settings
         "is_with_mask": True,
-        "column_to_mask": "w",
-        "mask_lower_bound": -3,
-        "mask_upper_bound": 3,
+        "is_with_w_mask": True,
+        "w_mask_lower_bound": -3,
+        "w_mask_upper_bound": 3,
+        "is_with_snr_mask": [True, True],
+        "snr_use_proxy": [True, True],
+        "snr_column_to_mask": ["snr", "snr"],
+        "snr_mask_lower_bound": [2.0, 2.0],
+        "snr_mask_upper_bound": [np.inf, np.inf],
+        "proxy_snr_components": [["u", "v"], ["u", "v"]],
+        "proxy_snr_reduction": ["median", "mean"],
+        "proxy_snr_min_std": [1e-6, 1e-6],
+        "snr_mask_nan_as_invalid": [True, True],
+        "snr_mask_strict": [False, False],
+        "snr_apply_only_below_rear_airfoil_line": [False, True],
+        "snr_rear_airfoil_fraction": [0.5, 0.5],
         "normal_masked_interpolated": False,
         ## Interpolation settings
         "is_with_interpolation": True,
@@ -146,6 +159,10 @@ def main() -> None:
         df_piv, x_mesh_piv, y_mesh_piv, current_params_piv = load_data(
             current_params_piv
         )
+        if current_params_piv.get("is_with_mask", False):
+            df_piv = apply_w_masking(df_piv, current_params_piv)
+            df_piv = apply_snr_masking(df_piv, current_params_piv)
+        current_params_piv = current_params_piv | {"is_with_mask": False}
         current_params_piv = plotting_on_ax(
             fig,
             axes[row, 1],
@@ -168,13 +185,15 @@ def main() -> None:
         )
 
     # Save the plot
-    save_path = (
-        Path(project_dir)
-        / "results"
-        / "paper_plots_21_10_2025"
-        / "fig12_bounds_CFD_PIV.pdf"
-    )
-    fig.savefig(save_path)
+    # save_path = (
+    #     Path(project_dir)
+    #     / "results"
+    #     / "paper_plots_21_10_2025"
+    #     / "fig12_bounds_CFD_PIV.pdf"
+    # )
+    save_path = Path(project_dir) / "results" / "paper_plots_24_03_2026" / "figE1.pdf"
+    fig.tight_layout(pad=0.02)
+    fig.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
     plt.close()
 
 

@@ -20,14 +20,15 @@ sources of error in the presented measurement data."
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from statistics import NormalDist
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from kite_piv_analysis.utils import project_dir
 from kite_piv_analysis.plot_styling import set_plot_style
 from kite_piv_analysis.compute_overlap_error import (
     load_dat_file,
-    load_dat_file_with_std,
 )
+from kite_piv_analysis.masking import apply_snr_masking, apply_w_masking
 
 
 # =============================================================================
@@ -62,37 +63,99 @@ def load_raw_plane_data(aoa: int, y_plane: int, x_plane: int, config: str = "nor
     """
     Load raw PIV plane data (B0001.dat mean, B0002.dat std).
 
-    Searches in multiple locations:
-    1. data_ALL_ERIK_FILES/JelleStitching/Input (primary)
-    2. data_old_21_10_2025/raw_dat_files (fallback for missing planes like aoa_23/Y4)
+    Source location:
+    1. data_ALL_ERIK_FILES/JelleStitching/Input (primary only)
 
     Returns:
         mean_data, std_data dictionaries
     """
-    # Primary location
-    input_dirs = [
-        Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input",
-        Path(project_dir) / "data_old_21_10_2025" / "raw_dat_files",
-    ]
+    input_dir = Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input"
+    base_path = input_dir / f"aoa_{aoa}" / f"Y{y_plane}"
 
-    for input_dir in input_dirs:
-        base_path = input_dir / f"aoa_{aoa}" / f"Y{y_plane}"
+    # Check if directory exists
+    if not base_path.exists():
+        return None, None
 
-        # Check if directory exists
-        if not base_path.exists():
-            continue
-
-        # Find matching directory
-        for item in base_path.iterdir():
-            if item.is_dir() and config in item.name and f"_X{x_plane}" in item.name:
-                mean_file = item / "B0001.dat"
-                std_file = item / "B0002.dat"
-                if mean_file.exists() and std_file.exists():
-                    mean_data = load_dat_file(mean_file)
-                    std_data = load_dat_file(std_file)
-                    return mean_data, std_data
+    # Find matching directory
+    for item in base_path.iterdir():
+        if item.is_dir() and config in item.name and f"_X{x_plane}" in item.name:
+            mean_file = item / "B0001.dat"
+            std_file = item / "B0002.dat"
+            if mean_file.exists() and std_file.exists():
+                mean_data = load_dat_file(mean_file)
+                std_data = load_dat_file(std_file)
+                return mean_data, std_data
 
     return None, None
+
+
+def _alpha_from_aoa(aoa: int) -> int:
+    """Map folder AoA labels to aerodynamic alpha used in masking config."""
+    return {13: 6, 23: 16}.get(int(aoa), int(aoa))
+
+
+def _mask_plot_params(aoa: int, y_plane: int, w_threshold: float) -> dict:
+    alpha = _alpha_from_aoa(aoa)
+    return {
+        "alpha": alpha,
+        "y_num": y_plane,
+        "is_with_w_mask": True,
+        "w_mask_lower_bound": -abs(float(w_threshold)),
+        "w_mask_upper_bound": abs(float(w_threshold)),
+        "is_with_snr_mask": [True, True],
+        "snr_use_proxy": [True, True],
+        "snr_column_to_mask": ["snr", "snr"],
+        "snr_mask_lower_bound": [2.0, 2.0],
+        "snr_mask_upper_bound": [np.inf, np.inf],
+        "proxy_snr_components": [["u", "v"], ["u", "v"]],
+        "proxy_snr_reduction": ["median", "mean"],
+        "proxy_snr_min_std": [1e-6, 1e-6],
+        "snr_mask_nan_as_invalid": [True, True],
+        "snr_mask_strict": [False, False],
+        "snr_apply_only_below_rear_airfoil_line": [False, True],
+        "snr_rear_airfoil_fraction": [0.5, 0.5],
+    }
+
+
+def _mean_dict_to_df(mean_data: dict) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "x": mean_data["x"],
+            "y": mean_data["y"],
+            "u": mean_data["u"],
+            "v": mean_data["v"],
+            "w": mean_data["w"],
+            "V": mean_data["V"],
+            "is_valid": mean_data["is_valid"],
+        }
+    )
+
+
+def _std_dict_to_df(std_data: dict) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "u": std_data["u"],
+            "v": std_data["v"],
+            "w": std_data["w"],
+        }
+    )
+
+
+def _apply_combined_mask(
+    mean_data: dict, std_data: dict, aoa: int, y_plane: int, w_threshold: float
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Apply w-mask + ICV(proxy-SNR)-mask and return:
+    raw mean df, post-w df, post-(w+ICV) df.
+    """
+    df_mean = _mean_dict_to_df(mean_data)
+    df_std = _std_dict_to_df(std_data)
+    mask_params = _mask_plot_params(aoa, y_plane, w_threshold)
+    mask_params["df_std"] = df_std
+
+    df_after_w = apply_w_masking(df_mean, mask_params)
+    df_after_combined = apply_snr_masking(df_after_w, mask_params)
+    return df_mean, df_after_w, df_after_combined
 
 
 # =============================================================================
@@ -111,13 +174,12 @@ def compute_masking_metrics(
     1. f_mask: DaVis isValid=0 flag (geometric masking, reflections, correlation failure)
        - Applied during MATLAB stitching: invalid points set to NaN
 
-    2. f_w: Points where |w_mean| > w_threshold (default 3 m/s)
-       - As described in Appendix B: "areas with unrealistically high out-of-plane
-         velocities that are not expected in the symmetry plane of the wing"
-       - Applied post-hoc during visualization/analysis
+    2. f_u_y: Points removed by the |u_y|/|w| threshold (default 3 m/s)
+    3. f_ICV: Additional points removed by ICV/proxy-SNR rejection
+       after the |u_y| filter.
 
-    3. f_valid: Remaining valid data after all filters
-    4. f_loss: Total data loss (1 - f_valid)
+    4. f_valid: Remaining valid data after all filters
+    5. f_loss: Total data loss (1 - f_valid)
 
     Note: The std/U_inf > 0.1 filter visible in RunStitching.m is only used for
     visualization overlays, NOT applied to the output CSV files.
@@ -135,7 +197,9 @@ def compute_masking_metrics(
 
     total_points = 0
     masked_davis = 0  # f_mask: geometric/reflection masking (isValid=0)
-    filtered_w = 0  # f_w: |w_mean| > w_threshold (unphysical out-of-plane velocity)
+    filtered_w_only = 0  # removed by |w| threshold (DaVis-valid points only)
+    filtered_icv_only = 0  # additionally removed by ICV/SNR (after w-mask)
+    filtered_combined = 0  # removed by either w or ICV (DaVis-valid points only)
     valid_points = 0
 
     for x_plane in [1, 2, 3]:
@@ -148,34 +212,42 @@ def compute_masking_metrics(
             n_total = len(mean_data["x"])
             total_points += n_total
 
+            # Apply combined masking pipeline (w + ICV) on raw mean/std data.
+            df_mean, df_after_w, df_after_combined = _apply_combined_mask(
+                mean_data, std_data, aoa, y_plane, w_threshold
+            )
+
             # Get DaVis validity mask (applied in MATLAB stitching)
-            davis_valid = mean_data["is_valid"] != 0
+            davis_valid = df_mean["is_valid"].to_numpy() != 0
             n_masked_davis = np.sum(~davis_valid)
             masked_davis += n_masked_davis
 
-            # Get mean w velocity for the |w| > 3 m/s filter (Appendix B)
-            w_mean = mean_data["w"]
+            w_removed = davis_valid & df_after_w["u"].isna().to_numpy()
+            combined_removed = davis_valid & df_after_combined["u"].isna().to_numpy()
 
-            # Points that pass DaVis validation
-            # f_w: Points that are DaVis-valid but have |w| > threshold
-            valid_w = np.abs(w_mean) <= w_threshold
-            n_fail_w = np.sum(davis_valid & ~valid_w)
-            filtered_w += n_fail_w
-
-            # Valid: DaVis valid AND |w| <= threshold
-            n_valid = np.sum(davis_valid & valid_w)
-            valid_points += n_valid
+            filtered_w_only += int(np.sum(w_removed))
+            filtered_icv_only += int(np.sum(combined_removed & ~w_removed))
+            filtered_combined += int(np.sum(combined_removed))
+            valid_points += int(np.sum(davis_valid & ~combined_removed))
 
     if total_points > 0:
         results["n_total"] = total_points
         results["f_mask"] = (
             masked_davis / total_points
         )  # DaVis geometric/reflection masking
-        results["f_w"] = filtered_w / total_points  # |w| > 3 m/s filter (Appendix B)
+        # Separate post-validation contributions:
+        # - f_u_y: removed by |u_y|/|w| threshold only
+        # - f_icv: additional removals by ICV/proxy-SNR after u_y filter
+        results["f_u_y"] = filtered_w_only / total_points
+        results["f_icv"] = filtered_icv_only / total_points
+        results["f_quality"] = filtered_combined / total_points
         results["f_valid"] = valid_points / total_points
         results["f_loss"] = 1 - valid_points / total_points
 
         # Legacy names for compatibility
+        results["f_w"] = results["f_u_y"]
+        results["f_w_only"] = results["f_u_y"]
+        results["f_icv_only"] = results["f_icv"]
         results["f_invalid_davis"] = results["f_mask"]
         results["f_data_loss"] = results["f_loss"]
 
@@ -219,25 +291,30 @@ def compute_freestream_statistics(aoa: int, y_plane: int, U_inf: float = 15.0):
     freestream_V = []
 
     for x_plane in [1, 2, 3]:
-        mean_data, _ = load_raw_plane_data(aoa, y_plane, x_plane, "normal")
+        mean_data, std_data = load_raw_plane_data(aoa, y_plane, x_plane, "normal")
 
-        if mean_data is None:
+        if mean_data is None or std_data is None:
             continue
 
-        # Valid data
-        valid_mask = mean_data["is_valid"] != 0
+        df_mean, _, df_after_combined = _apply_combined_mask(
+            mean_data, std_data, aoa, y_plane, w_threshold=3.0
+        )
+        valid_mask = ~df_after_combined["u"].isna().to_numpy()
+        if not np.any(valid_mask):
+            continue
 
         # Select freestream region: top 20% of y-range (far from airfoil)
-        y_valid = mean_data["y"][valid_mask]
+        y_vals = df_mean["y"].to_numpy()
+        y_valid = y_vals[valid_mask]
         if len(y_valid) == 0:
             continue
 
         y_threshold = np.percentile(y_valid, 80)  # Top 20%
 
-        freestream_mask = valid_mask & (mean_data["y"] > y_threshold)
+        freestream_mask = valid_mask & (y_vals > y_threshold)
 
-        u_fs = mean_data["u"][freestream_mask]
-        V_fs = mean_data["V"][freestream_mask]
+        u_fs = df_after_combined["u"].to_numpy()[freestream_mask]
+        V_fs = df_after_combined["V"].to_numpy()[freestream_mask]
 
         # Filter out zeros (invalid data represented as 0)
         u_fs = u_fs[u_fs != 0]
@@ -295,60 +372,56 @@ def create_spatial_uncertainty_map(
     Returns:
         x, y coordinates (2D arrays) and std maps for u, v, w
     """
-    # Search in multiple directories
-    input_dirs = [
-        Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input",
-        Path(project_dir) / "data_old_21_10_2025" / "raw_dat_files",
-    ]
+    input_dir = Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input"
+    base_path = input_dir / f"aoa_{aoa}" / f"Y{y_plane}"
 
-    for input_dir in input_dirs:
-        base_path = input_dir / f"aoa_{aoa}" / f"Y{y_plane}"
+    if not base_path.exists():
+        return None
 
-        if not base_path.exists():
-            continue
+    for item in base_path.iterdir():
+        if item.is_dir() and config in item.name and f"_X{x_plane}" in item.name:
+            mean_file = item / "B0001.dat"
+            std_file = item / "B0002.dat"
 
-        for item in base_path.iterdir():
-            if item.is_dir() and config in item.name and f"_X{x_plane}" in item.name:
-                mean_file = item / "B0001.dat"
-                std_file = item / "B0002.dat"
+            if not (mean_file.exists() and std_file.exists()):
+                continue
 
-                if not (mean_file.exists() and std_file.exists()):
-                    continue
+            # Load mean and std data
+            mean_data = load_dat_file(mean_file)
+            std_data = load_dat_file(std_file)
 
-                # Load mean and std data
-                mean_data = load_dat_file(mean_file)
-                std_data = load_dat_file(std_file)
+            # Get grid shape from header
+            with open(mean_file, "r") as f:
+                lines = f.readlines()
+            zone_line = lines[2]
+            i_val = int(zone_line.split("I=")[1].split(",")[0])
+            j_val = int(zone_line.split("J=")[1].split(",")[0])
 
-                # Get grid shape from header
-                with open(mean_file, "r") as f:
-                    lines = f.readlines()
-                zone_line = lines[2]
-                i_val = int(zone_line.split("I=")[1].split(",")[0])
-                j_val = int(zone_line.split("J=")[1].split(",")[0])
+            # Apply combined masking pipeline (w + ICV) on flat data first.
+            _, _, df_after_combined = _apply_combined_mask(
+                mean_data, std_data, aoa, y_plane, w_threshold
+            )
+            valid_flat = ~df_after_combined["u"].isna().to_numpy()
 
-                # Reshape to 2D
-                x_2d = mean_data["x"].reshape(j_val, i_val)
-                y_2d = mean_data["y"].reshape(j_val, i_val)
-                u_std_2d = std_data["u"].reshape(j_val, i_val)
-                v_std_2d = std_data["v"].reshape(j_val, i_val)
-                w_std_2d = std_data["w"].reshape(j_val, i_val)
-                is_valid_2d = mean_data["is_valid"].reshape(j_val, i_val)
-                w_mean_2d = mean_data["w"].reshape(j_val, i_val)
+            # Reshape to 2D
+            x_2d = mean_data["x"].reshape(j_val, i_val)
+            y_2d = mean_data["y"].reshape(j_val, i_val)
+            u_std_2d = std_data["u"].reshape(j_val, i_val)
+            v_std_2d = std_data["v"].reshape(j_val, i_val)
+            w_std_2d = std_data["w"].reshape(j_val, i_val)
+            mask_valid = valid_flat.reshape(j_val, i_val)
+            u_std_2d = np.where(mask_valid, u_std_2d, np.nan)
+            v_std_2d = np.where(mask_valid, v_std_2d, np.nan)
+            w_std_2d = np.where(mask_valid, w_std_2d, np.nan)
 
-                # Mask invalid regions: DaVis validity AND |w| <= threshold
-                mask_valid = (is_valid_2d != 0) & (np.abs(w_mean_2d) <= w_threshold)
-                u_std_2d = np.where(mask_valid, u_std_2d, np.nan)
-                v_std_2d = np.where(mask_valid, v_std_2d, np.nan)
-                w_std_2d = np.where(mask_valid, w_std_2d, np.nan)
-
-                return {
-                    "x": x_2d,
-                    "y": y_2d,
-                    "u_std": u_std_2d,
-                    "v_std": v_std_2d,
-                    "w_std": w_std_2d,
-                    "is_valid": mask_valid,
-                }
+            return {
+                "x": x_2d,
+                "y": y_2d,
+                "u_std": u_std_2d,
+                "v_std": v_std_2d,
+                "w_std": w_std_2d,
+                "is_valid": mask_valid,
+            }
 
     return None
 
@@ -419,7 +492,7 @@ def plot_spatial_uncertainty_maps(aoa: int, y_plane: int, save_dir: Path = None)
 # =============================================================================
 
 
-def compute_combined_uncertainty_budget():
+def compute_combined_uncertainty_budget(confidence_level: float = 0.95):
     """
     Compute comprehensive uncertainty budget combining all components.
 
@@ -429,7 +502,9 @@ def compute_combined_uncertainty_budget():
     results = []
     U_inf = 15.0
     N = 250  # Number of images
-    k = 1.96  # Coverage factor for 95% CI
+    if not (0 < confidence_level < 1):
+        raise ValueError("confidence_level must be between 0 and 1.")
+    k = NormalDist().inv_cdf(0.5 + confidence_level / 2.0)
 
     for aoa in [13, 23]:
         for y_plane in range(1, 8):
@@ -470,6 +545,12 @@ def compute_combined_uncertainty_budget():
                 budget["sigma_u_mean"] = sigma_u
                 budget["sigma_v_mean"] = sigma_v
                 budget["sigma_w_mean"] = sigma_w
+                budget["confidence_level"] = confidence_level
+                budget["coverage_factor"] = k
+                budget["u_u_x_ms"] = u_u_x
+                budget["u_u_y_ms"] = u_u_y
+                budget["u_u_z_ms"] = u_u_z
+                budget["u_u_vec_ms"] = u_u_vec
                 budget["u_u_x"] = u_u_x / U_inf  # Normalized
                 budget["u_u_y"] = u_u_y / U_inf
                 budget["u_u_z"] = u_u_z / U_inf
@@ -498,12 +579,13 @@ def compute_combined_uncertainty_budget():
 # =============================================================================
 
 
-def generate_uncertainty_report():
+def generate_uncertainty_report(confidence_level: float = 0.95):
     """
     Generate comprehensive uncertainty report with LaTeX tables.
     """
     output_dir = Path(project_dir) / "results" / "uncertainty_analysis"
     output_dir.mkdir(parents=True, exist_ok=True)
+    coverage_factor = NormalDist().inv_cdf(0.5 + confidence_level / 2.0)
 
     print("=" * 100)
     print("COMPREHENSIVE PIV UNCERTAINTY BUDGET ANALYSIS")
@@ -526,19 +608,22 @@ def generate_uncertainty_report():
             "  f_mask:  DaVis isValid=0 (geometric masking, reflections, correlation failure)"
         )
         print(
-            "  f_w:     Filtered due to |w| > 3 m/s (unphysical out-of-plane velocity, Appendix B)"
+            "  f_u,y:   Filtered by |u_y| threshold (|u_y| > 3 m/s)"
+        )
+        print(
+            "  f_ICV:   Additional filtering by ICV/proxy-SNR quality mask"
         )
         print("  f_valid: Remaining valid data")
         print()
         print(
-            f"{'AoA':<6} {'Plane':<8} {'f_mask':<10} {'f_w':<10} "
+            f"{'AoA':<6} {'Plane':<8} {'f_mask':<10} {'f_u,y':<10} {'f_ICV':<10} "
             f"{'f_valid':<10} {'f_loss':<10}"
         )
-        print("-" * 60)
+        print("-" * 75)
         for _, row in df_masking.iterrows():
             print(
                 f"{int(row['aoa']):<6} Y{int(row['y_plane']):<7} "
-                f"{row['f_mask']:<10.3f} {row['f_w']:<10.3f} "
+                f"{row['f_mask']:<10.3f} {row['f_u_y']:<10.3f} {row['f_icv']:<10.3f} "
                 f"{row['f_valid']:<10.3f} {row['f_loss']:<10.3f}"
             )
 
@@ -588,7 +673,7 @@ def generate_uncertainty_report():
     print("3. COMBINED UNCERTAINTY BUDGET")
     print("=" * 80)
 
-    df_budget = compute_combined_uncertainty_budget()
+    df_budget = compute_combined_uncertainty_budget(confidence_level=confidence_level)
     if not df_budget.empty:
         df_budget.to_csv(
             output_dir / "uncertainty_budget.csv", index=False, float_format="%.4f"
@@ -596,7 +681,8 @@ def generate_uncertainty_report():
 
         print("\nUncertainty budget per measurement plane:")
         print(
-            "  u_u = standard uncertainty of mean velocity (95% CI, normalized by U_inf)"
+            "  u_u = standard uncertainty of mean velocity "
+            f"({confidence_level*100:.0f}% CI, k={coverage_factor:.3f}, normalized by U_inf)"
         )
         print()
         cols = ["aoa", "y_plane", "u_u_x", "u_u_y", "u_u_z", "u_u_vec", "f_data_loss"]
@@ -621,18 +707,44 @@ def generate_uncertainty_report():
     print("5. LATEX TABLES FOR PAPER")
     print("=" * 80)
 
-    generate_latex_tables(df_masking, df_budget, df_fs, output_dir)
+    generate_latex_tables(
+        df_masking=df_masking,
+        df_budget=df_budget,
+        df_fs=df_fs,
+        output_dir=output_dir,
+        confidence_level=confidence_level,
+        coverage_factor=coverage_factor,
+    )
+
+    # Divergence table generation was removed; keep summary call stable.
+    df_div = pd.DataFrame()
 
     # Save comprehensive summary
-    generate_text_summary(df_masking, df_div, df_fs, df_budget, output_dir)
+    generate_text_summary(
+        df_masking=df_masking,
+        df_div=df_div,
+        df_fs=df_fs,
+        df_budget=df_budget,
+        output_dir=output_dir,
+        confidence_level=confidence_level,
+    )
 
     print(f"\n\nAll results saved to: {output_dir}")
 
 
-def generate_latex_tables(df_masking, df_budget, df_fs, output_dir):
+def generate_latex_tables(
+    df_masking,
+    df_budget,
+    df_fs,
+    output_dir,
+    confidence_level: float = 0.95,
+    coverage_factor: float | None = None,
+):
     """
     Generate LaTeX-formatted tables for the paper.
     """
+    if coverage_factor is None:
+        coverage_factor = NormalDist().inv_cdf(0.5 + confidence_level / 2.0)
     latex_output = []
 
     # Table: Data quality metrics per plane (wide format with alpha as columns)
@@ -643,7 +755,7 @@ def generate_latex_tables(df_masking, df_budget, df_fs, output_dir):
 % =============================================================================
 \begin{table}[htp]
     \centering
-    \caption{Data quality metrics per measurement plane. $f_\mathrm{mask}$ denotes the fraction of vectors marked invalid by DaVis (geometric masking, reflections, correlation failure). $f_w$ denotes the fraction filtered due to $|w| > 3\,\mathrm{m\,s^{-1}}$ (unphysical out-of-plane velocity, see Appendix~B). $f_\mathrm{valid}$ is the remaining valid data fraction, and $f_\mathrm{loss}$ is the total data loss.}
+    \caption{Data quality metrics per measurement plane. $f_\mathrm{mask}$ denotes the fraction of vectors marked invalid by DaVis (geometric masking, reflections, correlation failure). $f_{u,y}$ denotes the fraction filtered by the out-of-plane velocity threshold ($|u_y| > 3\,\mathrm{m\,s^{-1}}$), and $f_\mathrm{ICV}$ denotes the additional fraction filtered by the ICV/proxy-SNR quality mask. $f_\mathrm{valid}$ is the remaining valid data fraction.}
     \label{tab:data_quality}
     \begin{tabular}{l ccccccc l cccc}
     \hline
@@ -675,19 +787,34 @@ def generate_latex_tables(df_masking, df_budget, df_fs, output_dir):
             f"    $f_\\mathrm{{mask}}$ (\\%) & {' & '.join(row_mask_7)} & & {' & '.join(row_mask_17)} \\\\"
         )
 
-        # Row: f_w (|w| > 3 m/s filter)
-        row_w_7 = []
+        # Row: f_u,y (|u_y| threshold contribution)
+        row_uy_7 = []
         for y in range(1, 8):
-            val = get_plane_value(df_masking, 13, y, "f_w")
-            row_w_7.append(f"{val:.1f}" if val is not None else "--")
+            val = get_plane_value(df_masking, 13, y, "f_u_y")
+            row_uy_7.append(f"{val:.1f}" if val is not None else "--")
 
-        row_w_17 = []
+        row_uy_17 = []
         for y in range(1, 5):
-            val = get_plane_value(df_masking, 23, y, "f_w")
-            row_w_17.append(f"{val:.1f}" if val is not None else "--")
+            val = get_plane_value(df_masking, 23, y, "f_u_y")
+            row_uy_17.append(f"{val:.1f}" if val is not None else "--")
 
         latex_output.append(
-            f"    $f_w$ (\\%) & {' & '.join(row_w_7)} & & {' & '.join(row_w_17)} \\\\"
+            f"    $f_{{u,y}}$ (\\%) & {' & '.join(row_uy_7)} & & {' & '.join(row_uy_17)} \\\\"
+        )
+
+        # Row: f_ICV (additional ICV/proxy-SNR contribution)
+        row_icv_7 = []
+        for y in range(1, 8):
+            val = get_plane_value(df_masking, 13, y, "f_icv")
+            row_icv_7.append(f"{val:.1f}" if val is not None else "--")
+
+        row_icv_17 = []
+        for y in range(1, 5):
+            val = get_plane_value(df_masking, 23, y, "f_icv")
+            row_icv_17.append(f"{val:.1f}" if val is not None else "--")
+
+        latex_output.append(
+            f"    $f_\\mathrm{{ICV}}$ (\\%) & {' & '.join(row_icv_7)} & & {' & '.join(row_icv_17)} \\\\"
         )
 
         # Row: f_valid
@@ -705,21 +832,6 @@ def generate_latex_tables(df_masking, df_budget, df_fs, output_dir):
             f"    $f_\\mathrm{{valid}}$ (\\%) & {' & '.join(row_valid_7)} & & {' & '.join(row_valid_17)} \\\\"
         )
 
-        # Row: f_loss
-        row_loss_7 = []
-        for y in range(1, 8):
-            val = get_plane_value(df_masking, 13, y, "f_loss")
-            row_loss_7.append(f"{val:.1f}" if val is not None else "--")
-
-        row_loss_17 = []
-        for y in range(1, 5):
-            val = get_plane_value(df_masking, 23, y, "f_loss")
-            row_loss_17.append(f"{val:.1f}" if val is not None else "--")
-
-        latex_output.append(
-            f"    $f_\\mathrm{{loss}}$ (\\%) & {' & '.join(row_loss_7)} & & {' & '.join(row_loss_17)} \\\\"
-        )
-
     latex_output.append(
         r"""    \hline
     \end{tabular}
@@ -727,34 +839,65 @@ def generate_latex_tables(df_masking, df_budget, df_fs, output_dir):
 """
     )
 
-    # Table: Comprehensive uncertainty budget
+    # Table: Expanded uncertainty of mean velocity (flipped layout)
     latex_output.append(
         r"""
 % =============================================================================
-% TABLE: Uncertainty Budget
+% TABLE: Expanded Uncertainty of Mean Velocity
 % =============================================================================
 \begin{table}[htp]
     \centering
-    \caption{Uncertainty budget for PIV measurements. Statistical uncertainties ($\mathrm{u}_{\overline{\mathrm{u}}}$) correspond to 95\% confidence intervals normalized by $U_\infty$.}
-    \label{tab:uncertainty_budget}
-    \begin{tabular}{cc cccc c}
+    \caption{Expanded uncertainties of the mean velocity corresponding to a """
+        + f"{confidence_level*100:.0f}"
+        + r"""\% confidence interval ($k \approx """
+        + f"{coverage_factor:.3f}"
+        + r"""$), calculated from $N=250$ samples and aggregated over all data points within a measurement plane. These values quantify statistical convergence only and do not include systematic (Type-B) contributions.}
+    \label{tab:uncertainty}
+    \begin{tabular}{l ccccccc l cccc}
     \hline
-    $\alpha$ & Plane & $\mathrm{u}_{\overline{\mathrm{u}},{x}}$ & $\mathrm{u}_{\overline{\mathrm{u}},{y}}$ & $\mathrm{u}_{\overline{\mathrm{u}},{z}}$ & $\mathrm{u}_{\overline{\vec{u}}}$ & $f_\mathrm{loss}$ (\%) \\
+    & \multicolumn{7}{c}{$\alpha$ = 7\unit{\degree}} & & \multicolumn{4}{c}{$\alpha$ = 17\unit{\degree}} \\
+     & $Y1$ & $Y2$ & $Y3$ & $Y4$ & $Y5$ & $Y6$ & $Y7$ & & $Y1$ & $Y2$ & $Y3$ & $Y4$ \\
     \hline"""
     )
 
     if not df_budget.empty:
-        for _, row in df_budget.iterrows():
-            aoa_deg = 6 if row["aoa"] == 13 else 16
-            f_loss = (
-                row.get("f_data_loss", np.nan) * 100 if "f_data_loss" in row else np.nan
-            )
-            latex_output.append(
-                f"    {aoa_deg}\\unit{{\\degree}} & $Y{int(row['y_plane'])}$ & "
-                f"{row.get('u_u_x', np.nan):.2f} & {row.get('u_u_y', np.nan):.2f} & "
-                f"{row.get('u_u_z', np.nan):.2f} & {row.get('u_u_vec', np.nan):.2f} & "
-                f"{f_loss:.1f} \\\\"
-            )
+        def get_budget_value(df, aoa, y_plane, col):
+            row = df[(df["aoa"] == aoa) & (df["y_plane"] == y_plane)]
+            if len(row) == 0:
+                return None
+            val = row[col].values[0] if col in row.columns else np.nan
+            if np.isnan(val):
+                return None
+            return val
+
+        def build_row(col_name):
+            vals_7 = []
+            for y in range(1, 8):
+                val = get_budget_value(df_budget, 13, y, col_name)
+                vals_7.append(f"{val:.3f}" if val is not None else "--")
+            vals_17 = []
+            for y in range(1, 5):
+                val = get_budget_value(df_budget, 23, y, col_name)
+                vals_17.append(f"{val:.3f}" if val is not None else "--")
+            return vals_7, vals_17
+
+        ux7, ux17 = build_row("u_u_x_ms")
+        uy7, uy17 = build_row("u_u_y_ms")
+        uz7, uz17 = build_row("u_u_z_ms")
+        uv7, uv17 = build_row("u_u_vec_ms")
+
+        latex_output.append(
+            f"    $\\textrm{{u}}_{{\\overline{{\\textrm{{u}}}},{{x}}}}$ (\\unit{{m s^{{-1}}}}) & {' & '.join(ux7)} & & {' & '.join(ux17)} \\\\"
+        )
+        latex_output.append(
+            f"    $\\textrm{{u}}_{{\\overline{{\\textrm{{u}}}},{{y}}}}$ (\\unit{{m s^{{-1}}}}) & {' & '.join(uy7)} & & {' & '.join(uy17)} \\\\"
+        )
+        latex_output.append(
+            f"    $\\textrm{{u}}_{{\\overline{{\\textrm{{u}}}},{{z}}}}$ (\\unit{{m s^{{-1}}}}) & {' & '.join(uz7)} & & {' & '.join(uz17)} \\\\"
+        )
+        latex_output.append(
+            f"    $\\textrm{{u}}_{{\\overline{{\\vec{{u}}}}}}$ (\\unit{{m s^{{-1}}}}) & {' & '.join(uv7)} & & {' & '.join(uv17)} \\\\"
+        )
 
     latex_output.append(
         r"""    \hline
@@ -773,7 +916,9 @@ def generate_latex_tables(df_masking, df_budget, df_fs, output_dir):
     print("\n" + "\n".join(latex_output))
 
 
-def generate_text_summary(df_masking, df_div, df_fs, df_budget, output_dir):
+def generate_text_summary(
+    df_masking, df_div, df_fs, df_budget, output_dir, confidence_level: float = 0.95
+):
     """
     Generate comprehensive text summary of uncertainty analysis.
     """
@@ -787,7 +932,9 @@ def generate_text_summary(df_masking, df_div, df_fs, df_budget, output_dir):
     summary.append("")
     summary.append("1. STATISTICAL PRECISION")
     summary.append("   - Based on velocity standard deviation across 250 image samples")
-    summary.append("   - Reported as 95% confidence interval of the mean")
+    summary.append(
+        f"   - Reported as {confidence_level*100:.0f}% confidence interval of the mean"
+    )
     summary.append("")
 
     if not df_budget.empty:

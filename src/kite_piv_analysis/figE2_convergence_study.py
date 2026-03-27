@@ -13,6 +13,7 @@ from kite_piv_analysis import calculating_airfoil_centre
 from kite_piv_analysis.plotting import *
 from kite_piv_analysis.utils import reading_optimal_bound_placement
 from kite_piv_analysis import calculating_circulation
+from kite_piv_analysis.masking import apply_snr_masking, apply_w_masking
 
 
 @dataclass
@@ -91,6 +92,7 @@ def parameter_sweep_noca(
     parameter_values=None,
     dLx=None,
     ref_chord: float = 0.39834712,
+    is_with_smoothing: bool = True,
 ) -> pd.DataFrame:
     """
     Perform parameter sweep for NOCA analysis.
@@ -114,9 +116,22 @@ def parameter_sweep_noca(
         "alpha": alpha,
         "is_CFD": is_CFD,
         "d_alpha_rod": 7.25,
-        "column_to_mask": "w",
-        "mask_lower_bound": -3,
-        "mask_upper_bound": 3,
+        "is_with_mask": True,
+        "is_with_w_mask": True,
+        "w_mask_lower_bound": -3,
+        "w_mask_upper_bound": 3,
+        "is_with_snr_mask": [True, True],
+        "snr_use_proxy": [True, True],
+        "snr_column_to_mask": ["snr", "snr"],
+        "snr_mask_lower_bound": [2.0, 2.0],
+        "snr_mask_upper_bound": [np.inf, np.inf],
+        "proxy_snr_components": [["u", "v"], ["u", "v"]],
+        "proxy_snr_reduction": ["median", "mean"],
+        "proxy_snr_min_std": [1e-6, 1e-6],
+        "snr_mask_nan_as_invalid": [True, True],
+        "snr_mask_strict": [False, False],
+        "snr_apply_only_below_rear_airfoil_line": [False, True],
+        "snr_rear_airfoil_fraction": [0.5, 0.5],
         "csv_file_path_std": None,
         "spanwise_CFD": False,
         # interpolation settings
@@ -125,8 +140,11 @@ def parameter_sweep_noca(
     df, x_meshgrid, y_meshgrid, plot_params = load_data(plot_params)
 
     # Apply mask if is PIV
-    if not plot_params["is_CFD"]:
-        df = apply_mask(df, plot_params)
+    if (not plot_params["is_CFD"]) and plot_params.get("is_with_mask", False):
+        df = apply_w_masking(df, plot_params)
+        df = apply_snr_masking(df, plot_params)
+    # Keep an immutable baseline so each sweep sample is independent.
+    df_base = df.copy()
 
     results = []
 
@@ -165,6 +183,9 @@ def parameter_sweep_noca(
             parameter_values = np.linspace(dLy - 0.05 * dLy, dLy + 0.05 * dLy, 10)
 
     for value in parameter_values:
+        # Start each parameter sample from the same baseline field.
+        current_df = df_base.copy()
+
         # Create copy of base parameters
         current_params = NOCAParameters(**vars(base_params))
         current_params.dLx = dLx
@@ -214,7 +235,7 @@ def parameter_sweep_noca(
         is_skip_this_parameter = False
         if not plot_params["is_CFD"]:
             plot_params["interpolation_zones"] = find_areas_needing_interpolation(
-                df,
+                current_df,
                 plot_params["alpha"],
                 plot_params["y_num"],
                 plot_params["rectangle_size"],
@@ -226,11 +247,11 @@ def parameter_sweep_noca(
             n_points_nan = 0
             for interpolation_zone_i in plot_params["interpolation_zones"]:
                 x_min, x_max, y_min, y_max = interpolation_zone_i["bounds"]
-                subset = df[
-                    (df["x"] >= x_min)
-                    & (df["x"] <= x_max)
-                    & (df["y"] >= y_min)
-                    & (df["y"] <= y_max)
+                subset = df_base[
+                    (df_base["x"] >= x_min)
+                    & (df_base["x"] <= x_max)
+                    & (df_base["y"] >= y_min)
+                    & (df_base["y"] <= y_max)
                 ]
                 dropped_by_nan = subset[subset["u"].isna()]
                 n_points_nan += len(dropped_by_nan)
@@ -242,8 +263,8 @@ def parameter_sweep_noca(
             if perc_of_interpolated_points < max_perc_interpolated_zones:
 
                 for interpolation_zone_i in plot_params["interpolation_zones"]:
-                    df, d2curve_rectangle_interpolated_zone = interpolate_missing_data(
-                        df,
+                    current_df, d2curve_rectangle_interpolated_zone = interpolate_missing_data(
+                        current_df,
                         interpolation_zone_i,
                     )
             else:
@@ -252,25 +273,17 @@ def parameter_sweep_noca(
                 )
                 is_skip_this_parameter = True
 
-            ## setting the smoothing on
-            is_with_smoothing = True
-
-        else:  # if CFD data
-            is_with_smoothing = False
-
         if is_skip_this_parameter:
             continue
 
         # Run NOCA analysis
-        if alpha == 6:
-            rho = 1.20
-        else:
-            rho = 1.18
+        rho = 1.20
         F_x, F_y, C_l, C_d = force_from_noca.main(
-            df,
+            current_df,
             d2curve,
             mu=mu,
             is_with_maximim_vorticity_location_correction=True,
+            is_with_smoothing=is_with_smoothing,
             rho=rho,
             U_inf=U_inf,
             ref_chord=ref_chord,
@@ -278,7 +291,7 @@ def parameter_sweep_noca(
 
         # Calculating Circulation
         Gamma = calculating_circulation.calculate_circulation(
-            df, d2curve, is_with_smoothing
+            current_df, d2curve, is_with_smoothing
         )
 
         F_kutta = rho * U_inf * Gamma / (0.5 * rho * U_inf**2 * chord)
@@ -389,12 +402,12 @@ def storing_PIV_percentage_sweep(
     percentage_range: int = 20,
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
-    Collect comprehensive parameter sweep results for Ellipse and Rectangle shapes.
+    Collect comprehensive 2D (dLx, dLy) sweep results for Ellipse/Rectangle.
 
     Args:
         alpha: Angle of attack.
         y_num: Y value index.
-        data_type: Type of data to collect.
+        data_type: Type of data to collect ("PIV" or "CFD").
         is_small_piv: Flag for small PIV dataset.
         fast_factor: Speed-up factor for parameter sweep.
         percentage_range: Percentage range for parameter values.
@@ -431,8 +444,8 @@ def storing_PIV_percentage_sweep(
         dLy_base + dLy_base * 0.5 * (percentage_range / 100),
         n_points,
     )
-    # Determine if CFD or not (default to False)
-    is_CFD = False
+    # Determine if CFD or not based on requested data_type.
+    is_CFD = str(data_type).upper() == "CFD"
 
     # Main loop through shapes
     for is_ellipse, shape in [(True, "Ellipse"), (False, "Rectangle")]:
@@ -523,8 +536,11 @@ def load_saved_results_skip_first_line(
     data_types=["CFD", "PIV"],
 ):
     """
-    Load parameter sweep results from CSV files into a nested dictionary,
-    skipping the first line of data but retaining the headers.
+    Load parameter sweep results from CSV files into a nested dictionary.
+
+    Historical behavior dropped the first data row, which can bias the
+    convergence curves (the first row is often the optimal-reference sample).
+    The function name is kept for backward compatibility with existing calls.
 
     Args:
         alpha: Angle of attack.
@@ -556,8 +572,6 @@ def load_saved_results_skip_first_line(
                 )
                 if file_path.exists():
                     df = pd.read_csv(file_path)
-                    # skipping the first line of data is this somehow fucks up the plots
-                    df = df.iloc[1:]
                     results_dict[data_type][param][shape] = df
                 else:
                     print(f"File not found: {file_path}")
@@ -599,7 +613,7 @@ def plot_noca_coefficients_grid(
     results_dict = load_saved_results_skip_first_line(alpha, y_num, parameter_names)
 
     # Create figure and axes
-    fig, axes = plt.subplots(2, 3, figsize=(16, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(11, 6.9))
 
     # Get optimal bound placements
 
@@ -720,7 +734,7 @@ def plot_noca_coefficients_grid(
             # ax.set_title(plot_config["title_template"].format(param=param))
             ax.set_ylim(plot_config["ylim"])
 
-    plt.tight_layout()
+    fig.tight_layout(pad=0.02)
 
     # ## Adding legend
     # # Initialize an empty list to collect all handles and labels
@@ -751,7 +765,7 @@ def plot_noca_coefficients_grid(
     if save_path is not None:
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(save_path)
+        fig.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
         print(f"Figure saved to {save_path}")
 
     return fig, axes
@@ -787,51 +801,69 @@ def main():
     parameter_names = ["iP", "dLx", "dLy"]
     fast_factor = 25
 
-    for alpha in [6]:
-        for y_num in [1, 2, 3, 4, 5]:
-            save_path = (
-                Path(project_dir)
-                / "results"
-                / "convergence_study"
-                / f"alpha_{alpha}"
-                / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
-            )
-            if not _convergence_csvs_exist(alpha, y_num, parameter_names):
-                storing_and_collecting_results(
-                    alpha, y_num, parameter_names, fast_factor=fast_factor
-                )
-                storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
+    alpha = 6
+    y_num = 2
+    save_path = Path(project_dir) / "results" / "paper_plots_24_03_2026" / f"figE2.pdf"
+    if not _convergence_csvs_exist(alpha, y_num, parameter_names):
+        storing_and_collecting_results(
+            alpha, y_num, parameter_names, fast_factor=fast_factor
+        )
+        storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
-            plot_noca_coefficients_grid(
-                alpha,
-                y_num,
-                save_path,
-                data_types=["CFD", "PIV"],
-                fast_factor=fast_factor,
-            )
+    plot_noca_coefficients_grid(
+        alpha,
+        y_num,
+        save_path,
+        data_types=["CFD", "PIV"],
+        fast_factor=fast_factor,
+    )
 
-    for alpha in [16]:
-        for y_num in [1]:
-            save_path = (
-                Path(project_dir)
-                / "results"
-                / "convergence_study"
-                / f"alpha_{alpha}"
-                / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
-            )
-            if not _convergence_csvs_exist(alpha, y_num, parameter_names):
-                storing_and_collecting_results(
-                    alpha, y_num, parameter_names, fast_factor=fast_factor
-                )
-                storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
+    # TODO: uncomment below if you want to see all
+    # for alpha in [6]:
+    #     for y_num in [1, 2, 3, 4, 5]:
+    #         save_path = (
+    #             Path(project_dir)
+    #             / "results"
+    #             / "convergence_study"
+    #             / f"alpha_{alpha}"
+    #             / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
+    #         )
+    #         if not _convergence_csvs_exist(alpha, y_num, parameter_names):
+    #             storing_and_collecting_results(
+    #                 alpha, y_num, parameter_names, fast_factor=fast_factor
+    #             )
+    #             storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
-            plot_noca_coefficients_grid(
-                alpha,
-                y_num,
-                save_path,
-                data_types=["CFD", "PIV"],
-                fast_factor=fast_factor,
-            )
+    #         plot_noca_coefficients_grid(
+    #             alpha,
+    #             y_num,
+    #             save_path,
+    #             data_types=["CFD", "PIV"],
+    #             fast_factor=fast_factor,
+    #         )
+
+    # for alpha in [16]:
+    #     for y_num in [1]:
+    #         save_path = (
+    #             Path(project_dir)
+    #             / "results"
+    #             / "convergence_study"
+    #             / f"alpha_{alpha}"
+    #             / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
+    #         )
+    #         if not _convergence_csvs_exist(alpha, y_num, parameter_names):
+    #             storing_and_collecting_results(
+    #                 alpha, y_num, parameter_names, fast_factor=fast_factor
+    #             )
+    #             storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
+
+    #         plot_noca_coefficients_grid(
+    #             alpha,
+    #             y_num,
+    #             save_path,
+    #             data_types=["CFD", "PIV"],
+    #             fast_factor=fast_factor,
+    #         )
 
 
 if __name__ == "__main__":

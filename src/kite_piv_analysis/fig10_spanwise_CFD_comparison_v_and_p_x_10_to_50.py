@@ -583,10 +583,10 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
         Path(project_dir)
         / "results"
         / "paper_plots_21_10_2025"
-        / f"fig09_spanwise_CFD_comparison_v_and_p_x_{x_cm_values[0]}_to_{x_cm_values[-1]}.png"
+        / f"fig10_spanwise_CFD_comparison_v_and_p_x_{x_cm_values[0]}_to_{x_cm_values[-1]}.png"
     )
-    plt.tight_layout()
-    fig.savefig(save_path, dpi=500)
+    fig.tight_layout(pad=0.02)
+    fig.savefig(save_path, dpi=500, bbox_inches="tight", pad_inches=0.01)
     plt.close()
 
 

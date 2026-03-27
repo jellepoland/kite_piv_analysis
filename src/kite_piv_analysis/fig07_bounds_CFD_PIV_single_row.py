@@ -1,6 +1,7 @@
 from kite_piv_analysis.plotting import *
 from kite_piv_analysis.plot_styling import set_plot_style
 from matplotlib.gridspec import GridSpec
+from kite_piv_analysis.masking import apply_snr_masking, apply_w_masking
 
 
 def main() -> None:
@@ -46,6 +47,10 @@ def main() -> None:
         "intensity_lower_bound": 10000,
         # Boundary settings
         "is_with_bound": True,
+        # Optional boundary-size overrides. Set to numeric values to override
+        # CSV defaults from data/optimal_bound_placement.csv.
+        "dLx": None,
+        "dLy": None,
         "drot": 0.0,
         "iP": 65,
         ##
@@ -61,9 +66,21 @@ def main() -> None:
         "chord": 0.37,
         # Mask settings
         "is_with_mask": True,
-        "column_to_mask": "w",
-        "mask_lower_bound": -3,
-        "mask_upper_bound": 3,
+        "is_with_w_mask": True,
+        "w_mask_lower_bound": -3,
+        "w_mask_upper_bound": 3,
+        "is_with_snr_mask": [True, True],
+        "snr_use_proxy": [True, True],
+        "snr_column_to_mask": ["snr", "snr"],
+        "snr_mask_lower_bound": [2.0, 2.0],
+        "snr_mask_upper_bound": [np.inf, np.inf],
+        "proxy_snr_components": [["u", "v"], ["u", "v"]],
+        "proxy_snr_reduction": ["median", "mean"],
+        "proxy_snr_min_std": [1e-6, 1e-6],
+        "snr_mask_nan_as_invalid": [True, True],
+        "snr_mask_strict": [False, False],
+        "snr_apply_only_below_rear_airfoil_line": [False, True],
+        "snr_rear_airfoil_fraction": [0.5, 0.5],
         "normal_masked_interpolated": False,
         ## Interpolation settings
         "is_with_interpolation": True,
@@ -75,7 +92,7 @@ def main() -> None:
 
     # Set up single alpha and y_num value
     alpha = 6
-    y_num = 3
+    y_num = 4
     is_with_xlabel = True  # Enable x labels since we only have one row
 
     # Set up for a single row plot with 2 columns (CFD and PIV)
@@ -104,13 +121,13 @@ def main() -> None:
         rf"CFD",
         fontsize=14,
         fontweight="bold",
-        pad=5,
+        pad=2,
     )
     axes[1].set_title(
         rf"PIV",
         fontsize=14,
         fontweight="bold",
-        pad=5,
+        pad=2,
     )
 
     # Load and plot CFD data
@@ -130,6 +147,10 @@ def main() -> None:
     # Load and plot PIV data
     current_params_piv = current_params | {"is_CFD": False}
     df_piv, x_mesh_piv, y_mesh_piv, current_params_piv = load_data(current_params_piv)
+    if current_params_piv.get("is_with_mask", False):
+        df_piv = apply_w_masking(df_piv, current_params_piv)
+        df_piv = apply_snr_masking(df_piv, current_params_piv)
+    current_params_piv = current_params_piv | {"is_with_mask": False}
     current_params_piv = plotting_on_ax(
         fig,
         axes[1],
@@ -138,6 +159,7 @@ def main() -> None:
         y_mesh_piv,
         current_params_piv,
         is_with_xlabel=is_with_xlabel,
+        is_with_ylabel=False,
         is_label_left=False,
     )
 
@@ -152,13 +174,17 @@ def main() -> None:
     )
 
     # Save the plot
+    # save_path = (
+    #     Path(project_dir)
+    #     / "results"
+    #     / "paper_plots_21_10_2025"
+    #     / "fig07_bounds_CFD_PIV_single_row.pdf"
+    # )
+    file_name = "fig07"
     save_path = (
-        Path(project_dir)
-        / "results"
-        / "paper_plots_21_10_2025"
-        / "fig07_bounds_CFD_PIV_single_row.pdf"
+        Path(project_dir) / "results" / "paper_plots_24_03_2026" / f"{file_name}.pdf"
     )
-    fig.savefig(save_path)
+    fig.savefig(save_path, bbox_inches="tight", pad_inches=0)
     plt.close()
 
 

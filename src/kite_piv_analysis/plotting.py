@@ -81,13 +81,6 @@ class PlotParams(TypedDict):
     mu: float
     is_with_maximim_vorticity_location_correction: bool
 
-    # Mask settings
-    is_with_mask: bool
-    column_to_mask: str
-    mask_lower_bound: float
-    mask_upper_bound: float
-
-
 def load_data(plot_params: dict) -> tuple:
     """Load and process data from either CFD or PIV sources."""
 
@@ -141,77 +134,6 @@ def load_data(plot_params: dict) -> tuple:
     x_meshgrid, y_meshgrid = np.meshgrid(x_unique, y_unique)
 
     return df, x_meshgrid, y_meshgrid, plot_params
-
-
-def apply_mask(
-    df: pd.DataFrame,
-    plot_params: dict,
-    columns_to_mask: list = [
-        "u",
-        "v",
-        "w",
-        "V",
-        "dudx",
-        "dudy",
-        "dvdx",
-        "dvdy",
-        "dwdx",
-        "dwdy",
-        "vort_z",
-    ],
-) -> pd.DataFrame:
-    """
-    Apply a mask to a DataFrame, setting values to NaN in specified columns for rows
-    where the target column's values are outside the specified range.
-
-    Parameters:
-    ----------
-    df : pd.DataFrame
-        The input DataFrame to be masked.
-    column : str
-        The name of the column on which to apply the mask.
-    lower : float
-        The lower bound of the value range.
-    upper : float
-        The upper bound of the value range.
-    columns_to_mask : list
-        List of column names to set to NaN in rows where the specified column's
-        values fall outside the bounds.
-
-    Returns:
-    -------
-    pd.DataFrame
-        A new DataFrame with specified columns set to NaN for rows where the target
-        column's values are outside the specified bounds.
-    """
-    column = plot_params["column_to_mask"]
-    lower = plot_params["mask_lower_bound"]
-    upper = plot_params["mask_upper_bound"]
-    csv_file_path_std = plot_params["csv_file_path_std"]
-
-    # Create a copy of the DataFrame
-    df_to_return = df.copy()
-
-    # if dealing with standard deviation masking, read the std file
-    if "std" in column:
-        if csv_file_path_std is None:
-            raise ValueError(
-                "Standard deviation masking requires a CSV file path, only available for PIV"
-            )
-        df_masked = pd.read_csv(csv_file_path_std)
-        # Remove "_std" from the column name for comparison
-        column = column.strip("_std")
-    else:
-        df_masked = df.copy()
-
-    # Identify rows where the target column's values are outside the specified range
-    mask = (df_masked[column] < lower) | (df_masked[column] > upper)
-
-    # Apply NaN to the specified columns in rows where the mask is True
-    df_to_return.loc[mask, columns_to_mask] = np.nan
-
-    return df_to_return
-
 
 def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params, is_pcolormesh=None):
 
@@ -564,9 +486,18 @@ def add_boundaries(ax, plot_params):
     d1centre = calculating_airfoil_centre.main(
         plot_params["alpha"], plot_params["y_num"]
     )
-    dLx, dLy = reading_optimal_bound_placement(
+    dLx_opt, dLy_opt = reading_optimal_bound_placement(
         plot_params["alpha"], plot_params["y_num"]
     )
+    # Optional per-script override; None/NaN falls back to CSV defaults.
+    dLx_override = plot_params.get("dLx")
+    dLy_override = plot_params.get("dLy")
+    dLx = dLx_opt if dLx_override is None else dLx_override
+    dLy = dLy_opt if dLy_override is None else dLy_override
+    if pd.isna(dLx):
+        dLx = dLx_opt
+    if pd.isna(dLy):
+        dLy = dLy_opt
     drot = plot_params["drot"]
     iP = plot_params["iP"]
     ellipse_color = plot_params["ellipse_color"]
@@ -618,9 +549,18 @@ def add_circulation_analysis(
     d1centre = calculating_airfoil_centre.main(
         plot_params["alpha"], plot_params["y_num"]
     )
-    dLx, dLy = reading_optimal_bound_placement(
+    dLx_opt, dLy_opt = reading_optimal_bound_placement(
         plot_params["alpha"], plot_params["y_num"]
     )
+    # Keep circulation analysis consistent with displayed contour bounds.
+    dLx_override = plot_params.get("dLx")
+    dLy_override = plot_params.get("dLy")
+    dLx = dLx_opt if dLx_override is None else dLx_override
+    dLy = dLy_opt if dLy_override is None else dLy_override
+    if pd.isna(dLx):
+        dLx = dLx_opt
+    if pd.isna(dLy):
+        dLy = dLy_opt
     drot = plot_params["drot"]
     iP = plot_params["iP"]
     mu = plot_params["mu"]
@@ -693,9 +633,6 @@ def plotting_on_ax(
 ) -> None:
 
     ax.set_aspect("equal", adjustable="box")
-
-    if plot_params.get("is_with_mask", False) and not plot_params["is_CFD"]:
-        df = apply_mask(df, plot_params)
 
     if plot_params.get("is_with_interpolation", False):
 

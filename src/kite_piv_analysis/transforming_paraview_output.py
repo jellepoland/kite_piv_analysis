@@ -416,16 +416,13 @@ def running_for_1_alpha(alpha: int, rho_scaling=1.2):
             velocity_scale=15,
             y_num=y_num,
             alpha=alpha,
+            rho_scaling=rho_scaling,
         )
 
 
 def main():
     for alpha in [6, 16]:
-        if alpha == 6:
-            rho_scaling = 1.2
-        else:
-            rho_scaling = 1.18
-        running_for_1_alpha(alpha, rho_scaling)
+        running_for_1_alpha(alpha, rho_scaling=1.2)
 
 
 # Example usage

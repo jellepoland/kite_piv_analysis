@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import (
     LinearNDInterpolator,
+    NearestNDInterpolator,
 )
 
 # Resolve repository root after moving code into src/kite_piv_analysis.
@@ -18,8 +19,16 @@ if project_dir is None:
     project_dir = _this_file.parents[2]
 
 
-def reshape_remove_nans(col, n_rows, n_cols):
-    return col.fillna(0).values.reshape(n_rows, n_cols)
+def reshape_remove_nans(col, n_rows, n_cols, fill_value=None):
+    """
+    Reshape a 1D column to a 2D field while preserving NaNs by default.
+
+    Set ``fill_value`` only when an explicit replacement is desired.
+    """
+    values = pd.to_numeric(col, errors="coerce").to_numpy()
+    if fill_value is not None:
+        values = np.where(np.isfinite(values), values, fill_value)
+    return values.reshape(n_rows, n_cols)
 
 
 # def interp2d_batch(d2x, d2y, d2_values, points, kind="linear"):
@@ -54,15 +63,42 @@ def reshape_remove_nans(col, n_rows, n_cols):
 
 
 def interp2d_batch(d2x, d2y, d2_values, points):
-    interpolator = LinearNDInterpolator(
-        list(zip(d2x.flatten(), d2y.flatten())), d2_values.flatten()
-    )
-    return interpolator(points)
+    """
+    Interpolate field values at a batch of query points.
 
-    interpolator = LinearNDInterpolator(
-        list(zip(d2x.flatten(), d2y.flatten())), d2_values.flatten()
+    NaN-valued support samples are excluded so missing data are not interpreted
+    as physical zeros. Linear interpolation is used first; any out-of-hull
+    misses fall back to nearest-neighbor to keep downstream integrations stable.
+    """
+    support_xy = np.column_stack((np.asarray(d2x).ravel(), np.asarray(d2y).ravel()))
+    support_val = np.asarray(d2_values).ravel()
+    finite_mask = (
+        np.isfinite(support_xy[:, 0])
+        & np.isfinite(support_xy[:, 1])
+        & np.isfinite(support_val)
     )
-    return interpolator(points)
+
+    query_points = np.asarray(points)
+    if query_points.ndim != 2 or query_points.shape[1] != 2:
+        raise ValueError(
+            f"Expected query points with shape (N, 2), got {query_points.shape}"
+        )
+
+    if np.count_nonzero(finite_mask) < 3:
+        return np.full(query_points.shape[0], np.nan)
+
+    linear = LinearNDInterpolator(
+        support_xy[finite_mask], support_val[finite_mask], fill_value=np.nan
+    )
+    interpolated = np.asarray(linear(query_points), dtype=float)
+
+    # Keep linear behavior where possible; only patch unavoidable misses.
+    missing = ~np.isfinite(interpolated)
+    if np.any(missing):
+        nearest = NearestNDInterpolator(support_xy[finite_mask], support_val[finite_mask])
+        interpolated[missing] = nearest(query_points[missing])
+
+    return interpolated
 
 
 def csv_reader(

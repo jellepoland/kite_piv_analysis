@@ -286,8 +286,8 @@ def plot_gamma_distribution(save_path):
     ax.set_xlabel(r"$y$ (m)")
     ax.set_ylabel(r"$\Gamma$ (m$^2$s$^{-1}$)")
     plt.legend(ncol=3)
-    plt.tight_layout()
-    plt.savefig(save_path)
+    plt.tight_layout(pad=0.02)
+    plt.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
 
     print(f"\n--->saved figure to {save_path}")
 

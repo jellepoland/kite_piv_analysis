@@ -328,7 +328,17 @@ def smooth_data(data, ismooth):
 
 
 def forceFromVelNoca2D_V3(
-    d2x, d2y, d2u, d2v, d2vortZ, d2dudt, d2dvdt, d2curve, dmu, bcorMaxVort
+    d2x,
+    d2y,
+    d2u,
+    d2v,
+    d2vortZ,
+    d2dudt,
+    d2dvdt,
+    d2curve,
+    dmu,
+    bcorMaxVort,
+    is_with_smoothing=True,
 ):
     # # extract matlab values
     # (
@@ -348,7 +358,7 @@ def forceFromVelNoca2D_V3(
     iN = 2
 
     # Data smoothing
-    bsmooth = True
+    bsmooth = bool(is_with_smoothing)
     ismooth = 9
     if bsmooth:
         d2u = conv2(d2u, np.ones((ismooth, ismooth)) / (ismooth**2), mode="same")
@@ -374,17 +384,28 @@ def forceFromVelNoca2D_V3(
     d1nx = np.gradient(d2curve[:, 1]) / np.sqrt(
         np.gradient(d2curve[:, 0]) ** 2 + np.gradient(d2curve[:, 1]) ** 2
     )
-    # Spatial gradients of first and second order
-    ddx = d2x[1, 1] - d2x[0, 0]
-    ddy = d2y[1, 1] - d2y[0, 0]
+    # Spatial gradients of first and second order.
+    # np.gradient for 2D arrays returns [d/dy, d/dx] (axis 0, axis 1).
+    dx_samples = np.diff(d2x, axis=1)
+    dy_samples = np.diff(d2y, axis=0)
+    ddx = float(np.nanmedian(dx_samples[np.isfinite(dx_samples)]))
+    ddy = float(np.nanmedian(dy_samples[np.isfinite(dy_samples)]))
+    if not np.isfinite(ddx) or abs(ddx) < 1e-12:
+        ddx = float(np.nanmedian(np.diff(np.sort(np.unique(d2x)))))
+    if not np.isfinite(ddy) or abs(ddy) < 1e-12:
+        ddy = float(np.nanmedian(np.diff(np.sort(np.unique(d2y)))))
 
-    d2dudx, d2dudy = np.gradient(d2u, ddx, ddy)
-    d2dvdx, d2dvdy = np.gradient(d2v, ddx, ddy)
+    d2dudy, d2dudx = np.gradient(d2u, ddy, ddx)
+    d2dvdy, d2dvdx = np.gradient(d2v, ddy, ddx)
 
-    d2d2udx2, d2d2udydx = np.gradient(d2dudx, ddx, ddy)
-    d2d2vdx2, d2d2vdydx = np.gradient(d2dvdx, ddx, ddy)
-    d2d2udxdy, d2d2udy2 = np.gradient(d2dudy, ddx, ddy)
-    d2d2vdxdy, d2d2vdy2 = np.gradient(d2dvdy, ddx, ddy)
+    d2d2udy2, d2d2udydx = np.gradient(d2dudy, ddy, ddx)
+    d2d2udxdy, d2d2udx2 = np.gradient(d2dudx, ddy, ddx)
+    d2d2vdy2, d2d2vdydx = np.gradient(d2dvdy, ddy, ddx)
+    d2d2vdxdy, d2d2vdx2 = np.gradient(d2dvdx, ddy, ddx)
+
+    # Symmetrize mixed partials to reduce discretization noise.
+    d2d2udxdy = 0.5 * (d2d2udxdy + d2d2udydx)
+    d2d2vdxdy = 0.5 * (d2d2vdxdy + d2d2vdydx)
 
     # # Vector fields interpolated along curve
     # print(f"DELTA d1nx: {np.max(d1nx- d1nx_matlab)}")
@@ -550,6 +571,7 @@ def main(
     d2curve: np.ndarray,
     mu: float = 1.7894e-5,
     is_with_maximim_vorticity_location_correction: bool = True,
+    is_with_smoothing: bool = True,
     rho: float = 1.20,
     U_inf: float = 15,
     ref_chord: float = 0.39834712,
@@ -578,6 +600,7 @@ def main(
         d2curve=d2curve,
         dmu=mu,
         bcorMaxVort=is_with_maximim_vorticity_location_correction,
+        is_with_smoothing=is_with_smoothing,
     )
     F_x = d1Fn[0]
     F_y = d1Ft[0]

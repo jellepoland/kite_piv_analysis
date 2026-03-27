@@ -96,11 +96,8 @@ def running_NOCA(
     drot = 0
     iP = 360
 
-    # Run NOCA analysis
-    if alpha == 6:
-        rho = 1.20
-    else:
-        rho = 1.18
+    # Run NOCA analysis with unified density.
+    rho = 1.20
     dLx, dLy, iP = reading_optimal_bound_placement(
         alpha, y_num, is_with_N_datapoints=True
     )
@@ -118,7 +115,7 @@ def running_NOCA(
         is_with_maximim_vorticity_location_correction=is_with_maximim_vorticity_location_correction,
         rho=rho,
         U_inf=U_inf,
-        c=chord,
+        ref_chord=chord,
     )
     return F_x, F_y, C_l, C_d
 
@@ -169,55 +166,115 @@ def compute_surface_forces(
     Compute aerodynamic forces on a 2D airfoil surface from CFD data.
     """
     surface_points = np.column_stack((x_surface, y_surface))
+    # `density` is kept in the signature for backward compatibility.
+    # Pressure and wall-shear fields in processed CFD are already dimensional.
+    _ = density
 
     # Precompute normals and segment lengths
     normals, segment_lengths = compute_surface_normals(surface_points)
+    segment_midpoints = 0.5 * (surface_points[:-1] + surface_points[1:])
 
-    # Interpolate grid data onto surface nodes
+    # Interpolate CFD fields onto segment midpoints (consistent with segment-based integration).
     pressure_surface = griddata(
-        (df["x"], df["y"]), df["pressure"], surface_points, method="linear"
+        (df["x"], df["y"]), df["pressure"], segment_midpoints, method="linear"
     )
-    dudx_surface = griddata(
-        (df["x"], df["y"]), df["dudx"], surface_points, method="linear"
-    )
-    dudy_surface = griddata(
-        (df["x"], df["y"]), df["dudy"], surface_points, method="linear"
-    )
-    dvdx_surface = griddata(
-        (df["x"], df["y"]), df["dvdx"], surface_points, method="linear"
-    )
-    dvdy_surface = griddata(
-        (df["x"], df["y"]), df["dvdy"], surface_points, method="linear"
-    )
+
+    # Preferred viscous source: CFD wall shear traction already on the surface.
+    has_tau_w = ("tau_w_x" in df.columns) and ("tau_w_y" in df.columns)
+    tau_w_x_surface = None
+    tau_w_y_surface = None
+    if has_tau_w:
+        tau_w_x_surface = griddata(
+            (df["x"], df["y"]), df["tau_w_x"], segment_midpoints, method="linear"
+        )
+        tau_w_y_surface = griddata(
+            (df["x"], df["y"]), df["tau_w_y"], segment_midpoints, method="linear"
+        )
+
+    # Fallback viscous source from gradients if wall shear is unavailable.
+    has_gradients = all(c in df.columns for c in ["dudx", "dudy", "dvdx", "dvdy"])
+    dudx_surface = dudy_surface = dvdx_surface = dvdy_surface = None
+    if has_gradients:
+        dudx_surface = griddata(
+            (df["x"], df["y"]), df["dudx"], segment_midpoints, method="linear"
+        )
+        dudy_surface = griddata(
+            (df["x"], df["y"]), df["dudy"], segment_midpoints, method="linear"
+        )
+        dvdx_surface = griddata(
+            (df["x"], df["y"]), df["dvdx"], segment_midpoints, method="linear"
+        )
+        dvdy_surface = griddata(
+            (df["x"], df["y"]), df["dvdy"], segment_midpoints, method="linear"
+        )
 
     # Initialize force components
     Fx_p, Fy_p = 0, 0  # Pressure forces
     Fx_v, Fy_v = 0, 0  # Viscous forces
 
-    # Loop through surface nodes
+    # NaN guards and viscous-mode selection.
+    valid_pressure = np.isfinite(pressure_surface)
+    if np.count_nonzero(valid_pressure) < 3:
+        raise ValueError(
+            "Too few valid pressure interpolation points on airfoil surface "
+            f"({np.count_nonzero(valid_pressure)} valid segments)."
+        )
+
+    viscous_mode = None
+    if has_tau_w and tau_w_x_surface is not None and tau_w_y_surface is not None:
+        valid_tau = np.isfinite(tau_w_x_surface) & np.isfinite(tau_w_y_surface)
+        if np.count_nonzero(valid_pressure & valid_tau) >= 3:
+            viscous_mode = "tau_w"
+    if viscous_mode is None and has_gradients:
+        valid_grad = (
+            np.isfinite(dudx_surface)
+            & np.isfinite(dudy_surface)
+            & np.isfinite(dvdx_surface)
+            & np.isfinite(dvdy_surface)
+        )
+        if np.count_nonzero(valid_pressure & valid_grad) >= 3:
+            viscous_mode = "gradients"
+
+    # Loop through segments
     for i in range(len(normals)):
+        if not valid_pressure[i]:
+            continue
+
         normal = normals[i]
         length = segment_lengths[i]
 
         # Pressure force contribution
-        pressure_difference = -pressure_surface[i] - p_ref
-        Fx_p += density * normal[0] * pressure_difference * length
-        Fy_p += density * normal[1] * pressure_difference * length
-
-        # Deviatoric stress tensor components (approximated)
-        R_dev_x = 2 * mu * dudx_surface[i]
-        R_dev_y = 2 * mu * dvdy_surface[i]
-        shear_xy = mu * (dudy_surface[i] + dvdx_surface[i])
+        pressure_difference = -(pressure_surface[i] - p_ref)
+        Fx_p += normal[0] * pressure_difference * length
+        Fy_p += normal[1] * pressure_difference * length
 
         # Viscous force contribution
-        Fx_v += (R_dev_x * normal[0] + shear_xy * normal[1]) * length
-        Fy_v += (shear_xy * normal[0] + R_dev_y * normal[1]) * length
+        if viscous_mode == "tau_w":
+            if np.isfinite(tau_w_x_surface[i]) and np.isfinite(tau_w_y_surface[i]):
+                Fx_v += tau_w_x_surface[i] * length
+                Fy_v += tau_w_y_surface[i] * length
+        elif viscous_mode == "gradients":
+            if (
+                np.isfinite(dudx_surface[i])
+                and np.isfinite(dudy_surface[i])
+                and np.isfinite(dvdx_surface[i])
+                and np.isfinite(dvdy_surface[i])
+            ):
+                # Deviatoric stress tensor components (2D approximation).
+                R_dev_x = 2 * mu * dudx_surface[i]
+                R_dev_y = 2 * mu * dvdy_surface[i]
+                shear_xy = mu * (dudy_surface[i] + dvdx_surface[i])
+                Fx_v += (R_dev_x * normal[0] + shear_xy * normal[1]) * length
+                Fy_v += (shear_xy * normal[0] + R_dev_y * normal[1]) * length
 
     # Combine contributions
 
     Fx_total = Fx_p + Fx_v
     Fy_total = Fy_p + Fy_v
-    print(f"Fx_p: {Fx_p:.2f}, Fy_p: {Fy_p:.2f}, Fx_v: {Fx_v:.4f}, Fy_v: {Fy_v:.4f}")
+    print(
+        f"Fx_p: {Fx_p:.2f}, Fy_p: {Fy_p:.2f}, "
+        f"Fx_v: {Fx_v:.4f}, Fy_v: {Fy_v:.4f}, viscous_mode: {viscous_mode}"
+    )
 
     # Visualizing
     if is_plot:
@@ -253,204 +310,118 @@ def compute_surface_forces(
     return Fx_total, Fy_total
 
 
-def main():
+TABLE_ALPHA_TO_Y_NUMS = {
+    6: [1, 2, 3, 4, 5, 6, 7],
+    16: [1],
+}
+DEFAULT_PRESSURE_CACHE_PATH = (
+    Path(project_dir) / "processed_data" / "pressure_integration_coefficients.csv"
+)
 
-    from kite_piv_analysis import plotting
-    from kite_piv_analysis.transforming_paraview_output import process_csv
+
+def _reference_chords(alpha_to_y_nums: dict[int, list[int]]) -> dict[int, float]:
     from kite_piv_analysis import calculating_airfoil_centre
 
-    # slices_folder = Path(project_dir) / "data" / "CFD_slices" / f"alpha_{alpha}"
-    # f"/home/jellepoland/ownCloud/phd/data/V3A/Lebesque_folder/results/1e6/{alpha}/slices"
+    chord_ref: dict[int, float] = {}
+    for alpha in sorted(alpha_to_y_nums):
+        y_ref = alpha_to_y_nums[alpha][0]
+        _, _, chord = calculating_airfoil_centre.main(alpha, y_ref, is_with_chord=True)
+        chord_ref[alpha] = chord
+    return chord_ref
 
-    spatial_scale = 2.584
-    velocity_scale = 15
-    rho_scaling = 1.2
-    rho = 1.2  # 1.2 #TODO: change back to 1.2
-    U_inf = 15
+
+def _q_infc(
+    alpha: int,
+    y_num: int,
+    alpha_to_y_nums: dict[int, list[int]],
+    rho: float,
+    U_inf: float,
+    chord_ref: dict[int, float],
+) -> float:
+    from kite_piv_analysis import calculating_airfoil_centre
+
+    _, _, chord = calculating_airfoil_centre.main(alpha, y_num, is_with_chord=True)
+    if alpha == 6 and 6 in alpha_to_y_nums:
+        chord_for_scale = chord_ref.get(6, chord)
+    else:
+        chord_for_scale = chord
+    return 0.5 * rho * U_inf**2 * chord_for_scale
+
+
+def compute_pressure_integration_coefficients(
+    alpha_to_y_nums=None, is_plot: bool = False
+) -> pd.DataFrame:
+    """
+    Compute CFD pressure-integration coefficients used by quantitative tables.
+
+    Returns columns:
+    alpha, y_num, C_l_p, C_d_p, Fx_total, Fy_total, q_infc
+    """
+    from kite_piv_analysis import plotting
+
+    if alpha_to_y_nums is None:
+        alpha_to_y_nums = TABLE_ALPHA_TO_Y_NUMS
+
+    rho = 1.2
+    U_inf = 15.0
     Re = 1e6
-    p_ref = 0
-    is_with_plot = False
-    is_with_NOCA = False
+    p_ref = 0.0
+    mu = (rho * U_inf * 1.0) / Re
 
-    alpha = 6
-    for y_num in [1, 2, 3, 4, 5]:
-        print(f"\nProcessing alpha: {alpha}, y_num: {y_num}")
-        df = csv_reader(is_CFD=True, alpha=alpha, y_num=y_num, alpha_d_rod=7)
-        # Reading in the airfoil centers
-        x_airfoil, y_airfoil, chord = calculating_airfoil_centre.main(
-            alpha, y_num, is_with_chord=True
-        )
-        if y_num == 1:
-            ref_chord = chord
-        # mu only influences the deviatoric stress tensor
-        mu = (rho * U_inf * 1) / Re
-
-        print(f"rho: {rho}, U_inf: {U_inf}, Re: {Re} ---> mu: {mu}, ")
-        ## Use actual airfoils as surface points
-        surface_x, surface_y = plotting.plot_airfoil(
-            None, {"y_num": y_num, "alpha": alpha}, is_return_surface_points=True
-        )
-        # Flip point order
-        surface_x = surface_x[::-1]
-        surface_y = surface_y[::-1]
-        if is_with_NOCA:
-            ## NOCA
-            Fx, Fy, C_l, C_d = running_NOCA(df, alpha, y_num)
-            print(
-                f"NOCA          --- Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}"
+    chord_ref = _reference_chords(alpha_to_y_nums)
+    rows = []
+    for alpha in sorted(alpha_to_y_nums.keys()):
+        for y_num in alpha_to_y_nums[alpha]:
+            print(f"Processing pressure integration for alpha={alpha}, Y{y_num} ...")
+            df = csv_reader(is_CFD=True, alpha=alpha, y_num=y_num, alpha_d_rod=7)
+            q_infc = _q_infc(
+                alpha, y_num, alpha_to_y_nums, rho=rho, U_inf=U_inf, chord_ref=chord_ref
             )
 
-        ### Compute surface forces
-        Fx_total, Fy_total = compute_surface_forces(
-            df,
-            x_surface=surface_x,
-            y_surface=surface_y,
-            density=rho,
-            p_ref=p_ref,
-            mu=mu,
-            is_plot=is_with_plot,
-        )
-        # q_infc influences the pressure force, through non-dimensionalisation
-        q_infc = 0.5 * rho * U_inf**2 * ref_chord
-        print(f"rho: {rho}, U_inf: {U_inf}, chord: {ref_chord} ---> q_infc: {q_infc}")
-        print(
-            f"P-integration --- Fx: {Fx_total:.2f}, Fy: {Fy_total:.2f}, C_l: {Fy_total/q_infc:.2f}, C_d: {Fx_total/q_infc:.2f}"
-        )
-    alpha = 16
-    for y_num in [1]:
-        print(f"\nProcessing alpha: {alpha}, y_num: {y_num}")
-        df = csv_reader(is_CFD=True, alpha=alpha, y_num=y_num, alpha_d_rod=7)
-        # Reading in the airfoil centers
-        x_airfoil, y_airfoil, chord = calculating_airfoil_centre.main(
-            alpha, y_num, is_with_chord=True
-        )
-        mu = (rho * U_inf * 1) / Re
-        q_infc = 0.5 * rho * U_inf**2 * chord
-        print(f"rho: {rho}, U_inf: {U_inf}, mu: {mu}, Re: {Re}, q_infc: {q_infc}")
-        ## Use actual airfoils as surface points
-        surface_x, surface_y = plotting.plot_airfoil(
-            None, {"y_num": y_num, "alpha": alpha}, is_return_surface_points=True
-        )
-        # Flip point order
-        surface_x = surface_x[::-1]
-        surface_y = surface_y[::-1]
-        if is_with_NOCA:
-            ## NOCA
-            Fx, Fy, C_l, C_d = running_NOCA(df, alpha, y_num)
-            print(
-                f"NOCA          --- Fx: {Fx:.2f}, Fy: {Fy:.2f}, C_l: {C_l:.2f}, C_d: {C_d:.2f}"
+            surface_x, surface_y = plotting.plot_airfoil(
+                None, {"y_num": y_num, "alpha": alpha}, is_return_surface_points=True
             )
+            surface_x = surface_x[::-1]
+            surface_y = surface_y[::-1]
 
-        ### Compute surface forces
-        Fx_total, Fy_total = compute_surface_forces(
-            df,
-            x_surface=surface_x,
-            y_surface=surface_y,
-            density=rho,
-            p_ref=p_ref,
-            mu=mu,
-            is_plot=False,
-        )
-        print(
-            f"P-integration --- Fx: {Fx_total:.2f}, Fy: {Fy_total:.2f}, C_l: {Fy_total/q_infc:.2f}, C_d: {Fx_total/q_infc:.2f}"
-        )
-
-        # ## no scaling
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(
-        #         df, surface_x, surface_y, y_num, alpha, is_plot=is_with_plot
-        #     )
-        # )
-        # print(f"\n[p = p] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}")
-
-        # ## rho scaling
-        # df["pressure"] *= rho
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p/rho] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] /= rho
-
-        # ## Roland scaling
-        # df["pressure"] *= rho * U_inf**2
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p * (0.5*rho*Uinf^2)] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] /= rho * U_inf**2
-
-        # ## Spatial scaling
-        # df["pressure"] *= spatial_scale
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p * spatial_scale] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] /= spatial_scale
-
-        # ## Spatial^2 scaling
-        # df["pressure"] *= spatial_scale**2
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p * spatial_scale^2] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] /= spatial_scale**2
-
-        # ## Spatial^2 / Velocity^2
-        # df["pressure"] /= (spatial_scale**2) / (U_inf**2)
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[p = p * spatial_scale^2 / U_inf^2] \n Fx: {fx:.4f}, Fy: {fy:.4f}, C_l: {cl:.4f}, C_d: {cd:.4f}"
-        # )
-        # df["pressure"] *= (spatial_scale**2) / (U_inf**2)
-
-        # ## Lebesque I scaling
-        # print(
-        #     f'part 1: {np.sum(df["pressure"] / (0.5 * rho * (U_inf**2)))} part 2: {np.sum((df["V"] ** 2) / (U_inf**2))}'
-        # )
-        # df["pressure"] = df["pressure"] / (0.5 * rho * (U_inf**2)) + (
-        #     (df["V"] ** 2) / (U_inf**2)
-        # )
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(
-        #     f"\n[Cp,t = (p/(0.5*rho*Uinf^2)) + ((V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}"
-        # )
-
-        # ## Lebesque I * (1/rho) scaling
-        # df3["pressure"] = (1 / 1.2) * (
-        #     df3["pressure"] / (0.5 * rho * (U_inf**2)) + ((df["V"] ** 2) / (U_inf**2))
-        # )
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df3, surface_x, surface_y, y_num, alpha)
-        # )
-        # # cl, cd = fy, fx
-        # # fx, fy = cd * (0.5 * rho * (U_inf**2) * chord), cl * (
-        # #     0.5 * rho * (U_inf**2) * chord
-        # # )
-        # print(f"x_airfoil_center: {x_airfoil_center:.4f}, {z_airfoil_center:.4f}")
-        # print(
-        #     f"\n[Cp,t = (1/rho_windtunnel)*(p/(0.5*rho*Uinf^2)) + ((V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}"
-        # )
-
-        # ## Lebesque II scaling
-        # df2["pressure"] = 2 * (df2["pressure"] + 0.5 * ((df2["V"] / U_inf) ** 2))
-        # fx, fy, cl, cd, debug_info, chord, x_airfoil_center, z_airfoil_center = (
-        #     compute_surface_forces(df2, surface_x, surface_y, y_num, alpha)
-        # )
-        # print(f"\n[Cp,t = 2*(p+0.5*(V/Uinf)^2)] \n C_l: {fy:.4f}, C_d: {fx:.4f}")
+            Fx_total, Fy_total = compute_surface_forces(
+                df,
+                x_surface=surface_x,
+                y_surface=surface_y,
+                density=rho,
+                p_ref=p_ref,
+                mu=mu,
+                is_plot=is_plot,
+            )
+            rows.append(
+                {
+                    "alpha": int(alpha),
+                    "y_num": int(y_num),
+                    "C_l_p": float(Fy_total / q_infc),
+                    "C_d_p": float(Fx_total / q_infc),
+                    "Fx_total": float(Fx_total),
+                    "Fy_total": float(Fy_total),
+                    "q_infc": float(q_infc),
+                }
+            )
+    return pd.DataFrame(rows)
 
 
-# Example usage
+def save_pressure_integration_coefficients(
+    df: pd.DataFrame, save_path: Path = DEFAULT_PRESSURE_CACHE_PATH
+) -> Path:
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(save_path, index=False)
+    return save_path
+
+
+def main():
+    df = compute_pressure_integration_coefficients()
+    save_path = save_pressure_integration_coefficients(df)
+    print(f"\nSaved pressure-integration coefficients to: {save_path}")
+    print(df.to_string(index=False, float_format=lambda x: f"{x:.6f}"))
+
+
 if __name__ == "__main__":
     main()

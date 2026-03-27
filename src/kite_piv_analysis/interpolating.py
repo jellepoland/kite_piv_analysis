@@ -53,13 +53,6 @@ def interpolate_missing_data(
         "v",
         "w",
         "V",
-        "dudx",
-        "dudy",
-        "dvdx",
-        "dvdy",
-        "dwdx",
-        "dwdy",
-        "vort_z",
     ],
 ):
 
@@ -67,35 +60,41 @@ def interpolate_missing_data(
     increase_weight_points_close = interpolation_zone_i["increase_weight_points_close"]
     increase_weight_points_far = interpolation_zone_i["increase_weight_points_far"]
     method = interpolation_zone_i["method"]
-
-    # Filter data within the expanded bounding box and non-NaN values for interpolation
-    subset = df[
+    in_zone = (
         (df["x"] >= x_min)
         & (df["x"] <= x_max)
         & (df["y"] >= y_min)
         & (df["y"] <= y_max)
-    ]
+    )
 
-    # Get coordinates with available data for interpolation
-    valid_data = subset.dropna(subset=columns)
-    points = valid_data[["x", "y"]].values  # Points where data is known
+    # Track originally invalid velocity points (before interpolation).
+    was_masked = in_zone & (df["u"].isna() | df["v"].isna())
+
+    # Filter data within the expanded bounding box and non-NaN values for interpolation
+    subset = df[in_zone]
 
     # Dictionary to store interpolated values for each column
     interpolated_values = {}
+    nan_targets = {}
 
     for col in columns:
+        # Get coordinates with available data for interpolation for this specific column.
+        valid_data = subset.dropna(subset=[col])
+        points = valid_data[["x", "y"]].values  # Points where data is known
+
         # Values for known data points in the current column
         values = valid_data[col].values
 
         # Identify cells to interpolate (i.e., cells with NaN values within bounds)
-        nan_cells = df[
-            (df["x"] >= x_min)
-            & (df["x"] <= x_max)
-            & (df["y"] >= y_min)
-            & (df["y"] <= y_max)
-            & df[col].isna()
-        ]
+        nan_cells = df[in_zone & df[col].isna()]
         nan_points = nan_cells[["x", "y"]].values  # Points needing interpolation
+        nan_targets[col] = nan_cells.index
+
+        if len(nan_points) == 0:
+            continue
+        if len(points) < 3:
+            # Not enough support points for robust interpolation.
+            continue
 
         if increase_weight_points_close:
             # Custom inverse distance weighting for interpolated values
@@ -113,14 +112,60 @@ def interpolate_missing_data(
 
     # Fill the interpolated values into the dataframe
     for col in columns:
-        df.loc[
-            (df["x"] >= x_min)
-            & (df["x"] <= x_max)
-            & (df["y"] >= y_min)
-            & (df["y"] <= y_max)
-            & df[col].isna(),
-            col,
-        ] = interpolated_values[col]
+        if col not in interpolated_values:
+            continue
+        idx = nan_targets[col]
+        if len(idx) == 0:
+            continue
+        df.loc[idx, col] = interpolated_values[col]
+
+    # Recompute derivative-derived quantities from completed velocity fields.
+    # Overwrite:
+    # 1) originally velocity-masked points, and
+    # 2) in-zone points that still miss any derived field while u/v are available.
+    derived_cols = ["dudx", "dudy", "dvdx", "dvdy", "dwdx", "dwdy", "vort_z"]
+    present_derived_cols = [c for c in derived_cols if c in df.columns]
+    if present_derived_cols:
+        derived_missing = in_zone & df[present_derived_cols].isna().any(axis=1)
+    else:
+        derived_missing = in_zone & False
+    uv_available = in_zone & df["u"].notna() & df["v"].notna()
+    recompute_mask = (was_masked | (derived_missing & uv_available)).astype(bool)
+
+    if recompute_mask.any():
+        n_rows = len(np.unique(df["y"]))
+        n_cols = len(np.unique(df["x"]))
+
+        x_grid = df["x"].values.reshape(n_rows, n_cols)
+        y_grid = df["y"].values.reshape(n_rows, n_cols)
+        u_grid = df["u"].values.reshape(n_rows, n_cols)
+        v_grid = df["v"].values.reshape(n_rows, n_cols)
+        w_grid = df["w"].values.reshape(n_rows, n_cols)
+
+        # Robust spacing estimate for near-uniform structured grids.
+        dx_samples = np.diff(x_grid, axis=1)
+        dy_samples = np.diff(y_grid, axis=0)
+        dx = float(np.nanmedian(dx_samples[np.isfinite(dx_samples)]))
+        dy = float(np.nanmedian(dy_samples[np.isfinite(dy_samples)]))
+        if not np.isfinite(dx) or abs(dx) < 1e-12:
+            dx = float(np.nanmedian(np.diff(np.sort(df["x"].unique()))))
+        if not np.isfinite(dy) or abs(dy) < 1e-12:
+            dy = float(np.nanmedian(np.diff(np.sort(df["y"].unique()))))
+
+        # np.gradient returns [d/dy, d/dx] for a 2D array with shape (ny, nx).
+        dudy_grid, dudx_grid = np.gradient(u_grid, dy, dx)
+        dvdy_grid, dvdx_grid = np.gradient(v_grid, dy, dx)
+        dwdy_grid, dwdx_grid = np.gradient(w_grid, dy, dx)
+        vort_z_grid = dvdx_grid - dudy_grid
+
+        mask_flat = recompute_mask.values
+        df.loc[mask_flat, "dudx"] = dudx_grid.reshape(-1)[mask_flat]
+        df.loc[mask_flat, "dudy"] = dudy_grid.reshape(-1)[mask_flat]
+        df.loc[mask_flat, "dvdx"] = dvdx_grid.reshape(-1)[mask_flat]
+        df.loc[mask_flat, "dvdy"] = dvdy_grid.reshape(-1)[mask_flat]
+        df.loc[mask_flat, "dwdx"] = dwdx_grid.reshape(-1)[mask_flat]
+        df.loc[mask_flat, "dwdy"] = dwdy_grid.reshape(-1)[mask_flat]
+        df.loc[mask_flat, "vort_z"] = vort_z_grid.reshape(-1)[mask_flat]
 
     # plotting a rectangle around the interpolation zone
     d1centre = x_min + (x_max - x_min) / 2, y_min + (y_max - y_min) / 2

@@ -1,5 +1,6 @@
 from kite_piv_analysis.plotting import *
 from kite_piv_analysis.plot_styling import set_plot_style
+from kite_piv_analysis.masking import apply_snr_masking, apply_w_masking
 
 
 def normal_masked_interpolated(plot_params: dict) -> None:
@@ -7,9 +8,9 @@ def normal_masked_interpolated(plot_params: dict) -> None:
     fig, axes = plt.subplots(
         3,
         3,
-        figsize=(15, 10),
+        figsize=(12, 8),
         gridspec_kw={
-            "hspace": 0.01,  # A bit more vertical space for labels
+            "hspace": 0.00,  # A bit more vertical space for labels
             "wspace": 0.07,
         },
     )  # Minimal horizontal space since colorbars are outside)
@@ -75,12 +76,13 @@ def normal_masked_interpolated(plot_params: dict) -> None:
         plot_params["is_with_bound"] = False
         plot_params["is_with_circulation_analysis"] = False
         plot_params["is_with_mask"] = True
-        plot_params["column_to_mask"] = "w"
-        plot_params["mask_lower_bound"] = -2.5
-        plot_params["mask_upper_bound"] = 2.5
         df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
             plot_params | {"is_CFD": False}
         )
+        if plot_params.get("is_with_mask", False):
+            df_piv = apply_w_masking(df_piv, plot_params)
+            df_piv = apply_snr_masking(df_piv, plot_params)
+        plot_params["is_with_mask"] = False
         plot_params = plotting_on_ax(
             fig,
             axes[i, 1],
@@ -103,6 +105,10 @@ def normal_masked_interpolated(plot_params: dict) -> None:
         df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
             plot_params | {"is_CFD": False}
         )
+        if plot_params.get("is_with_mask", False):
+            df_piv = apply_w_masking(df_piv, plot_params)
+            df_piv = apply_snr_masking(df_piv, plot_params)
+        plot_params["is_with_mask"] = False
         plot_params = plotting_on_ax(
             fig,
             axes[i, 2],
@@ -147,13 +153,13 @@ def normal_masked_interpolated(plot_params: dict) -> None:
 
 
 def normal_masked_interpolated_3by2(plot_params: dict) -> None:
-    """Create a 3x2 comparison of CFD and PIV data, with PIV masked/unmasked."""
+    """Create a 3x3 comparison: raw, |w|-only masked, and |w|+SNR masked."""
     is_pcolormesh = None
     fig, axes = plt.subplots(
         3,
-        2,
-        figsize=(10.5, 10),
-        gridspec_kw={"hspace": 0.01, "wspace": 0.07},
+        3,
+        figsize=(12, 8),
+        gridspec_kw={"hspace": -0.1, "wspace": 0.07},
     )  # Minimal spacing for compact layout
 
     data_columns = ["u", "v", "w"]
@@ -191,11 +197,11 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
             is_pcolormesh=is_pcolormesh,
         )
 
-        ### PIV Mask (right column)
-        plot_params["is_with_mask"] = True
+        ### PIV |w|-only mask (middle column)
         df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
             plot_params | {"is_CFD": False}
         )
+        df_piv = apply_w_masking(df_piv, plot_params)
         plot_params = plotting_on_ax(
             fig,
             axes[i, 1],
@@ -204,18 +210,34 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
             y_mesh_piv,
             plot_params,
             is_with_xlabel=is_with_xlabel,
-            is_with_ylabel=True,  # Only for the 2nd row
+            is_with_ylabel=False,
+            is_pcolormesh=is_pcolormesh,
+        )
+
+        ### PIV |w| + SNR mask (right column)
+        df_piv, x_mesh_piv, y_mesh_piv, plot_params = load_data(
+            plot_params | {"is_CFD": False}
+        )
+        df_piv = apply_w_masking(df_piv, plot_params)
+        df_piv = apply_snr_masking(df_piv, plot_params)
+        plot_params = plotting_on_ax(
+            fig,
+            axes[i, 2],
+            df_piv,
+            x_mesh_piv,
+            y_mesh_piv,
+            plot_params,
+            is_with_xlabel=is_with_xlabel,
+            is_with_ylabel=False,
             is_label_left=False,
             is_pcolormesh=is_pcolormesh,
         )
 
         # setting titles
         if i == 0:
-            axes[i, 0].set_title(f"PIV raw")
-            axes[i, 1].set_title(
-                # f'PIV Masked for {plot_params["column_to_mask"]} in bounds {plot_params["mask_lower_bound"]} to {plot_params["mask_upper_bound"]}'
-                f"PIV masked"
-            )
+            axes[i, 0].set_title("Raw")
+            axes[i, 1].set_title(r"Only $|w|$ masked")
+            axes[i, 2].set_title("$|w|$ and ICV masked")
 
         # adding cbar
         add_vertical_colorbar_for_row(
@@ -226,15 +248,16 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
         plot_params["min_cbar_value"] = None
         plot_params["max_cbar_value"] = None
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.02)
     # Save the plot
-    save_path = (
-        Path(project_dir)
-        / "results"
-        / "paper_plots_21_10_2025"
-        / f"fig10_PIV_normal_masked_Y{plot_params['y_num']}.pdf"
-    )
-    fig.savefig(save_path)
+    # save_path = (
+    #     Path(project_dir)
+    #     / "results"
+    #     / "paper_plots_21_10_2025"
+    #     / f"fig10_PIV_normal_masked_Y{plot_params['y_num']}.pdf"
+    # )
+    save_path = Path(project_dir) / "results" / "paper_plots_24_03_2026" / f"figC1.pdf"
+    fig.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
     plt.close()
 
 
@@ -304,9 +327,21 @@ def main():
         "chord": 0.37,
         # Mask settings
         "is_with_mask": False,
-        "column_to_mask": "w",
-        "mask_lower_bound": -3,
-        "mask_upper_bound": 3,
+        "is_with_w_mask": True,
+        "w_mask_lower_bound": -3,
+        "w_mask_upper_bound": 3,
+        "is_with_snr_mask": [True, True],
+        "snr_use_proxy": [True, True],
+        "snr_column_to_mask": ["snr", "snr"],
+        "snr_mask_lower_bound": [2.0, 2.0],
+        "snr_mask_upper_bound": [np.inf, np.inf],
+        "proxy_snr_components": [["u", "v"], ["u", "v"]],
+        "proxy_snr_reduction": ["median", "mean"],
+        "proxy_snr_min_std": [1e-6, 1e-6],
+        "snr_mask_nan_as_invalid": [True, True],
+        "snr_mask_strict": [False, False],
+        "snr_apply_only_below_rear_airfoil_line": [False, True],
+        "snr_rear_airfoil_fraction": [0.5, 0.5],
         "normal_masked_interpolated": True,
         ## Interpolation settings
         "is_with_interpolation": True,

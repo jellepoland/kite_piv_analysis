@@ -11,12 +11,78 @@ import matplotlib.pyplot as plt
 
 from kite_piv_analysis.utils import project_dir
 from kite_piv_analysis.compute_overlap_error import (
-    load_dat_file_with_std,
     load_dat_file,
     interpolate_to_grid,
 )
+from kite_piv_analysis.masking import apply_snr_masking, apply_w_masking
 from kite_piv_analysis.plot_styling import set_plot_style
 from kite_piv_analysis.plotting import plot_airfoil
+
+
+def _alpha_from_aoa(aoa: int) -> int:
+    return {13: 6, 23: 16}.get(int(aoa), int(aoa))
+
+
+def _mask_plot_params(aoa: int, y_num: int, w_threshold: float = 3.0) -> dict:
+    return {
+        "alpha": _alpha_from_aoa(aoa),
+        "y_num": y_num,
+        "is_with_w_mask": True,
+        "w_mask_lower_bound": -abs(float(w_threshold)),
+        "w_mask_upper_bound": abs(float(w_threshold)),
+        "is_with_snr_mask": [True, True],
+        "snr_use_proxy": [True, True],
+        "snr_column_to_mask": ["snr", "snr"],
+        "snr_mask_lower_bound": [2.0, 2.0],
+        "snr_mask_upper_bound": [np.inf, np.inf],
+        "proxy_snr_components": [["u", "v"], ["u", "v"]],
+        "proxy_snr_reduction": ["median", "mean"],
+        "proxy_snr_min_std": [1e-6, 1e-6],
+        "snr_mask_nan_as_invalid": [True, True],
+        "snr_mask_strict": [False, False],
+        "snr_apply_only_below_rear_airfoil_line": [False, True],
+        "snr_rear_airfoil_fraction": [0.5, 0.5],
+    }
+
+
+def _apply_combined_mask_to_plane(
+    mean_data: dict,
+    std_data: dict,
+    aoa: int,
+    y_num: int,
+    w_threshold: float = 3.0,
+) -> dict:
+    """
+    Apply combined quality mask (w + ICV/proxy-SNR) to raw plane data.
+    """
+    df_mean = pd.DataFrame(
+        {
+            "x": mean_data["x"],
+            "y": mean_data["y"],
+            "u": mean_data["u"],
+            "v": mean_data["v"],
+            "w": mean_data["w"],
+            "V": mean_data["V"],
+            "is_valid": mean_data["is_valid"],
+        }
+    )
+    df_std = pd.DataFrame(
+        {
+            "u": std_data["u"],
+            "v": std_data["v"],
+            "w": std_data["w"],
+        }
+    )
+    mask_params = _mask_plot_params(aoa, y_num, w_threshold=w_threshold)
+    mask_params["df_std"] = df_std
+
+    df_masked = apply_w_masking(df_mean, mask_params)
+    df_masked = apply_snr_masking(df_masked, mask_params)
+
+    out = dict(mean_data)
+    for key in ["x", "y", "u", "v", "w", "V", "is_valid"]:
+        out[key] = df_masked[key].to_numpy()
+    return out
 
 
 def collect_y1_data(
@@ -33,14 +99,9 @@ def collect_y1_data(
     return interpolated data + metadata for Y1 only.
     Applies per-plane delta_x/delta_y from planes_location.csv.
     """
-    # Default input dir (newer pre-processed structure)
+    # Primary input source only.
     input_dir = Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input"
-    # Fallback for missing Y4 at aoa=23: use older raw bundle
-    if aoa == 23 and y_num == 4:
-        input_dir = Path(project_dir) / "data_old_21_10_2025" / "raw_dat_files"
 
-    U_inf = 15.0  # Freestream velocity
-    std_threshold = 0.1
     # plane offsets table (alpha stored as 6/16; map AoA 23 -> alpha 16)
     planes_loc = pd.read_csv(
         Path(project_dir)
@@ -81,13 +142,15 @@ def collect_y1_data(
                 continue
 
             planes_data = {}
+            planes_std_data = {}
             for plane_name, plane_dir in plane_dirs.items():
                 mean_file = plane_dir / "B0001.dat"
                 std_file = plane_dir / "B0002.dat"
                 if mean_file.exists() and std_file.exists():
-                    planes_data[plane_name] = load_dat_file_with_std(
-                        mean_file, std_file, U_inf=U_inf, std_threshold=std_threshold
-                    )
+                    planes_data[plane_name] = load_dat_file(mean_file)
+                    planes_std_data[plane_name] = load_dat_file(std_file)
+                else:
+                    continue
 
                 # apply per-plane offsets
                 row = planes_loc[
@@ -128,6 +191,16 @@ def collect_y1_data(
                     data["y"] = -data["y"] + 2 * dy_local
                     if "v" in data:
                         data["v"] = -data["v"]
+
+                # Apply combined quality mask (w + ICV) after geometric transforms.
+                if plane_name in planes_std_data:
+                    planes_data[plane_name] = _apply_combined_mask_to_plane(
+                        data,
+                        planes_std_data[plane_name],
+                        aoa=aoa,
+                        y_num=y_plane,
+                        w_threshold=3.0,
+                    )
 
             configs_data[config] = planes_data
 
@@ -207,7 +280,7 @@ def plot_y1_overlap_grid(
         return mag
 
     def apply_filters(plane):
-        """Apply DaVis validity (if present) and |w| threshold before diffs."""
+        """Apply a final |w| guard before diffs (data already pre-masked by w+ICV)."""
         out = {k: np.array(v, copy=True) for k, v in plane.items()}
         mask = np.ones_like(out["w"], dtype=bool)
         if "is_valid" in out:
@@ -468,7 +541,8 @@ def plot_raw_planes(
 ):
     """
     Plot raw interpolated planes (no stitching) for flipped and normal configs.
-    Masks with is_valid, |w| <= threshold, and y > y_min_mask.
+    Plane fields are pre-masked by the combined quality mask (w + ICV);
+    this function applies an additional |w| guard and y-cutoff for display.
     Layout: 2 rows (flipped, normal) x 3 columns (X1,X2,X3).
     """
     set_plot_style()
@@ -549,7 +623,8 @@ def plot_raw_planes_overlay(
 ):
     """
     Overlay all six planes (flipped & normal, X1/X2/X3) in a single plot.
-    Uses distinct colors per plane; applies is_valid, |w| filter, and y>y_min_mask.
+    Uses distinct colors per plane; data is pre-masked by w + ICV and then
+    additionally filtered by |w| and y>y_min_mask for display.
     """
     set_plot_style()
     grid_x = y1_data["grid_x"]

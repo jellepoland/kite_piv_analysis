@@ -304,15 +304,10 @@ def plot_contour_with_colored_data(plot_params, mask_bound=3):
         labelpad=21,
     )
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.02)
     # Save the plot
-    save_path = (
-        Path(project_dir)
-        / "results"
-        / "paper_plots_21_10_2025"
-        / "fig11_spanwise_CFD_alpha_comparison.pdf"
-    )
-    fig.savefig(save_path)  # , dpi=600)
+    save_path = Path(project_dir) / "results" / "paper_plots_24_03_2026" / "figC2.pdf"
+    fig.savefig(save_path, bbox_inches="tight", pad_inches=0.01)  # , dpi=600)
     plt.close()
 
 
@@ -351,7 +346,7 @@ def main():
         "subsample_quiver": 5,
         "u_inf": 15.0,
         # Saving directory
-        "save_dir": Path(project_dir) / "results" / "spanwise_CFD_slices",
+        "save_dir": Path(project_dir) / "results" / "paper_plots_24_03_2026",
         # Data loading path
     }
 

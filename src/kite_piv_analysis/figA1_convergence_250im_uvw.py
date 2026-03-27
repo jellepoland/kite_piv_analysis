@@ -311,7 +311,7 @@ def plot_convergence_single_col(values_at_point_list):
     n_samples, rows_data = _build_shuffled_data(values_at_point_list)
     x_axis = range(1, n_samples + 1)
 
-    fig, axes = plt.subplots(3, 1, figsize=(10, 8))
+    fig, axes = plt.subplots(3, 1, figsize=(7, 4))
 
     for row, (_var_col, var_label, _unfiltered, filtered) in enumerate(rows_data):
         ax = axes[row]
@@ -331,17 +331,23 @@ def plot_convergence_single_col(values_at_point_list):
         )
         running_mean_f = _running_mean_nan(filtered)
         ax.plot(x_axis, running_mean_f, "r-", linewidth=2, label="Running Mean")
-        if row == 0:
-            ax.legend()
+        if row == 2:
+            ax.legend(ncol=2, fontsize=13)
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.02)
+    # save_path = Path(
+    #     project_dir,
+    #     "results",
+    #     "paper_plots_21_10_2025",
+    #     "fig14_convergence_250im_uvw.pdf",
+    # )
     save_path = Path(
         project_dir,
         "results",
-        "paper_plots_21_10_2025",
-        "fig14_convergence_250im_uvw.pdf",
+        "paper_plots_24_03_2026",
+        "figA1.pdf",
     )
-    plt.savefig(save_path)
+    plt.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
     plt.close()
     print(f"Convergence plot (1-col) saved to {save_path}")
 
@@ -355,7 +361,7 @@ def plot_convergence_two_col(values_at_point_list):
     n_samples, rows_data = _build_shuffled_data(values_at_point_list)
     x_axis = range(1, n_samples + 1)
 
-    fig, axes = plt.subplots(3, 2, figsize=(12, 9))
+    fig, axes = plt.subplots(3, 2, figsize=(10, 7))
 
     for row, (_var_col, var_label, unfiltered, filtered) in enumerate(rows_data):
         # Left: raw
@@ -400,14 +406,14 @@ def plot_convergence_two_col(values_at_point_list):
         if row == 0:
             ax_right.set_title("Filtered: isValid and |w|<=3 m/s")
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.02)
     save_path = Path(
         project_dir,
         "results",
         "paper_plots_21_10_2025",
         "fig14_convergence_250im_uvw_2col.pdf",
     )
-    plt.savefig(save_path)
+    plt.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
     plt.close()
     print(f"Convergence plot (2-col) saved to {save_path}")
 
