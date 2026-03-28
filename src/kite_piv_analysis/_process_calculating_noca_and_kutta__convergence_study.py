@@ -14,20 +14,22 @@ DEFAULT_INCLUDE_CFD_CONVERGENCE = True
 DEFAULT_SUPER_FAST = {
     # Keep full alpha/Y coverage, but use coarse/fast settings.
     "noca_alpha6_y": [1, 2, 3, 4, 5, 6, 7],
+    # "noca_alpha6_y": [1, 2, 3, 4],
     "noca_alpha16_y": [1],
-    "noca_n_points": 5,
+    "noca_n_points": 2,
     "conv_pairs": [(6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (16, 1)],
+    # "conv_pairs": [(6, 1), (6, 2), (6, 3), (6, 4), (16, 1)],
     "conv_parameter_names": ["iP", "dLx", "dLy"],
+    # "conv_parameter_names": ["dLx"],
     "conv_data_types": ["CFD", "PIV"],
-    "conv_fast_factor": 25.0,
+    "conv_fast_factor": 49.0,  # higher than 50 is not good
     "conv_is_small_piv": True,
     "conv_piv_sweep_n_points": 1,
     "include_cfd_noca": True,
     "include_cfd_convergence": True,
 }
 """
- python -m kite_piv_analysis._process_calculating_noca_and_kutta__convergence_study --super-fast
-
+ python -m kite_piv_analysis._process_calculating_noca_and_kutta__convergence_study --super-fast --skip-convergence
 """
 
 
@@ -94,7 +96,7 @@ def run_calculating_noca_and_kutta(
 ) -> None:
     calculating_noca_and_kutta = _import_package_module("calculating_noca_and_kutta")
 
-    print("\n[1/3] Running calculating_noca_and_kutta ...")
+    print("\n[1/2] Running calculating_noca_and_kutta ...")
     if alpha6_y_nums:
         print(
             f"  - alpha=6, y_nums={alpha6_y_nums}, n_points={n_points}, "
@@ -135,7 +137,7 @@ def run_convergence_study(
 ) -> None:
     convergence_study = _import_package_module("convergence_study")
 
-    print("\n[3/3] Running convergence_study ...")
+    print("\n[2/2] Running convergence_study ...")
     effective_data_types = list(data_types)
     if not include_cfd:
         effective_data_types = [d for d in effective_data_types if d.upper() != "CFD"]
@@ -173,38 +175,6 @@ def run_convergence_study(
             )
 
 
-def run_bernoulli_contour_force_cache(
-    alpha6_y_nums: list[int],
-    alpha16_y_nums: list[int],
-    n_points: int,
-    d_perc: float,
-) -> None:
-    calculating_noca_and_kutta = _import_package_module("calculating_noca_and_kutta")
-
-    alpha_to_y_nums: dict[int, list[int]] = {}
-    if alpha6_y_nums:
-        alpha_to_y_nums[6] = list(alpha6_y_nums)
-    if alpha16_y_nums:
-        alpha_to_y_nums[16] = list(alpha16_y_nums)
-
-    print("\n[2/3] Running Bernoulli contour-force cache generation ...")
-    if not alpha_to_y_nums:
-        print("  - Skipped: no alpha/Y selections available.")
-        return
-
-    print(
-        f"  - alpha_to_y_nums={alpha_to_y_nums}, n_points={n_points}, d_perc={d_perc}"
-    )
-    _, save_path = (
-        calculating_noca_and_kutta.compute_and_save_bernoulli_contour_coefficients(
-            alpha_to_y_nums=alpha_to_y_nums,
-            n_points=n_points,
-            d_perc=d_perc,
-        )
-    )
-    print(f"  - Saved Bernoulli cache: {save_path}")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
@@ -220,11 +190,6 @@ def main() -> None:
         "--skip-convergence",
         action="store_true",
         help="Skip convergence_study stage.",
-    )
-    parser.add_argument(
-        "--skip-bernoulli",
-        action="store_true",
-        help="Skip Bernoulli contour-force cache stage.",
     )
     parser.add_argument(
         "--super-fast",
@@ -302,13 +267,6 @@ def main() -> None:
         default=10,
         help="n_points for storing_PIV_percentage_sweep.",
     )
-    parser.add_argument(
-        "--bernoulli-d-perc",
-        type=float,
-        default=5.0,
-        help="Percent contour-size sweep half-width for Bernoulli cache.",
-    )
-
     args = parser.parse_args()
 
     alpha6_y_nums = _parse_int_list(args.noca_alpha6_y) or DEFAULT_NOCA_ALPHA6_Y
@@ -328,7 +286,6 @@ def main() -> None:
     conv_fast_factor = args.conv_fast_factor
     conv_is_small_piv = args.conv_is_small_piv
     conv_piv_sweep_n_points = args.conv_piv_sweep_n_points
-    bernoulli_d_perc = args.bernoulli_d_perc
     include_cfd_noca = DEFAULT_INCLUDE_CFD_NOCA or args.include_cfd_noca
     include_cfd_convergence = (
         DEFAULT_INCLUDE_CFD_CONVERGENCE or args.include_cfd_convergence
@@ -361,17 +318,7 @@ def main() -> None:
             include_cfd=include_cfd_noca,
         )
     else:
-        print("[1/3] Skipped calculating_noca_and_kutta.")
-
-    if not args.skip_bernoulli:
-        run_bernoulli_contour_force_cache(
-            alpha6_y_nums=alpha6_y_nums,
-            alpha16_y_nums=alpha16_y_nums,
-            n_points=noca_n_points,
-            d_perc=bernoulli_d_perc,
-        )
-    else:
-        print("[2/3] Skipped Bernoulli contour-force cache stage.")
+        print("[1/2] Skipped calculating_noca_and_kutta.")
 
     if not args.skip_convergence:
         run_convergence_study(
@@ -384,7 +331,7 @@ def main() -> None:
             include_cfd=include_cfd_convergence,
         )
     else:
-        print("[3/3] Skipped convergence_study.")
+        print("[2/2] Skipped convergence_study.")
 
     print("\nDone.")
 

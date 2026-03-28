@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 from pathlib import Path
-from scipy.interpolate import griddata
-from kite_piv_analysis.utils import project_dir
+from kite_piv_analysis.utils import (
+    project_dir,
+)
 from kite_piv_analysis.calculating_circulation import calculate_circulation
 from kite_piv_analysis.utils import reading_optimal_bound_placement
 from kite_piv_analysis import calculating_airfoil_centre
@@ -98,13 +99,12 @@ PIV_SUFFIXES = [
     "fy_std",
 ]
 
-BERNOULLI_CACHE_PATH = (
-    Path(project_dir) / "processed_data" / "bernoulli_contour_force_coefficients.csv"
+NOCA_TERM_BREAKDOWN_RAW_PATH = (
+    Path(project_dir) / "processed_data" / "noca_term_breakdown_raw.csv"
 )
-DEFAULT_BERNOULLI_ALPHA_TO_Y_NUMS = {
-    6: [1, 2, 3, 4, 5],
-    16: [1],
-}
+NOCA_TERM_BREAKDOWN_AGG_PATH = (
+    Path(project_dir) / "processed_data" / "noca_term_breakdown_agg.csv"
+)
 
 
 def _build_analysis_plot_params(alpha: int, y_num: int, is_CFD: bool) -> dict:
@@ -144,305 +144,107 @@ def _build_analysis_plot_params(alpha: int, y_num: int, is_CFD: bool) -> dict:
     return params
 
 
-def _prepare_closed_curve(curve: np.ndarray) -> np.ndarray:
-    curve = np.asarray(curve, dtype=float)
-    if curve.ndim != 2 or curve.shape[1] != 2:
-        raise ValueError(f"Expected contour shape (N,2), got {curve.shape}")
-    if len(curve) < 3:
-        raise ValueError("Contour needs at least 3 points.")
-    if not np.allclose(curve[0], curve[-1], rtol=0, atol=1e-12):
-        curve = np.vstack([curve, curve[0]])
-    return curve
+def _noca_term_group_cols() -> list[str]:
+    return [
+        "alpha",
+        "y_num",
+        "data_type",
+        "shape",
+        "is_CFD",
+        "n_points",
+        "d_perc",
+        "iP",
+        "dLx_optimal",
+        "dLy_optimal",
+        "ref_chord",
+        "rho",
+        "U_inf",
+        "mu",
+        "is_with_smoothing",
+        "is_with_vort_correction",
+    ]
 
 
-def _signed_area(closed_curve: np.ndarray) -> float:
-    x = closed_curve[:, 0]
-    y = closed_curve[:, 1]
-    return 0.5 * np.sum(x[:-1] * y[1:] - x[1:] * y[:-1])
+def _aggregate_noca_term_breakdown(df_raw: pd.DataFrame) -> pd.DataFrame:
+    if df_raw.empty:
+        return pd.DataFrame()
 
-
-def _integrate_bernoulli_contour_forces(
-    df: pd.DataFrame,
-    contour: np.ndarray,
-    U_inf: float,
-    rho: float,
-    q_infc: float,
-    chord_for_vorticity_scale: float,
-) -> dict:
-    closed = _prepare_closed_curve(contour)
-    seg = closed[1:] - closed[:-1]
-    ds = np.linalg.norm(seg, axis=1)
-    mid = 0.5 * (closed[1:] + closed[:-1])
-    valid_seg = ds > 1e-12
-    n_total_segments = int(np.count_nonzero(valid_seg))
-    if n_total_segments == 0:
-        raise ValueError("All contour segments have zero length.")
-
-    seg = seg[valid_seg]
-    ds = ds[valid_seg]
-    mid = mid[valid_seg]
-
-    area = _signed_area(closed)
-    is_ccw = area > 0
-    if is_ccw:
-        nx = seg[:, 1] / ds
-        ny = -seg[:, 0] / ds
-    else:
-        nx = -seg[:, 1] / ds
-        ny = seg[:, 0] / ds
-
-    xy = np.column_stack((df["x"].values, df["y"].values))
-    u_vals = df["u"].values
-    v_vals = df["v"].values
-    u_mask = np.isfinite(u_vals)
-    v_mask = np.isfinite(v_vals)
-    if np.count_nonzero(u_mask) < 3 or np.count_nonzero(v_mask) < 3:
-        raise ValueError("Not enough valid u/v samples for contour interpolation.")
-
-    u_i = griddata(xy[u_mask], u_vals[u_mask], mid, method="linear")
-    v_i = griddata(xy[v_mask], v_vals[v_mask], mid, method="linear")
-    if "vort_z" in df.columns:
-        vort_vals = df["vort_z"].values
-        vort_mask = np.isfinite(vort_vals)
-        if np.count_nonzero(vort_mask) >= 3:
-            vort_i = griddata(xy[vort_mask], vort_vals[vort_mask], mid, method="linear")
-        else:
-            vort_i = np.full_like(u_i, np.nan, dtype=float)
-    else:
-        vort_i = np.full_like(u_i, np.nan, dtype=float)
-
-    valid = np.isfinite(u_i) & np.isfinite(v_i)
-    if np.count_nonzero(valid) < 3:
-        raise ValueError(
-            "Too few valid contour interpolation points for Bernoulli integration "
-            f"({np.count_nonzero(valid)} valid segments)."
+    group_cols = [c for c in _noca_term_group_cols() if c in df_raw.columns]
+    value_cols = [
+        c
+        for c in df_raw.columns
+        if (
+            c.startswith("Fx_")
+            or c.startswith("Fy_")
+            or c.startswith("Cd_")
+            or c.startswith("Cl_")
         )
+    ]
+    if not value_cols:
+        return pd.DataFrame()
 
-    u_i = u_i[valid]
-    v_i = v_i[valid]
-    vort_i = vort_i[valid]
-    nx = nx[valid]
-    ny = ny[valid]
-    ds = ds[valid]
+    agg = (
+        df_raw.groupby(group_cols, dropna=False)[value_cols]
+        .agg(["mean", "std"])
+        .reset_index()
+    )
+    agg.columns = [
+        "_".join([p for p in col if p]).rstrip("_")
+        if isinstance(col, tuple)
+        else col
+        for col in agg.columns
+    ]
 
-    speed2 = u_i**2 + v_i**2
-    un = u_i * nx + v_i * ny
-    bern_term = 0.5 * (U_inf**2 - speed2)
-
-    # Pressure-traction contribution follows the body-force convention:
-    # -p * n with p - p_inf = 0.5 * rho * (U_inf^2 - |u|^2).
-    fx_per_rho = np.sum((-u_i * un - bern_term * nx) * ds)
-    fz_per_rho = np.sum((-v_i * un - bern_term * ny) * ds)
-    F_x = rho * fx_per_rho
-    F_z = rho * fz_per_rho
-
-    abs_vort = np.abs(vort_i)
-    vort_scale = U_inf / chord_for_vorticity_scale
-    return {
-        "Fx_bernoulli": float(F_x),
-        "Fz_bernoulli": float(F_z),
-        "C_d_bernoulli": float(F_x / q_infc),
-        "C_l_bernoulli": float(F_z / q_infc),
-        "vort_abs_mean": float(np.nanmean(abs_vort)),
-        "vort_abs_max": float(np.nanmax(abs_vort)),
-        "vort_rel_mean": float(np.nanmean(abs_vort) / vort_scale),
-        "vort_rel_max": float(np.nanmax(abs_vort) / vort_scale),
-        "n_valid_segments": int(len(ds)),
-        "valid_fraction": float(len(ds) / n_total_segments),
-    }
+    counts = (
+        df_raw.groupby(group_cols, dropna=False)
+        .size()
+        .reset_index(name="n_samples")
+    )
+    agg = agg.merge(counts, on=group_cols, how="left")
+    return agg
 
 
-def _aggregate_bernoulli_samples(
-    sample_dicts: list[dict],
-) -> dict:
-    """
-    Aggregate Bernoulli contour-sweep samples into mean/std metrics.
-    Keeps legacy keys as means for downstream compatibility.
-    """
-    if not sample_dicts:
-        raise ValueError("No Bernoulli samples provided for aggregation.")
+def _merge_write_noca_breakdown(
+    df_new: pd.DataFrame,
+    save_path: Path,
+    key_cols: list[str],
+) -> None:
+    if df_new.empty:
+        return
 
-    def _arr(key: str) -> np.ndarray:
-        return np.array([s[key] for s in sample_dicts], dtype=float)
-
-    fx = _arr("Fx_bernoulli")
-    fz = _arr("Fz_bernoulli")
-    cl = _arr("C_l_bernoulli")
-    cd = _arr("C_d_bernoulli")
-    vort_abs_mean = _arr("vort_abs_mean")
-    vort_abs_max = _arr("vort_abs_max")
-    vort_rel_mean = _arr("vort_rel_mean")
-    vort_rel_max = _arr("vort_rel_max")
-    n_valid_segments = _arr("n_valid_segments")
-    valid_fraction = _arr("valid_fraction")
-
-    return {
-        # Keep these names for compatibility with existing table loader.
-        "Fx_bernoulli": float(np.mean(fx)),
-        "Fz_bernoulli": float(np.mean(fz)),
-        "C_l_bernoulli": float(np.mean(cl)),
-        "C_d_bernoulli": float(np.mean(cd)),
-        "vort_abs_mean": float(np.mean(vort_abs_mean)),
-        "vort_abs_max": float(np.mean(vort_abs_max)),
-        "vort_rel_mean": float(np.mean(vort_rel_mean)),
-        "vort_rel_max": float(np.mean(vort_rel_max)),
-        "n_valid_segments": int(round(np.mean(n_valid_segments))),
-        "valid_fraction": float(np.mean(valid_fraction)),
-        # New dispersion outputs from contour-size sweep.
-        "Fx_bernoulli_std": float(np.std(fx)),
-        "Fz_bernoulli_std": float(np.std(fz)),
-        "C_l_bernoulli_std": float(np.std(cl)),
-        "C_d_bernoulli_std": float(np.std(cd)),
-        "vort_abs_mean_std": float(np.std(vort_abs_mean)),
-        "vort_abs_max_std": float(np.std(vort_abs_max)),
-        "vort_rel_mean_std": float(np.std(vort_rel_mean)),
-        "vort_rel_max_std": float(np.std(vort_rel_max)),
-        "n_valid_segments_std": float(np.std(n_valid_segments)),
-        "valid_fraction_std": float(np.std(valid_fraction)),
-        "n_contours_used": int(len(sample_dicts)),
-    }
-
-
-def compute_bernoulli_contour_coefficients(
-    alpha_to_y_nums: dict[int, list[int]] | None = None,
-    data_types: tuple[str, ...] = ("CFD", "PIV"),
-    shapes: tuple[str, ...] = ("ellipse", "rectangle"),
-    n_points: int = 10,
-    d_perc: float = 5.0,
-    rho: float = 1.2,
-    U_inf: float = 15.0,
-    ref_chord_alpha6: float = 0.39834712,
-) -> pd.DataFrame:
-    """
-    Compute steady momentum + Bernoulli contour forces on NOCA control contours.
-    """
-    if alpha_to_y_nums is None:
-        alpha_to_y_nums = DEFAULT_BERNOULLI_ALPHA_TO_Y_NUMS
-
-    if n_points <= 0:
-        raise ValueError(f"n_points must be > 0, got {n_points}")
-    if d_perc < 0:
-        raise ValueError(f"d_perc must be >= 0, got {d_perc}")
-
-    rows: list[dict] = []
-    for alpha in sorted(alpha_to_y_nums.keys()):
-        for y_num in alpha_to_y_nums[alpha]:
-            dLx, dLy, iP = reading_optimal_bound_placement(
-                alpha, y_num, is_with_N_datapoints=True
-            )
-            x_airfoil, y_airfoil, chord_local = calculating_airfoil_centre.main(
-                alpha, y_num, is_with_chord=True
-            )
-            chord_for_scale = ref_chord_alpha6 if alpha == 6 else chord_local
-            q_infc = 0.5 * rho * U_inf**2 * chord_for_scale
-            d1centre = (x_airfoil, y_airfoil)
-
-            for data_type in data_types:
-                is_CFD = str(data_type).upper() == "CFD"
-                plot_params = _build_analysis_plot_params(alpha, y_num, is_CFD=is_CFD)
-                df, _, _, _ = load_data(plot_params)
-                if not is_CFD:
-                    df = _apply_fig06_masking(df, plot_params)
-
-                for shape in shapes:
-                    shape_l = shape.lower()
-                    print(
-                        "Processing Bernoulli contour sweep: "
-                        f"alpha={alpha}, Y{y_num}, data={data_type}, shape={shape_l}, "
-                        f"n_points={n_points}, d_perc={d_perc}"
-                    )
-                    dmin = 1 - (d_perc / 100.0)
-                    dmax = 1 + (d_perc / 100.0)
-                    dLx_range = np.linspace(dLx * dmin, dLx * dmax, n_points)
-                    dLy_range = np.linspace(dLy * dmin, dLy * dmax, n_points)
-
-                    samples: list[dict] = []
-                    failed = 0
-                    for current_dLx in dLx_range:
-                        for current_dLy in dLy_range:
-                            if shape_l == "ellipse":
-                                contour = boundary_ellipse(
-                                    d1centre=d1centre,
-                                    drot=0,
-                                    dLx=current_dLx,
-                                    dLy=current_dLy,
-                                    iP=iP,
-                                )
-                            elif shape_l == "rectangle":
-                                contour = boundary_rectangle(
-                                    d1centre=d1centre,
-                                    drot=0,
-                                    dLx=current_dLx,
-                                    dLy=current_dLy,
-                                    iP=iP,
-                                )
-                            else:
-                                raise ValueError(f"Unknown shape '{shape}'.")
-
-                            try:
-                                vals = _integrate_bernoulli_contour_forces(
-                                    df=df,
-                                    contour=contour,
-                                    U_inf=U_inf,
-                                    rho=rho,
-                                    q_infc=q_infc,
-                                    chord_for_vorticity_scale=chord_local,
-                                )
-                            except ValueError:
-                                failed += 1
-                                continue
-                            samples.append(vals)
-
-                    if not samples:
-                        raise ValueError(
-                            "No valid Bernoulli contour samples after sweep for "
-                            f"alpha={alpha}, Y{y_num}, data={data_type}, shape={shape_l}."
-                        )
-
-                    agg = _aggregate_bernoulli_samples(samples)
-                    total = int(len(dLx_range) * len(dLy_range))
-                    rows.append(
-                        {
-                            "alpha": int(alpha),
-                            "y_num": int(y_num),
-                            "data_type": str(data_type).upper(),
-                            "shape": shape_l,
-                            "dLx": float(dLx),  # optimal/base
-                            "dLy": float(dLy),  # optimal/base
-                            "iP": int(iP),
-                            "q_infc": float(q_infc),
-                            "n_points": int(n_points),
-                            "d_perc": float(d_perc),
-                            "n_contours_total": total,
-                            "n_contours_failed": int(failed),
-                            **agg,
-                        }
-                    )
-    return pd.DataFrame(rows)
-
-
-def save_bernoulli_contour_coefficients(
-    df: pd.DataFrame, save_path: Path = BERNOULLI_CACHE_PATH
-) -> Path:
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(save_path, index=False)
-    return save_path
+    if save_path.exists():
+        existing = pd.read_csv(save_path)
+        combined = pd.concat([existing, df_new], ignore_index=True)
+    else:
+        combined = df_new.copy()
+
+    valid_keys = [c for c in key_cols if c in combined.columns]
+    if valid_keys:
+        combined = combined.drop_duplicates(subset=valid_keys, keep="last")
+    combined.to_csv(save_path, index=False)
 
 
-def compute_and_save_bernoulli_contour_coefficients(
-    alpha_to_y_nums: dict[int, list[int]] | None = None,
-    n_points: int = 10,
-    d_perc: float = 5.0,
-    save_path: Path = BERNOULLI_CACHE_PATH,
-) -> tuple[pd.DataFrame, Path]:
-    df = compute_bernoulli_contour_coefficients(
-        alpha_to_y_nums=alpha_to_y_nums,
-        n_points=n_points,
-        d_perc=d_perc,
+def _save_noca_term_breakdowns(df_raw: pd.DataFrame) -> tuple[Path, Path]:
+    if df_raw.empty:
+        return NOCA_TERM_BREAKDOWN_RAW_PATH, NOCA_TERM_BREAKDOWN_AGG_PATH
+
+    raw_key_cols = _noca_term_group_cols() + ["dLx_current", "dLy_current"]
+    _merge_write_noca_breakdown(
+        df_new=df_raw,
+        save_path=NOCA_TERM_BREAKDOWN_RAW_PATH,
+        key_cols=raw_key_cols,
     )
-    path = save_bernoulli_contour_coefficients(df, save_path=save_path)
-    return df, path
+
+    df_agg = _aggregate_noca_term_breakdown(df_raw)
+    agg_key_cols = _noca_term_group_cols()
+    _merge_write_noca_breakdown(
+        df_new=df_agg,
+        save_path=NOCA_TERM_BREAKDOWN_AGG_PATH,
+        key_cols=agg_key_cols,
+    )
+    return NOCA_TERM_BREAKDOWN_RAW_PATH, NOCA_TERM_BREAKDOWN_AGG_PATH
 
 
 def computing_gamma_and_noca_fx_fy(
@@ -457,8 +259,10 @@ def computing_gamma_and_noca_fx_fy(
     drot=0,
     ref_chord=0.39834712,
     is_with_smoothing: bool = True,
+    is_with_vort_correction: bool = True,
     max_perc_interpolated_zones=1.0000001,
     n_datapoints=104304,
+    noca_term_rows_collector: list[dict] | None = None,
 ):
 
     alpha = plot_params["alpha"]
@@ -561,18 +365,46 @@ def computing_gamma_and_noca_fx_fy(
             gamma_list.append(circulation)
 
             # Computing NOCA
-            F_x, F_y, C_l, C_d = force_from_noca.main(
+            F_x, F_y, C_l, C_d, term_breakdown = force_from_noca.main(
                 current_df,
                 d2curve,
                 mu=mu,
-                is_with_maximim_vorticity_location_correction=True,
+                is_with_maximim_vorticity_location_correction=is_with_vort_correction,
                 is_with_smoothing=is_with_smoothing,
                 rho=rho,
                 U_inf=U_inf,
                 ref_chord=ref_chord,
+                return_term_breakdown=True,
             )
             F_x_list.append(F_x)
             F_y_list.append(F_y)
+            if noca_term_rows_collector is not None:
+                data_type = "CFD" if plot_params.get("is_CFD", False) else "PIV"
+                shape = "ellipse" if is_ellipse else "rectangle"
+                noca_term_rows_collector.append(
+                    {
+                        "alpha": int(alpha),
+                        "y_num": int(y_num),
+                        "data_type": data_type,
+                        "shape": shape,
+                        "is_CFD": bool(plot_params.get("is_CFD", False)),
+                        "n_points": int(n_points),
+                        "d_perc": float(d_perc),
+                        "iP": int(iP),
+                        "dLx_optimal": float(dLx),
+                        "dLy_optimal": float(dLy),
+                        "dLx_current": float(current_dLx),
+                        "dLy_current": float(current_dLy),
+                        "perc_interpolated_points": float(perc_of_interpolated_points),
+                        "ref_chord": float(ref_chord),
+                        "rho": float(rho),
+                        "U_inf": float(U_inf),
+                        "mu": float(mu),
+                        "is_with_smoothing": bool(is_with_smoothing),
+                        "is_with_vort_correction": bool(is_with_vort_correction),
+                        **term_breakdown,
+                    }
+                )
             print(
                 f"C_kutta:{(circulation*rho*U_inf)/((0.5 * rho * U_inf**2 * ref_chord)):.2f}, NOCA: C_l:{C_l:.2f}, C_d:{C_d:.2f}, % interpolated: {perc_of_interpolated_points:.2f}%"
             )
@@ -609,6 +441,7 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
     include_cfd: bool = True,
     include_piv: bool = True,
     reuse_existing_when_skipped: bool = True,
+    save_noca_terms: bool = True,
 ):
 
     Re_cfd = 1e6
@@ -625,6 +458,7 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
     cfd_rectangle_list = []
     piv_ellipse_list = []
     piv_rectangle_list = []
+    noca_term_rows_all: list[dict] | None = [] if save_noca_terms else None
 
     rows_by_y_existing: dict[int, pd.Series] = {}
     if reuse_existing_when_skipped and ((not include_cfd) or (not include_piv)):
@@ -658,7 +492,12 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
                 cfd_fx_ellipse_std,
                 cfd_fy_ellipse_std,
             ) = computing_gamma_and_noca_fx_fy(
-                df, plot_params_cfd, is_ellipse=True, mu=mu_cfd, n_points=n_points
+                df,
+                plot_params_cfd,
+                is_ellipse=True,
+                mu=mu_cfd,
+                n_points=n_points,
+                noca_term_rows_collector=noca_term_rows_all,
             )
             print(f"Computing CFD rectangle")
             (
@@ -669,7 +508,12 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
                 cfd_fx_rectangle_std,
                 cfd_fy_rectangle_std,
             ) = computing_gamma_and_noca_fx_fy(
-                df, plot_params_cfd, is_ellipse=False, mu=mu_cfd, n_points=n_points
+                df,
+                plot_params_cfd,
+                is_ellipse=False,
+                mu=mu_cfd,
+                n_points=n_points,
+                noca_term_rows_collector=noca_term_rows_all,
             )
             cfd_ellipse_list.append(
                 [
@@ -786,7 +630,12 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
                 piv_fx_ellipse_std,
                 piv_fy_ellipse_std,
             ) = computing_gamma_and_noca_fx_fy(
-                df, plot_params_piv, is_ellipse=True, mu=mu_piv, n_points=n_points
+                df,
+                plot_params_piv,
+                is_ellipse=True,
+                mu=mu_piv,
+                n_points=n_points,
+                noca_term_rows_collector=noca_term_rows_all,
             )
             print(f"Computing PIV rectangle")
             (
@@ -797,7 +646,12 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
                 piv_fx_rectangle_std,
                 piv_fy_rectangle_std,
             ) = computing_gamma_and_noca_fx_fy(
-                df, plot_params_piv, is_ellipse=False, mu=mu_piv, n_points=n_points
+                df,
+                plot_params_piv,
+                is_ellipse=False,
+                mu=mu_piv,
+                n_points=n_points,
+                noca_term_rows_collector=noca_term_rows_all,
             )
 
             piv_ellipse_list.append(
@@ -821,6 +675,13 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
                 ]
             )
 
+    if noca_term_rows_all:
+        raw_path, agg_path = _save_noca_term_breakdowns(pd.DataFrame(noca_term_rows_all))
+        print(
+            "Saved NOCA term breakdown caches: "
+            f"raw='{raw_path}', agg='{agg_path}'"
+        )
+
     return (
         cfd_ellipse_list,
         cfd_rectangle_list,
@@ -836,6 +697,7 @@ def save_results_single_alpha(
     include_cfd: bool = True,
     include_piv: bool = True,
     reuse_existing_when_skipped: bool = True,
+    save_noca_terms: bool = True,
 ):
     print(
         f"\n\n=====> Saving results for alpha: {alpha}\n, for y_num_list: {y_num_list}"
@@ -849,6 +711,7 @@ def save_results_single_alpha(
             include_cfd=include_cfd,
             include_piv=include_piv,
             reuse_existing_when_skipped=reuse_existing_when_skipped,
+            save_noca_terms=save_noca_terms,
         )
     )
     df = pd.DataFrame(

@@ -566,6 +566,82 @@ def forceFromVelNoca2D_V3(
     return d1Fn, d1Ft
 
 
+def _build_noca_term_breakdown(
+    d1Fn: np.ndarray,
+    d1Ft: np.ndarray,
+    rho: float,
+    U_inf: float,
+    ref_chord: float,
+) -> dict[str, float]:
+    """
+    Build a compact NOCA term breakdown aligned with the reduced pseudo-2D form.
+
+    Saved explicit term contributions:
+    - inviscid: 1, 2
+    - rotational: 3
+    - viscous: 8, 9, 10
+
+    Unsteady terms (5,6,7) are excluded from outputs by design since d/dt inputs are
+    zeroed for statistically steady fields in this pipeline.
+    """
+    q_infc = 0.5 * rho * U_inf**2 * ref_chord
+    relevant = (1, 2, 3, 8, 9, 10)
+
+    out: dict[str, float] = {}
+    for term_id in relevant:
+        fx = float(d1Fn[term_id])
+        fy = float(d1Ft[term_id])
+        out[f"Fx_term_{term_id}"] = fx
+        out[f"Fy_term_{term_id}"] = fy
+        out[f"Cd_term_{term_id}"] = float(fx / q_infc)
+        out[f"Cl_term_{term_id}"] = float(fy / q_infc)
+
+    fx_total = float(d1Fn[0])
+    fy_total = float(d1Ft[0])
+    fx_bern_like = float(d1Fn[1] + d1Fn[2])
+    fy_bern_like = float(d1Ft[1] + d1Ft[2])
+    fx_visc = float(d1Fn[8] + d1Fn[9] + d1Fn[10])
+    fy_visc = float(d1Ft[8] + d1Ft[9] + d1Ft[10])
+    fx_delta = float(d1Fn[3] + d1Fn[8] + d1Fn[9] + d1Fn[10])
+    fy_delta = float(d1Ft[3] + d1Ft[8] + d1Ft[9] + d1Ft[10])
+    fx_reduced = float(np.sum(d1Fn[[1, 2, 3, 8, 9, 10]]))
+    fy_reduced = float(np.sum(d1Ft[[1, 2, 3, 8, 9, 10]]))
+
+    out["Fx_total_noca"] = fx_total
+    out["Fy_total_noca"] = fy_total
+    out["Cd_total_noca"] = float(fx_total / q_infc)
+    out["Cl_total_noca"] = float(fy_total / q_infc)
+
+    out["Fx_bernoulli_like_1_2"] = fx_bern_like
+    out["Fy_bernoulli_like_1_2"] = fy_bern_like
+    out["Cd_bernoulli_like_1_2"] = float(fx_bern_like / q_infc)
+    out["Cl_bernoulli_like_1_2"] = float(fy_bern_like / q_infc)
+
+    out["Fx_viscous_total_8_9_10"] = fx_visc
+    out["Fy_viscous_total_8_9_10"] = fy_visc
+    out["Cd_viscous_total_8_9_10"] = float(fx_visc / q_infc)
+    out["Cl_viscous_total_8_9_10"] = float(fy_visc / q_infc)
+
+    out["Fx_delta_noca_minus_bernoulli"] = fx_delta
+    out["Fy_delta_noca_minus_bernoulli"] = fy_delta
+    out["Cd_delta_noca_minus_bernoulli"] = float(fx_delta / q_infc)
+    out["Cl_delta_noca_minus_bernoulli"] = float(fy_delta / q_infc)
+
+    out["Fx_reduced_total_1_2_3_8_9_10"] = fx_reduced
+    out["Fy_reduced_total_1_2_3_8_9_10"] = fy_reduced
+    out["Cd_reduced_total_1_2_3_8_9_10"] = float(fx_reduced / q_infc)
+    out["Cl_reduced_total_1_2_3_8_9_10"] = float(fy_reduced / q_infc)
+
+    # Diagnostics: closure and omitted terms (4,5,6,7) contribution.
+    out["Fx_closure_residual_all_terms"] = float(d1Fn[0] - np.sum(d1Fn[1:]))
+    out["Fy_closure_residual_all_terms"] = float(d1Ft[0] - np.sum(d1Ft[1:]))
+    out["Fx_omitted_terms_4_5_6_7"] = float(d1Fn[0] - fx_reduced)
+    out["Fy_omitted_terms_4_5_6_7"] = float(d1Ft[0] - fy_reduced)
+    out["Cd_omitted_terms_4_5_6_7"] = float((d1Fn[0] - fx_reduced) / q_infc)
+    out["Cl_omitted_terms_4_5_6_7"] = float((d1Ft[0] - fy_reduced) / q_infc)
+    return out
+
+
 def main(
     df_1D: pd.DataFrame,
     d2curve: np.ndarray,
@@ -575,6 +651,7 @@ def main(
     rho: float = 1.20,
     U_inf: float = 15,
     ref_chord: float = 0.39834712,
+    return_term_breakdown: bool = False,
 ):
     # print(f"\nRunning NOCA calculating F_x, F_y, C_l, C_d")
     # reshape df
@@ -610,6 +687,16 @@ def main(
     # print(f"F_y = {d1Ft[0]:.3f}N (F_t Tangential force)")
     # print(f"C_l = {C_l:.3f} (C_l Lift coefficient)")
     # print(f"C_d = {C_d:.3f} (C_d Drag coefficient)")
+
+    if return_term_breakdown:
+        breakdown = _build_noca_term_breakdown(
+            d1Fn=d1Fn,
+            d1Ft=d1Ft,
+            rho=rho,
+            U_inf=U_inf,
+            ref_chord=ref_chord,
+        )
+        return F_x, F_y, C_l, C_d, breakdown
 
     return F_x, F_y, C_l, C_d
 
