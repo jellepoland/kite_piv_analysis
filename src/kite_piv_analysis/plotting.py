@@ -81,6 +81,7 @@ class PlotParams(TypedDict):
     mu: float
     is_with_maximim_vorticity_location_correction: bool
 
+
 def load_data(plot_params: dict) -> tuple:
     """Load and process data from either CFD or PIV sources."""
 
@@ -134,6 +135,7 @@ def load_data(plot_params: dict) -> tuple:
     x_meshgrid, y_meshgrid = np.meshgrid(x_unique, y_unique)
 
     return df, x_meshgrid, y_meshgrid, plot_params
+
 
 def plot_color_contour(ax, df, x_meshgrid, y_meshgrid, plot_params, is_pcolormesh=None):
 
@@ -1219,10 +1221,10 @@ if __name__ == "__main__":
         "bound_alpha": 1.0,
         # Circulation analysis
         "is_with_circulation_analysis": False,
-        "rho": 1.225,
+        "rho": 1.20,
         "mu": 1.7894e-5,
         "is_with_maximim_vorticity_location_correction": True,
-        "chord": 0.37,
+        "chord": 0.396,
         # Mask settings
         "is_with_mask": True,
         "column_to_mask": "w",

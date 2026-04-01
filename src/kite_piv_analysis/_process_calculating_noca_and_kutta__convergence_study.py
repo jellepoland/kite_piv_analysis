@@ -13,23 +13,34 @@ DEFAULT_INCLUDE_CFD_NOCA = True
 DEFAULT_INCLUDE_CFD_CONVERGENCE = True
 DEFAULT_SUPER_FAST = {
     # Keep full alpha/Y coverage, but use coarse/fast settings.
-    "noca_alpha6_y": [1, 2, 3, 4, 5, 6, 7],
+    "noca_alpha6_y": [1, 2, 3, 4, 5, 6],
     # "noca_alpha6_y": [1, 2, 3, 4],
     "noca_alpha16_y": [1],
-    "noca_n_points": 2,
-    "conv_pairs": [(6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (16, 1)],
-    # "conv_pairs": [(6, 1), (6, 2), (6, 3), (6, 4), (16, 1)],
+    "noca_n_points": 6,
+    # "conv_pairs": [(6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (16, 1)],
+    "conv_pairs": [(6, 2)],
     "conv_parameter_names": ["iP", "dLx", "dLy"],
     # "conv_parameter_names": ["dLx"],
     "conv_data_types": ["CFD", "PIV"],
-    "conv_fast_factor": 49.0,  # higher than 50 is not good
-    "conv_is_small_piv": True,
-    "conv_piv_sweep_n_points": 1,
-    "include_cfd_noca": True,
-    "include_cfd_convergence": True,
+    "conv_fast_factor": 2.0,  # higher than 50 is not good
+    "conv_is_small_piv": False,
+    "conv_piv_sweep_n_points": 5,
+    "include_cfd_noca": False,
+    "include_cfd_convergence": False,
 }
 """
  python -m kite_piv_analysis._process_calculating_noca_and_kutta__convergence_study --super-fast --skip-convergence
+"""
+
+"""
+python -m kite_piv_analysis._process_calculating_noca_and_kutta__convergence_study \
+  --skip-noca \
+  --conv-pairs 6:4 \
+  --conv-parameter-names iP,dLx,dLy \
+  --conv-data-types CFD,PIV \
+  --conv-fast-factor 1 \
+  --conv-piv-sweep-n-points 6
+
 """
 
 

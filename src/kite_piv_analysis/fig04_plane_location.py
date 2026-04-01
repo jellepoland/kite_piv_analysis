@@ -116,7 +116,7 @@ def main():
         "alpha": 6,
         "xlim": (-0.1, 0.75),
         "ylim": (-0.65, 0.4),
-        "save_dir": Path(project_dir, "results", "paper_plots_21_10_2025"),
+        "save_dir": Path(project_dir, "results", "paper_plots_24_03_2026"),
     }
     plot_spanwise_contour(plot_params)
 

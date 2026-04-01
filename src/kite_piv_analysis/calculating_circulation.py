@@ -135,7 +135,7 @@ if __name__ == "__main__":
         iP=iP,
     )
     print(f"Circulation around the elliptical boundary: {circulation}")
-    rho = 1.225
+    rho = 1.20
     V_inf = 15
     lift_2D = rho * V_inf * circulation
     print(f"Lift force (2D) = {lift_2D} N (approx. using Kutta-Joukowski theorem)")
@@ -151,7 +151,7 @@ if __name__ == "__main__":
         iP=iP,
     )
     print(f"Circulation around the elliptical boundary: {circulation}")
-    rho = 1.225
+    rho = 1.20
     V_inf = 15
     lift_2D = rho * V_inf * circulation
     print(f"Lift force (2D) = {lift_2D} N (approx. using Kutta-Joukowski theorem)")

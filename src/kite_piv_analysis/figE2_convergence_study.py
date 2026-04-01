@@ -75,6 +75,75 @@ def get_sweep_values(
     raise ValueError(f"Unknown parameter name: {parameter_name}")
 
 
+def _required_mask_from_interpolation_zones(
+    df: pd.DataFrame,
+    interpolation_zones: list[dict],
+) -> pd.Series:
+    """Return boolean mask for the union of all interpolation-zone squares."""
+    required_mask = pd.Series(False, index=df.index)
+    for zone in interpolation_zones:
+        x_min, x_max, y_min, y_max = zone["bounds"]
+        in_zone = (
+            (df["x"] >= x_min)
+            & (df["x"] <= x_max)
+            & (df["y"] >= y_min)
+            & (df["y"] <= y_max)
+        )
+        required_mask |= in_zone
+    return required_mask
+
+
+def _compute_interpolation_metrics(
+    df_before: pd.DataFrame,
+    df_after: pd.DataFrame,
+    required_mask: pd.Series,
+) -> dict[str, float]:
+    """
+    Compute interpolation metrics on unique required points.
+
+    Definitions:
+    - required points: union of all points inside interpolation-zone squares.
+    - invalid before: required points where u or v is NaN before interpolation.
+    - filled successfully: invalid-before points where u and v are finite after.
+    """
+    required_mask = required_mask.astype(bool)
+    n_required = int(required_mask.sum())
+    if n_required == 0:
+        return {
+            "n_required_points": 0,
+            "n_invalid_before_points": 0,
+            "n_filled_success_points": 0,
+            "perc_missing_before_required": 0.0,
+            "perc_of_interpolated_points": 0.0,
+            "perc_filled_of_missing": 0.0,
+        }
+
+    invalid_before_mask = required_mask & (
+        df_before["u"].isna() | df_before["v"].isna()
+    )
+    n_invalid_before = int(invalid_before_mask.sum())
+
+    filled_success_mask = (
+        invalid_before_mask & df_after["u"].notna() & df_after["v"].notna()
+    )
+    n_filled_success = int(filled_success_mask.sum())
+
+    perc_missing_before_required = 100.0 * n_invalid_before / n_required
+    perc_of_interpolated_points = 100.0 * n_filled_success / n_required
+    perc_filled_of_missing = (
+        100.0 * n_filled_success / n_invalid_before if n_invalid_before > 0 else 0.0
+    )
+
+    return {
+        "n_required_points": n_required,
+        "n_invalid_before_points": n_invalid_before,
+        "n_filled_success_points": n_filled_success,
+        "perc_missing_before_required": perc_missing_before_required,
+        "perc_of_interpolated_points": perc_of_interpolated_points,
+        "perc_filled_of_missing": perc_filled_of_missing,
+    }
+
+
 def parameter_sweep_noca(
     is_CFD: bool,
     alpha: float,
@@ -86,12 +155,12 @@ def parameter_sweep_noca(
     is_with_maximim_vorticity_location_correction: bool = True,
     U_inf: float = 15,
     is_small_piv: bool = False,
-    max_perc_interpolated_zones: float = 1.2,
+    max_perc_interpolated_zones: float = 15.0,
     fast_factor: float = 1,
     n_datapoints: int = 104304,
     parameter_values=None,
     dLx=None,
-    ref_chord: float = 0.39834712,
+    ref_chord: float = 0.396,
     is_with_smoothing: bool = True,
 ) -> pd.DataFrame:
     """
@@ -232,6 +301,12 @@ def parameter_sweep_noca(
 
         # Interpolate the data if PIV
         perc_of_interpolated_points = 0
+        perc_missing_before_required = 0
+        perc_missing_before_global = 0
+        perc_filled_of_missing = 0
+        n_required_points = 0
+        n_invalid_before_points = 0
+        n_filled_success_points = 0
         is_skip_this_parameter = False
         if not plot_params["is_CFD"]:
             plot_params["interpolation_zones"] = find_areas_needing_interpolation(
@@ -243,33 +318,46 @@ def parameter_sweep_noca(
                 dLy=current_params.dLy,
             )
 
-            # Determine number of poitns that are interpolated
-            n_points_nan = 0
-            for interpolation_zone_i in plot_params["interpolation_zones"]:
-                x_min, x_max, y_min, y_max = interpolation_zone_i["bounds"]
-                subset = df_base[
-                    (df_base["x"] >= x_min)
-                    & (df_base["x"] <= x_max)
-                    & (df_base["y"] >= y_min)
-                    & (df_base["y"] <= y_max)
-                ]
-                dropped_by_nan = subset[subset["u"].isna()]
-                n_points_nan += len(dropped_by_nan)
+            required_mask = _required_mask_from_interpolation_zones(
+                df_base,
+                plot_params["interpolation_zones"],
+            )
+            pre_metrics = _compute_interpolation_metrics(
+                df_base, df_base, required_mask
+            )
+            n_required_points = int(pre_metrics["n_required_points"])
+            n_invalid_before_points = int(pre_metrics["n_invalid_before_points"])
+            perc_missing_before_required = float(
+                pre_metrics["perc_missing_before_required"]
+            )
+            # Backward-compatible alias for historical output columns.
+            perc_missing_before_global = perc_missing_before_required
 
-            perc_of_interpolated_points = 100 * (n_points_nan / n_datapoints)
-            # print(f"perc_of_interpolated_points: {perc_of_interpolated_points:.2f}%")
-
-            # to make sure that we are not interpolating too many areas, we set the is_skip_parameter
-            if perc_of_interpolated_points < max_perc_interpolated_zones:
+            # Skip criterion based on required-region missing fraction.
+            if perc_missing_before_required < max_perc_interpolated_zones:
 
                 for interpolation_zone_i in plot_params["interpolation_zones"]:
-                    current_df, d2curve_rectangle_interpolated_zone = interpolate_missing_data(
-                        current_df,
-                        interpolation_zone_i,
+                    current_df, d2curve_rectangle_interpolated_zone = (
+                        interpolate_missing_data(
+                            current_df,
+                            interpolation_zone_i,
+                        )
                     )
+                post_metrics = _compute_interpolation_metrics(
+                    df_base,
+                    current_df,
+                    required_mask,
+                )
+                n_filled_success_points = int(post_metrics["n_filled_success_points"])
+                perc_of_interpolated_points = float(
+                    post_metrics["perc_of_interpolated_points"]
+                )
+                perc_filled_of_missing = float(post_metrics["perc_filled_of_missing"])
             else:
                 print(
-                    f"---> SKIPPED perc_of_interpolated_points: {perc_of_interpolated_points:.2f}%, dLx: {current_params.dLx:.2f}, dLy: {current_params.dLy:.2f}"
+                    f"---> SKIPPED perc_missing_before_required: {perc_missing_before_required:.2f}% "
+                    f"(threshold={max_perc_interpolated_zones:.2f}%), "
+                    f"dLx: {current_params.dLx:.2f}, dLy: {current_params.dLy:.2f}"
                 )
                 is_skip_this_parameter = True
 
@@ -294,7 +382,9 @@ def parameter_sweep_noca(
             current_df, d2curve, is_with_smoothing
         )
 
-        F_kutta = rho * U_inf * Gamma / (0.5 * rho * U_inf**2 * chord)
+        # Normalize circulation with fixed reference chord for consistency
+        # with figure/table reporting conventions.
+        F_kutta = rho * U_inf * Gamma / (0.5 * rho * U_inf**2 * ref_chord)
 
         # Calculate area
         if current_params.is_ellipse:
@@ -318,7 +408,16 @@ def parameter_sweep_noca(
                 "dLy": current_params.dLy,
                 "iP": int(current_params.iP),
                 "drot": np.rad2deg(current_params.drot),
+                # Successfully recovered required points:
+                # (invalid-before and valid-after) / required.
                 "perc_of_interpolated_points": perc_of_interpolated_points,
+                # Additional diagnostics for interpolation robustness.
+                "perc_missing_before_required": perc_missing_before_required,
+                "perc_missing_before_global": perc_missing_before_global,
+                "perc_filled_of_missing": perc_filled_of_missing,
+                "n_required_points": n_required_points,
+                "n_invalid_before_points": n_invalid_before_points,
+                "n_filled_success_points": n_filled_success_points,
                 "Gamma": Gamma,
                 "F_kutta": F_kutta,
             }
@@ -723,11 +822,13 @@ def plot_noca_coefficients_grid(
                             c=results_df["perc_of_interpolated_points"],
                             cmap="viridis",
                             vmin=0,
-                            vmax=0.5,
+                            vmax=10.0,
                         )
                         if key == "Ellipse" and param == "dLy":
                             cbar = ax.figure.colorbar(
-                                sc, ax=ax, label=r"\% of interpolated data points"
+                                sc,
+                                ax=ax,
+                                label=r"\% of required points filled by interpolation",
                             )
 
             # Set plot details
@@ -818,52 +919,52 @@ def main():
         fast_factor=fast_factor,
     )
 
-    # TODO: uncomment below if you want to see all
-    # for alpha in [6]:
-    #     for y_num in [1, 2, 3, 4, 5]:
-    #         save_path = (
-    #             Path(project_dir)
-    #             / "results"
-    #             / "convergence_study"
-    #             / f"alpha_{alpha}"
-    #             / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
-    #         )
-    #         if not _convergence_csvs_exist(alpha, y_num, parameter_names):
-    #             storing_and_collecting_results(
-    #                 alpha, y_num, parameter_names, fast_factor=fast_factor
-    #             )
-    #             storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
+    ## TODO: uncomment below if you want to see all
+    for alpha in [6]:
+        for y_num in [1, 2, 3, 4, 5]:
+            save_path = (
+                Path(project_dir)
+                / "results"
+                / "convergence_study"
+                / f"alpha_{alpha}"
+                / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
+            )
+            if not _convergence_csvs_exist(alpha, y_num, parameter_names):
+                storing_and_collecting_results(
+                    alpha, y_num, parameter_names, fast_factor=fast_factor
+                )
+                storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
-    #         plot_noca_coefficients_grid(
-    #             alpha,
-    #             y_num,
-    #             save_path,
-    #             data_types=["CFD", "PIV"],
-    #             fast_factor=fast_factor,
-    #         )
+            plot_noca_coefficients_grid(
+                alpha,
+                y_num,
+                save_path,
+                data_types=["CFD", "PIV"],
+                fast_factor=fast_factor,
+            )
 
-    # for alpha in [16]:
-    #     for y_num in [1]:
-    #         save_path = (
-    #             Path(project_dir)
-    #             / "results"
-    #             / "convergence_study"
-    #             / f"alpha_{alpha}"
-    #             / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
-    #         )
-    #         if not _convergence_csvs_exist(alpha, y_num, parameter_names):
-    #             storing_and_collecting_results(
-    #                 alpha, y_num, parameter_names, fast_factor=fast_factor
-    #             )
-    #             storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
+    for alpha in [16]:
+        for y_num in [1]:
+            save_path = (
+                Path(project_dir)
+                / "results"
+                / "convergence_study"
+                / f"alpha_{alpha}"
+                / f"n_point_CFD_PIV_Y_{y_num}_2x3.pdf"
+            )
+            if not _convergence_csvs_exist(alpha, y_num, parameter_names):
+                storing_and_collecting_results(
+                    alpha, y_num, parameter_names, fast_factor=fast_factor
+                )
+                storing_PIV_percentage_sweep(alpha, y_num, n_points=10)
 
-    #         plot_noca_coefficients_grid(
-    #             alpha,
-    #             y_num,
-    #             save_path,
-    #             data_types=["CFD", "PIV"],
-    #             fast_factor=fast_factor,
-    #         )
+            plot_noca_coefficients_grid(
+                alpha,
+                y_num,
+                save_path,
+                data_types=["CFD", "PIV"],
+                fast_factor=fast_factor,
+            )
 
 
 if __name__ == "__main__":

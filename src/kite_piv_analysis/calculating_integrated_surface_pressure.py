@@ -1,10 +1,12 @@
 import pandas as pd
 import numpy as np
 import os
+import argparse
 import scipy.interpolate as interpolate
 from scipy.interpolate import griddata
 from pathlib import Path
 from kite_piv_analysis.utils import project_dir, interp2d_batch, csv_reader
+from kite_piv_analysis.plot_styling import set_plot_style, PALETTE
 import matplotlib.pyplot as plt
 
 
@@ -407,6 +409,212 @@ def compute_pressure_integration_coefficients(
     return pd.DataFrame(rows)
 
 
+def _compute_surface_pressure_diagnostics(
+    *,
+    alpha: int,
+    y_num: int,
+    rho: float,
+    U_inf: float,
+    p_ref: float,
+    alpha_to_y_nums: dict[int, list[int]],
+    chord_ref: dict[int, float],
+) -> dict:
+    """
+    Compute pressure-only sectional diagnostics along the airfoil contour.
+
+    Returned fields include:
+    s_star, cp, dCl_p, dCd_p, cum_Cl_p, cum_Cd_p, Cl_p_total, Cd_p_total
+    """
+    from kite_piv_analysis import plotting
+
+    df = csv_reader(is_CFD=True, alpha=alpha, y_num=y_num, alpha_d_rod=7)
+    x_surface, y_surface = plotting.plot_airfoil(
+        None, {"y_num": y_num, "alpha": alpha}, is_return_surface_points=True
+    )
+    # Keep contour orientation consistent with pressure-integration coefficients.
+    x_surface = x_surface[::-1]
+    y_surface = y_surface[::-1]
+
+    surface_points = np.column_stack((x_surface, y_surface))
+    normals, segment_lengths = compute_surface_normals(surface_points)
+    segment_midpoints = 0.5 * (surface_points[:-1] + surface_points[1:])
+
+    pressure_surface = griddata(
+        (df["x"], df["y"]), df["pressure"], segment_midpoints, method="linear"
+    )
+    valid = np.isfinite(pressure_surface)
+    if np.count_nonzero(valid) < 3:
+        raise ValueError(
+            f"Too few valid pressure interpolation points for alpha={alpha}, Y{y_num}."
+        )
+
+    segment_s = np.cumsum(segment_lengths) - 0.5 * segment_lengths
+    segment_s = segment_s / np.sum(segment_lengths)
+
+    dynamic_pressure = 0.5 * rho * U_inf**2
+    cp = (pressure_surface - p_ref) / dynamic_pressure
+    pressure_difference = -(pressure_surface - p_ref)
+
+    dFx = np.zeros_like(segment_lengths, dtype=float)
+    dFy = np.zeros_like(segment_lengths, dtype=float)
+    dFx[valid] = normals[valid, 0] * pressure_difference[valid] * segment_lengths[valid]
+    dFy[valid] = normals[valid, 1] * pressure_difference[valid] * segment_lengths[valid]
+
+    q_infc = _q_infc(
+        alpha,
+        y_num,
+        alpha_to_y_nums,
+        rho=rho,
+        U_inf=U_inf,
+        chord_ref=chord_ref,
+    )
+    dCd_p = dFx / q_infc
+    dCl_p = dFy / q_infc
+    cum_Cd_p = np.cumsum(dCd_p)
+    cum_Cl_p = np.cumsum(dCl_p)
+
+    return {
+        "s_star": segment_s,
+        "cp": cp,
+        "dCl_p": dCl_p,
+        "dCd_p": dCd_p,
+        "cum_Cl_p": cum_Cl_p,
+        "cum_Cd_p": cum_Cd_p,
+        "Cl_p_total": float(np.sum(dCl_p)),
+        "Cd_p_total": float(np.sum(dCd_p)),
+    }
+
+
+def plot_pressure_integration_diagnostics(
+    *,
+    alpha: int = 6,
+    y_nums: list[int] | None = None,
+    focus_y_num: int | None = 4,
+    save_path: Path | None = None,
+) -> Path:
+    """
+    Diagnostic 1x3 plot for sectional pressure integration:
+    C_p(s*), cumulative C_l,p(s*), cumulative C_d,p(s*).
+    """
+    set_plot_style()
+
+    if y_nums is None:
+        y_nums = [2, 3, 4, 5]
+    y_nums = sorted({int(y) for y in y_nums})
+    if len(y_nums) < 2:
+        raise ValueError("At least two y-planes are required for diagnostics.")
+
+    if focus_y_num is None or focus_y_num not in y_nums:
+        focus_y_num = 4 if 4 in y_nums else y_nums[len(y_nums) // 2]
+
+    rho = 1.2
+    U_inf = 15.0
+    p_ref = 0.0
+    alpha_to_y_nums = {int(alpha): y_nums}
+    chord_ref = _reference_chords(alpha_to_y_nums)
+
+    diagnostics: dict[int, dict] = {}
+    for y_num in y_nums:
+        diagnostics[y_num] = _compute_surface_pressure_diagnostics(
+            alpha=alpha,
+            y_num=y_num,
+            rho=rho,
+            U_inf=U_inf,
+            p_ref=p_ref,
+            alpha_to_y_nums=alpha_to_y_nums,
+            chord_ref=chord_ref,
+        )
+
+    if save_path is None:
+        y_token = "_".join(str(y) for y in y_nums)
+        save_path = (
+            Path(project_dir)
+            / "results"
+            / "paper_plots_24_03_2026"
+            / f"pressure_integration_diagnostic_alpha_{alpha}_Y{y_token}.pdf"
+        )
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, axes = plt.subplots(
+        1,
+        3,
+        figsize=(14.5, 4.8),
+        sharex=True,
+        gridspec_kw={"wspace": 0.23},
+    )
+    ax_cp, ax_cl, ax_cd = axes
+
+    color_cycle = [
+        PALETTE["Black"],
+        PALETTE["Orange"],
+        PALETTE["Sky Blue"],
+        PALETTE["Bluish Green"],
+        PALETTE["Yellow"],
+        PALETTE["Blue"],
+        PALETTE["Vermillion"],
+        PALETTE["Reddish Purple"],
+    ]
+    for idx, y_num in enumerate(y_nums):
+        curr = diagnostics[y_num]
+        is_focus = y_num == focus_y_num
+        color = color_cycle[idx % len(color_cycle)]
+        lw = 2.4 if is_focus else 1.5
+        alpha_line = 1.0 if is_focus else 0.9
+        label = f"$Y{y_num}$"
+        ax_cp.plot(
+            curr["s_star"],
+            curr["cp"],
+            color=color,
+            linewidth=lw,
+            alpha=alpha_line,
+            label=label,
+        )
+        ax_cl.plot(
+            curr["s_star"],
+            curr["cum_Cl_p"],
+            color=color,
+            linewidth=lw,
+            alpha=alpha_line,
+            label=f"Y{y_num}",
+        )
+        ax_cd.plot(
+            curr["s_star"],
+            curr["cum_Cd_p"],
+            color=color,
+            linewidth=lw,
+            alpha=alpha_line,
+            label=f"Y{y_num}",
+        )
+
+    ax_cp.invert_yaxis()
+    ax_cp.set_xlabel(r"Normalized contour coordinate $s^*$ [-]")
+    ax_cp.set_ylabel(r"$C_p$ [-]")
+    ax_cp.grid(alpha=0.25, linestyle="--")
+
+    ax_cl.set_xlabel(r"Normalized contour coordinate $s^*$ [-]")
+    ax_cl.set_ylabel(r"Cumulative $C_{l,p}$ [-]")
+    ax_cl.grid(alpha=0.25, linestyle="--")
+
+    ax_cd.set_xlabel(r"Normalized contour coordinate $s^*$ [-]")
+    ax_cd.set_ylabel(r"Cumulative $C_{d,p}$ [-]")
+    ax_cd.grid(alpha=0.25, linestyle="--")
+
+    legend_handles, legend_labels = ax_cp.get_legend_handles_labels()
+    fig.legend(
+        legend_handles,
+        legend_labels,
+        loc="lower center",
+        ncol=max(1, len(y_nums)),
+        frameon=True,
+        bbox_to_anchor=(0.5, -0.03),
+    )
+    fig.subplots_adjust(bottom=0.26)
+    fig.savefig(save_path, bbox_inches="tight", pad_inches=0.01)
+    plt.close(fig)
+    return save_path
+
+
 def save_pressure_integration_coefficients(
     df: pd.DataFrame, save_path: Path = DEFAULT_PRESSURE_CACHE_PATH
 ) -> Path:
@@ -417,6 +625,39 @@ def save_pressure_integration_coefficients(
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Compute pressure-integration coefficients and diagnostics."
+    )
+    parser.add_argument(
+        "--diagnostic",
+        action="store_true",
+        help="Generate pressure-integration diagnostic plot instead of CSV table.",
+    )
+    parser.add_argument("--alpha", type=int, default=6, help="Angle of attack.")
+    parser.add_argument(
+        "--y-nums",
+        type=str,
+        default="2,3,4,5",
+        help="Comma-separated y-plane numbers, e.g. '2,3,4,5'.",
+    )
+    parser.add_argument(
+        "--focus-y",
+        type=int,
+        default=4,
+        help="Focus y-plane used for delta Cp panel.",
+    )
+    args = parser.parse_args()
+
+    if args.diagnostic:
+        y_nums = [int(token) for token in args.y_nums.split(",") if token.strip()]
+        save_path = plot_pressure_integration_diagnostics(
+            alpha=int(args.alpha),
+            y_nums=y_nums,
+            focus_y_num=int(args.focus_y),
+        )
+        print(f"\nSaved diagnostic pressure plot to: {save_path}")
+        return
+
     df = compute_pressure_integration_coefficients()
     save_path = save_pressure_integration_coefficients(df)
     print(f"\nSaved pressure-integration coefficients to: {save_path}")

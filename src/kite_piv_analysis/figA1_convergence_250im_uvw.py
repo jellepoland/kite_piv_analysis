@@ -254,6 +254,7 @@ def _build_shuffled_data(values_at_point_list):
     """Build a single shuffled ordering and extract raw + filtered values for u, v, w."""
     n_samples = len(values_at_point_list)
     indices = list(range(n_samples))
+    random.seed(42)
     random.shuffle(indices)
 
     variables = [
@@ -311,7 +312,7 @@ def plot_convergence_single_col(values_at_point_list):
     n_samples, rows_data = _build_shuffled_data(values_at_point_list)
     x_axis = range(1, n_samples + 1)
 
-    fig, axes = plt.subplots(3, 1, figsize=(7, 4))
+    fig, axes = plt.subplots(3, 1, figsize=(5, 4))
 
     for row, (_var_col, var_label, _unfiltered, filtered) in enumerate(rows_data):
         ax = axes[row]

@@ -235,10 +235,10 @@ def main():
         "bound_alpha": 1.0,
         # Circulation analysis
         "is_with_circulation_analysis": False,
-        "rho": 1.225,
+        "rho": 1.20,
         "mu": 1.7894e-5,
         "is_with_maximim_vorticity_location_correction": True,
-        "chord": 0.37,
+        "chord": 0.396,
         # Mask settings
         "is_with_mask": True,
         "is_with_w_mask": True,

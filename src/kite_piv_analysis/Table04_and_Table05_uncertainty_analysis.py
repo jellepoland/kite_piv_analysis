@@ -29,11 +29,30 @@ from kite_piv_analysis.compute_overlap_error import (
     load_dat_file,
 )
 from kite_piv_analysis.masking import apply_snr_masking, apply_w_masking
+from scipy.spatial import ConvexHull, Delaunay
 
 
 # =============================================================================
 # Data Loading Functions
 # =============================================================================
+
+
+def _raw_input_roots() -> list[Path]:
+    """Ordered search roots for raw PIV input folders."""
+    return [
+        Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input",
+        Path(project_dir) / "data_old_21_10_2025" / "raw_dat_files",
+        Path(project_dir) / "data" / "raw_dat_files",
+    ]
+
+
+def _resolve_raw_plane_base_path(aoa: int, y_plane: int) -> Path | None:
+    """Return the first existing aoa/y-plane folder across known raw-data roots."""
+    for root in _raw_input_roots():
+        candidate = root / f"aoa_{aoa}" / f"Y{y_plane}"
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def load_stitched_plane(aoa: int, y_plane: int, config: str = "normal"):
@@ -63,17 +82,18 @@ def load_raw_plane_data(aoa: int, y_plane: int, x_plane: int, config: str = "nor
     """
     Load raw PIV plane data (B0001.dat mean, B0002.dat std).
 
-    Source location:
-    1. data_ALL_ERIK_FILES/JelleStitching/Input (primary only)
+    Source locations (searched in order):
+    1. data_ALL_ERIK_FILES/JelleStitching/Input
+    2. data_old_21_10_2025/raw_dat_files
+    3. data/raw_dat_files
 
     Returns:
         mean_data, std_data dictionaries
     """
-    input_dir = Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input"
-    base_path = input_dir / f"aoa_{aoa}" / f"Y{y_plane}"
+    base_path = _resolve_raw_plane_base_path(aoa, y_plane)
 
     # Check if directory exists
-    if not base_path.exists():
+    if base_path is None:
         return None, None
 
     # Find matching directory
@@ -169,17 +189,16 @@ def compute_masking_metrics(
     """
     Compute detailed data loss metrics for a given measurement plane.
 
-    This function quantifies data loss from different sources in the PIV processing:
+    This function quantifies data loss from different sources in the PIV processing.
+    All fractions are relative to DaVis-valid points (actual PIV camera FOV),
+    NOT the full rectangular grid (which includes empty padding outside the FOV).
 
-    1. f_mask: DaVis isValid=0 flag (geometric masking, reflections, correlation failure)
-       - Applied during MATLAB stitching: invalid points set to NaN
-
-    2. f_u_y: Points removed by the |u_y|/|w| threshold (default 3 m/s)
-    3. f_ICV: Additional points removed by ICV/proxy-SNR rejection
+    1. f_u_y: Points removed by the |u_y|/|w| threshold (default 3 m/s)
+    2. f_ICV: Additional points removed by ICV/proxy-SNR rejection
        after the |u_y| filter.
 
-    4. f_valid: Remaining valid data after all filters
-    5. f_loss: Total data loss (1 - f_valid)
+    3. f_valid: Remaining valid data after all filters
+    4. f_loss: Total data loss (1 - f_valid)
 
     Note: The std/U_inf > 0.1 filter visible in RunStitching.m is only used for
     visualization overlays, NOT applied to the output CSV files.
@@ -195,8 +214,9 @@ def compute_masking_metrics(
     """
     results = {"aoa": aoa, "y_plane": y_plane}
 
-    total_points = 0
-    masked_davis = 0  # f_mask: geometric/reflection masking (isValid=0)
+    total_grid_points = 0
+    davis_valid_total = 0  # Points inside actual PIV FOV (is_valid != 0)
+    davis_rejected_in_fov = 0  # is_valid==0 but inside camera FOV (convex hull)
     filtered_w_only = 0  # removed by |w| threshold (DaVis-valid points only)
     filtered_icv_only = 0  # additionally removed by ICV/SNR (after w-mask)
     filtered_combined = 0  # removed by either w or ICV (DaVis-valid points only)
@@ -210,7 +230,7 @@ def compute_masking_metrics(
                 continue
 
             n_total = len(mean_data["x"])
-            total_points += n_total
+            total_grid_points += n_total
 
             # Apply combined masking pipeline (w + ICV) on raw mean/std data.
             df_mean, df_after_w, df_after_combined = _apply_combined_mask(
@@ -219,8 +239,23 @@ def compute_masking_metrics(
 
             # Get DaVis validity mask (applied in MATLAB stitching)
             davis_valid = df_mean["is_valid"].to_numpy() != 0
-            n_masked_davis = np.sum(~davis_valid)
-            masked_davis += n_masked_davis
+            davis_valid_total += int(np.sum(davis_valid))
+
+            # Separate grid padding from actual DaVis rejections using convex hull
+            coords_x = df_mean["x"].to_numpy()
+            coords_y = df_mean["y"].to_numpy()
+            invalid_mask = ~davis_valid
+            if np.sum(davis_valid) >= 3 and np.sum(invalid_mask) > 0:
+                valid_pts = np.column_stack(
+                    [coords_x[davis_valid], coords_y[davis_valid]]
+                )
+                hull_vertices = ConvexHull(valid_pts).vertices
+                hull_delaunay = Delaunay(valid_pts[hull_vertices])
+                invalid_pts = np.column_stack(
+                    [coords_x[invalid_mask], coords_y[invalid_mask]]
+                )
+                inside_hull = hull_delaunay.find_simplex(invalid_pts) >= 0
+                davis_rejected_in_fov += int(np.sum(inside_hull))
 
             w_removed = davis_valid & df_after_w["u"].isna().to_numpy()
             combined_removed = davis_valid & df_after_combined["u"].isna().to_numpy()
@@ -230,25 +265,27 @@ def compute_masking_metrics(
             filtered_combined += int(np.sum(combined_removed))
             valid_points += int(np.sum(davis_valid & ~combined_removed))
 
-    if total_points > 0:
-        results["n_total"] = total_points
-        results["f_mask"] = (
-            masked_davis / total_points
-        )  # DaVis geometric/reflection masking
-        # Separate post-validation contributions:
-        # - f_u_y: removed by |u_y|/|w| threshold only
-        # - f_icv: additional removals by ICV/proxy-SNR after u_y filter
-        results["f_u_y"] = filtered_w_only / total_points
-        results["f_icv"] = filtered_icv_only / total_points
-        results["f_quality"] = filtered_combined / total_points
-        results["f_valid"] = valid_points / total_points
-        results["f_loss"] = 1 - valid_points / total_points
+    # Denominator = all points inside the camera FOV (valid + DaVis-rejected in FOV)
+    n_in_fov = davis_valid_total + davis_rejected_in_fov
+
+    if n_in_fov > 0:
+        results["n_total"] = total_grid_points
+        results["n_in_fov"] = n_in_fov
+        results["n_davis_valid"] = davis_valid_total
+        # f_nan: DaVis rejections inside the FOV (reflections, correlation failures)
+        results["f_nan"] = davis_rejected_in_fov / n_in_fov
+        # Post-DaVis filters, relative to FOV
+        results["f_u_y"] = filtered_w_only / n_in_fov
+        results["f_icv"] = filtered_icv_only / n_in_fov
+        results["f_quality"] = filtered_combined / n_in_fov
+        results["f_valid"] = valid_points / n_in_fov
+        results["f_loss"] = 1 - valid_points / n_in_fov
 
         # Legacy names for compatibility
+        results["f_mask"] = results["f_nan"]
         results["f_w"] = results["f_u_y"]
         results["f_w_only"] = results["f_u_y"]
         results["f_icv_only"] = results["f_icv"]
-        results["f_invalid_davis"] = results["f_mask"]
         results["f_data_loss"] = results["f_loss"]
 
     return results
@@ -372,10 +409,9 @@ def create_spatial_uncertainty_map(
     Returns:
         x, y coordinates (2D arrays) and std maps for u, v, w
     """
-    input_dir = Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input"
-    base_path = input_dir / f"aoa_{aoa}" / f"Y{y_plane}"
+    base_path = _resolve_raw_plane_base_path(aoa, y_plane)
 
-    if not base_path.exists():
+    if base_path is None:
         return None
 
     for item in base_path.iterdir():
@@ -603,27 +639,23 @@ def generate_uncertainty_report(confidence_level: float = 0.95):
             output_dir / "masking_metrics.csv", index=False, float_format="%.4f"
         )
 
-        print("\nPer-plane data quality fractions:")
+        print("\nPer-plane data quality fractions (relative to PIV camera FOV):")
         print(
-            "  f_mask:  DaVis isValid=0 (geometric masking, reflections, correlation failure)"
+            "  f_nan:   DaVis isValid=0 within camera FOV (reflections, correlation failure)"
         )
-        print(
-            "  f_u,y:   Filtered by |u_y| threshold (|u_y| > 3 m/s)"
-        )
-        print(
-            "  f_ICV:   Additional filtering by ICV/proxy-SNR quality mask"
-        )
+        print("  f_u,y:   Filtered by |u_y| threshold (|u_y| > 3 m/s)")
+        print("  f_ICV:   Additional filtering by ICV/proxy-SNR quality mask")
         print("  f_valid: Remaining valid data")
         print()
         print(
-            f"{'AoA':<6} {'Plane':<8} {'f_mask':<10} {'f_u,y':<10} {'f_ICV':<10} "
+            f"{'AoA':<6} {'Plane':<8} {'f_nan':<10} {'f_u,y':<10} {'f_ICV':<10} "
             f"{'f_valid':<10} {'f_loss':<10}"
         )
         print("-" * 75)
         for _, row in df_masking.iterrows():
             print(
                 f"{int(row['aoa']):<6} Y{int(row['y_plane']):<7} "
-                f"{row['f_mask']:<10.3f} {row['f_u_y']:<10.3f} {row['f_icv']:<10.3f} "
+                f"{row['f_nan']:<10.3f} {row['f_u_y']:<10.3f} {row['f_icv']:<10.3f} "
                 f"{row['f_valid']:<10.3f} {row['f_loss']:<10.3f}"
             )
 
@@ -755,7 +787,7 @@ def generate_latex_tables(
 % =============================================================================
 \begin{table}[htp]
     \centering
-    \caption{Data quality metrics per measurement plane. $f_\mathrm{mask}$ denotes the fraction of vectors marked invalid by DaVis (geometric masking, reflections, correlation failure). $f_{u,y}$ denotes the fraction filtered by the out-of-plane velocity threshold ($|u_y| > 3\,\mathrm{m\,s^{-1}}$), and $f_\mathrm{ICV}$ denotes the additional fraction filtered by the ICV/proxy-SNR quality mask. $f_\mathrm{valid}$ is the remaining valid data fraction.}
+    \caption{Data quality metrics per measurement plane, expressed as fractions of all PIV grid points inside the camera field of view (determined via convex hull of DaVis-valid vectors, excluding rectangular grid padding). $f_\mathrm{nan}$ denotes the fraction marked invalid by DaVis within the FOV (geometric masking, reflections, correlation failure). $f_{u,y}$ denotes the fraction filtered by the out-of-plane velocity threshold ($|u_y| > 3\,\mathrm{m\,s^{-1}}$), and $f_\mathrm{ICV}$ denotes the additional fraction filtered by the ICV/proxy-SNR quality mask. $f_\mathrm{valid}$ is the remaining valid data fraction.}
     \label{tab:data_quality}
     \begin{tabular}{l ccccccc l cccc}
     \hline
@@ -772,19 +804,19 @@ def generate_latex_tables(
                 return row[metric].values[0] * 100  # Convert to percentage
             return None
 
-        # Row: f_mask
+        # Row: f_nan
         row_mask_7 = []
         for y in range(1, 8):
-            val = get_plane_value(df_masking, 13, y, "f_mask")
+            val = get_plane_value(df_masking, 13, y, "f_nan")
             row_mask_7.append(f"{val:.1f}" if val is not None else "--")
 
         row_mask_17 = []
         for y in range(1, 5):
-            val = get_plane_value(df_masking, 23, y, "f_mask")
+            val = get_plane_value(df_masking, 23, y, "f_nan")
             row_mask_17.append(f"{val:.1f}" if val is not None else "--")
 
         latex_output.append(
-            f"    $f_\\mathrm{{mask}}$ (\\%) & {' & '.join(row_mask_7)} & & {' & '.join(row_mask_17)} \\\\"
+            f"    $f_\\mathrm{{nan}}$ (\\%) & {' & '.join(row_mask_7)} & & {' & '.join(row_mask_17)} \\\\"
         )
 
         # Row: f_u,y (|u_y| threshold contribution)
@@ -861,6 +893,7 @@ def generate_latex_tables(
     )
 
     if not df_budget.empty:
+
         def get_budget_value(df, aoa, y_plane, col):
             row = df[(df["aoa"] == aoa) & (df["y_plane"] == y_plane)]
             if len(row) == 0:

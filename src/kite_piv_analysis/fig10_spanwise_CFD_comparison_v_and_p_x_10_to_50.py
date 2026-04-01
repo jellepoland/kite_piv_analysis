@@ -273,12 +273,14 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
     x_cm_values = [10, 15, 20, 30]
     # x_cm_values = [10, 25]
     n_cols = len(x_cm_values)
+    # n_cols = 4
 
     # Create a figure with two rows, three columns
     fig, axes = plt.subplots(
         n_rows,
         n_cols,
-        figsize=(4 * n_cols, 5 * (n_rows - 1) - 1),
+        # figsize=(4 * n_cols, 5 * (n_rows - 1) - 1),
+        figsize=(12.5, 11),
         gridspec_kw={
             "hspace": 0.07,  # Vertical space between rows
             "wspace": -0.11,  # Horizontal space between columns
@@ -582,7 +584,7 @@ def plot_contour_with_colored_data_two_rows_three_cols(plot_params):
     save_path = (
         Path(project_dir)
         / "results"
-        / "paper_plots_21_10_2025"
+        / "paper_plots_24_03_2026"
         / f"fig10_spanwise_CFD_comparison_v_and_p_x_{x_cm_values[0]}_to_{x_cm_values[-1]}.png"
     )
     fig.tight_layout(pad=0.02)

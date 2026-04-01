@@ -1,0 +1,1620 @@
+%% Copernicus Publications Manuscript Preparation Template for LaTeX Submissions
+%% ---------------------------------
+%% This template should be used for copernicus.cls
+%% The class file and some style files are bundled in the Copernicus Latex Package, which can be downloaded from the different journal webpages.
+%% For further assistance please contact Copernicus Publications at: production@copernicus.org
+%% https://publications.copernicus.org/for_authors/manuscript_preparation.html
+
+
+%% Please use the following documentclass and journal abbreviations for preprints and final revised papers.
+
+%% 2-column papers and preprints
+\documentclass[wes, manuscript]{copernicus}
+
+
+
+%% Journal abbreviations (please use the same for preprints and final revised papers)
+
+
+% Advances in Geosciences (adgeo)
+% Advances in Radio Science (ars)
+% Advances in Science and Research (asr)
+% Advances in Statistical Climatology, Meteorology and Oceanography (ascmo)
+% Aerosol Research (ar)
+% Annales Geophysicae (angeo)
+% Archives Animal Breeding (aab)
+% Atmospheric Chemistry and Physics (acp)
+% Atmospheric Measurement Techniques (amt)
+% Biogeosciences (bg)
+% Climate of the Past (cp)
+% DEUQUA Special Publications (deuquasp)
+% Earth Surface Dynamics (esurf)
+% Earth System Dynamics (esd)
+% Earth System Science Data (essd)
+% E&G Quaternary Science Journal (egqsj)
+% EGUsphere (egusphere) | This is only for EGUsphere preprints submitted without relation to an EGU journal.
+% European Journal of Mineralogy (ejm)
+% Fossil Record (fr)
+% Geochronology (gchron)
+% Geographica Helvetica (gh)
+% Geoscience Communication (gc)
+% Geoscientific Instrumentation, Methods and Data Systems (gi)
+% Geoscientific Model Development (gmd)
+% History of Geo- and Space Sciences (hgss)
+% Hydrology and Earth System Sciences (hess)
+% Journal of Bone and Joint Infection (jbji)
+% Journal of Micropalaeontology (jm)
+% Journal of Sensors and Sensor Systems (jsss)
+% Magnetic Resonance (mr)
+% Mechanical Sciences (ms)
+% Natural Hazards and Earth System Sciences (nhess)
+% Nonlinear Processes in Geophysics (npg)
+% Ocean Science (os)
+% Polarforschung - Journal of the German Society for Polar Research (polf)
+% Primate Biology (pb)
+% Proceedings of the International Association of Hydrological Sciences (piahs)
+% Safety of Nuclear Waste Disposal (sand)
+% Scientific Drilling (sd)
+% SOIL (soil)
+% Solid Earth (se)
+% State of the Planet (sp)
+% The Cryosphere (tc)
+% Weather and Climate Dynamics (wcd)
+% Web Ecology (we)
+% Wind Energy Science (wes)
+
+
+%% \usepackage commands included in the copernicus.cls:
+%\usepackage[german, english]{babel}
+%\usepackage{tabularx}
+%\usepackage{cancel}
+%\usepackage{multirow}
+%\usepackage{supertabular}
+%\usepackage{algorithmic}
+%\usepackage{algorithm}
+%\usepackage{amsthm}
+%\usepackage{float}
+%\usepackage{subfig}
+%\usepackage{rotating}
+
+%%% Added by Erik %%%%%%%%%%%%%%%%%
+\usepackage{xcolor}
+\usepackage{mathrsfs}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Added by Jelle %%%%%%%%%%%%%%%%%
+\usepackage{subfigure}
+\usepackage{import}
+\usepackage{subcaption}
+\usepackage{booktabs}
+%% inserting macros
+\input{macros.tex}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{document}
+%
+% old alternative title:
+% Stereoscopic Particle Image Velocimetry of a Leading-Edge Inflatable Kite Rigid Scale Model
+\title{Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry}
+%
+\Author[1][j.a.w.poland@tudelft.nl]{Jelle Agatho Wilhelm}{Poland}
+\Author[1,2]{Erik}{Fritz}
+\Author[1]{Roland}{Schmehl}
+\affil[]{Faculty of Aerospace Engineering, Delft University of Technology, Kluyverweg 1, 2629 HS, Delft}
+\affil[]{TNO, Kessler Park 1, 2288 GS Rijswijk, The Netherlands}
+%% The [] brackets identify the author with the corresponding affiliation. 1, 2, 3, etc. should be inserted.
+%% If an author is deceased, please mark the respective author name(s) with a dagger, e.g. "\Author[2,$\dag$]{Anton}{Smith}", and add a further "\affil[$\dag$]{deceased, 1 July 2019}".
+%% If authors contributed equally, please mark the respective author names with an asterisk, e.g. "\Author[2,*]{Anton}{Smith}" and "\Author[3,*]{Bradley}{Miller}" and add a further affiliation: "\affil[*]{These authors contributed equally to this work.}".
+%
+\runningtitle{TEXT}
+%
+\runningauthor{TEXT}
+%
+\received{}
+\pubdiscuss{} %% only important for two-stage journals
+\revised{}
+\accepted{}
+\published{}
+%
+%% These dates will be inserted by Copernicus Publications during the typesetting process.
+%
+\firstpage{1}
+%
+\maketitle
+%
+% Leading-edge inflatable (LEI) kites are characterised by a pronounced downward curvature of the wing and flow recirculation zones on the pressure side. 
+% % Leading-edge inflatable (LEI) kites feature pronounced wing anhedral and pressure-side recirculation. 
+% This study presents a novel application of stereoscopic particle image velocimetry (PIV) to a 1:6.5 rigid-scale model of the TU Delft V3 kite. 
+% The flow-field measurements were conducted in the Open Jet Facility of Delft University of Technology for two angles of attack and seven chordwise measurement planes positioned between mid-span and tip, and were compared with results from Reynolds-averaged Navier–Stokes (RANS) simulations. The double-curved anhedral wing geometry presented several challenges, such as surface reflections that required careful data processing and the use of a lateral velocity filter. The circulation distribution was analysed, using both elliptical and rectangular boundary curves, showing good agreement in trends between the vortex-step method (VSM), RANS, and PIV data. The lift and drag coefficients of each chordwise measurement plane were estimated using the Kutta–Joukowski theorem, surface pressure integration of RANS CFD data, and Noca’s method—an inherently three-dimensional reformulation of the momentum conservation equations expressed solely as surface integrals over the control-volume boundary—applied here in two dimensions. While the mid-span to tip variation of lift coefficients was in accordance with the anhedral shape and tip-vortex effects, the drag measurements and predictions deviated from the expected behaviour by exhibiting negative values, reflecting the limited reliability of velocity-field-based drag estimation in the present near-field PIV configuration. Especially near the tip region, significant discrepancies were observed, attributed to increased measurement uncertainty. The surface pressure integration revealed discrepancies at the strut junction, likely due to local three-dimensional strut-induced flow effects and increased airfoil thickness. This study provides comprehensive validation data for CFD simulations of LEI kites while highlighting the challenges in PIV measurements of double-curved anhedral wings and characterising local aerodynamic phenomena.
+%
+\begin{abstract}
+%
+Leading-edge inflatable (LEI) kites exhibit pronounced anhedral and pressure-side recirculation associated with their double-curved geometry and tubular frame. This study reports wind tunnel stereoscopic particle image velocimetry (PIV) measurements around a 1:6.5 rigid-scale model of the TU Delft V3 kite. Chordwise measurement planes between mid-span and tip were acquired at two angles of attack and compared with Reynolds-averaged Navier--Stokes (RANS) simulations. Reflection-prone surface geometry required tailored masking and an additional out-of-plane velocity filter. Qualitative comparison confirms that the PIV measurements capture the dominant flow topology predicted by RANS, while revealing local deviations near the surface where measurement limitations become significant. Circulation distributions obtained from contour integration show consistent spanwise trends between vortex-step method (VSM), RANS, and PIV, supporting the use of the dataset for model validation. Sectional lift and drag were estimated using the Kutta--Joukowski relation, RANS surface-pressure integration, and Noca's method—an inherently three-dimensional reformulation of the momentum conservation equations expressed solely as surface integrals over the control-volume boundary, here applied in two dimensions. While sectional lift shows spanwise variation consistent with geometric and tip-vortex influences, drag estimates from near-field PIV exhibit non-physical values, indicating limited robustness of velocity-field-based drag recovery. Local discrepancies near the strut junctions are consistent with three-dimensional strut-induced flow effects observed in CFD. The dataset provides validation data for CFD of LEI kites and documents practical limitations of PIV applied to strongly curved anhedral wings.
+%
+\end{abstract}
+%
+\section{Introduction}\label{sec:introduction}
+%
+Leading-edge inflatable (LEI) kites are used for kite-surfing and novel renewable energy applications such as wind-assisted ship propulsion and airborne wind energy (AWE). This specific type of kite uses an inflated tubular frame to collect the aerodynamic load generated by a canopy and transmit this via a system of bridle lines to one or more tethers. Their design as a single morphing aerodynamic control surface makes LEI kites highly manoeuvrable, which is a crucial requirement for the mentioned applications \citep{Breukels2011}. Pitch control is achieved by symmetric actuation of the bridle line system \citep{Hummel2019}, directional control by asymmetric actuation \citep{Elfert2024}. The wings are generally downward curved to minimise the spanwise stresses in the bridled membrane structure. While the vertical wing area contributes to the favourable yaw authority, the sweep of the wing extends the depower range of the kite. In addition to the actuation-induced morphing, the shape of the membrane wing is also subject to aero-structural coupling effects. The kite investigated in the present study is illustrated in Fig.~\ref{fig:kitepower_pictures} and described in more detail by \citet{Oehler2019}.
+%
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=0.99\linewidth]{Images/fig01.pdf}
+    \caption{TU Delft V3 kite designed for AWE harvesting: (a) 2012 prototype with a flat wing surface area of 25 m$^2$; (b) CFD visualisation of the flow around the design geometry, depicting the non-dimensional surface pressure $C_\mr{p}$ on the wing and the flow velocity z-component $U_z$ coloring streamlines along the flow around the wing tips \citep[adapted from][]{Vire2022}.}
+    \label{fig:kitepower_pictures}
+\end{figure}
+%
+
+Characterising the aerodynamics of LEI kites using numerical prediction and experimental measurement poses challenges associated with structural flexibility, pronounced anhedral and sweep, and unconventional airfoil geometries. A representative example is the discontinuity at the junction between the inflated leading-edge tube and the attached single-skin canopy, which promotes pressure-side separation and recirculation even at low angles of attack. Consequently, fast potential flow solvers can not be used to analyse the two-dimensional (2D) aerodynamics, as was demonstrated in our companion paper~\citep{Poland2026b}. Instead, computational fluid dynamics (CFD) solvers based on Reynolds-averaged Navier–Stokes (RANS) equations have to be employed, substantially increasing the computational resource demands for early design iterations \citep{Folkersma2019}. To avoid this computational overhead, which can become excessive when the wing geometry changes continuously, \cite{Breukels2011} derived polynomial approximations of the sectional aerodynamic coefficients $C_\textrm{l}$, $C_\textrm{d}$, and $C_\textrm{m}$ from CFD simulations of a large variety of parametrised LEI airfoil shapes. In our companion paper~\citep{Poland2026b}, we refined the airfoil parametrisation and used machine learning to develop regression models with a wider parametric range.
+To expand the 2D aerodynamic properties to three-dimensional (3D) wings, lifting-line methods \citep{Leloup2013} and vortex-step methods (VSM) \citep{Damiani2019,Cayon2023} have been used successfully. 
+Especially the implementation of precomputed, shape-dependent airfoil aerodynamic coefficients in the VSM framework delivers high-quality results \citep{Poland2026b}.
+RANS simulations of complete LEI kites have also been conducted, with parametric sweeps in Reynolds number, angle of attack and sideslip angle, indicating that the strut tubes exert a negligible influence on the integral aerodynamic properties \citep{Vire2020,Vire2022}.
+
+Experimental analyses of kite aerodynamics are generally most reliable when conducted in a wind tunnel under controlled flow conditions \citep{DeWachter2008,Desai2024}. However, industrial-scale kites in the size range of $50$ to $500$ $\unit{m^2}$ can not be mounted at full scale in wind tunnel facilities. On the other hand, reverting to scale models requires preserving aeroelastic similarity, which is challenging for a bridled inflatable membrane structure. A practical option is to decrease the complexity of the fluid-structure interaction problem by investigating the aerodynamics of a rigid scale model, such as presented by \cite{Belloc2015} for a reference paraglider wing. A similar approach was pursued in our companion paper~ \citep{Poland2026a}, where the aerodynamic loads on a rigid scale model of the TU~Delft V3 kite were measured for different angles of attack, sideslip angles, and Reynolds numbers. The measured forces and moments corroborate numerical predictions from CFD and VSM simulations within the nominal operating regime, encompassing angles of attack from $2\unit{\degree}$ to $8\unit{\degree}$ and sideslip angles of $\pm10\unit{\degree}$, as reported by \cite{Cayon2025a}. 
+% A zigzag tape was applied in spanwise direction on the suction side to replicate the aerodynamic effect of the stitching seam joining the canopy to the leading-edge tube. The tape height was selected to trigger boundary-layer transition. At a Reynolds number of $3.8 \times 10^5$, beneficial tripping effects were observed, particularly under sideslip conditions; however, at $5\times10^5$, the tape caused reduced lift and increased drag, consistent with the literature \citep{Gahraz2018,Zhang2016,Zhang2017,Dollinger2019}.
+
+Although numerical studies have significantly advanced the understanding of LEI airfoil aerodynamics and integral effects of airfoil loading, a detailed experimental analysis of the sectional flow around this class of wing has not been reported in the literature.
+Particle image velocimetry (PIV) offers a non-intrusive method to capture planar flow fields, with minimal influence from introduced tracer particles.
+Stereoscopic PIV, employing two cameras, mitigates potential errors caused by perspective distortions in velocity measurements \citep{Prasad2000}.
+The resulting flow fields enable evaluation of local pseudo-2D aerodynamic properties, including circulation, induction, inflow angles, forces, and aerodynamic coefficients \citep{Fritz2024a}.
+Circulation can be determined by defining a boundary curve and interpolating velocity components along it, and forces may subsequently be estimated on this boundary using Noca's method \citep{Noca1999}.
+
+The present study addresses this gap by providing stereoscopic PIV measurements in chordwise planes along the span of a rigid TU Delft V3 scale model at two angles of attack, forming the first geometry-consistent, spatially resolved flow-field dataset for a representative LEI kite configuration.
+The resulting measurements enable qualitative and quantitative comparison with RANS CFD and VSM predictions, supporting their use in sectional and spanwise load modelling.
+Although stereoscopic PIV is well established, its application to the strongly anhedral LEI geometry, characterised by extensive pressure-side recirculation, has not been previously documented. 
+% The present work, therefore, systematically assesses uncertainty sources, identifies strut-induced three-dimensional effects, and clarifies the conditions under which pseudo-two-dimensional force estimates derived from near-field PIV remain reliable.
+%
+% The present paper reports a stereoscopic PIV investigation of a rigid-scale model of the TU Delft V3 LEI kite to obtain spatially resolved flow-field data. Although stereoscopic PIV is a well-established experimental method, its application to the complex, strongly anhedral geometry of a LEI kite—characterised by extensive pressure-side recirculation zones—has not been previously documented.
+% The data was acquired in seven chordwise measurement planes along the wing span, for two angles of attack. Sources of uncertainty were systematically assessed, local strut effects were investigated, and a novel masking approach accompanied by a detailed sensitivity analysis was introduced. The resulting flow fields were used to calculate local aerodynamic properties, such as circulation and sectional aerodynamic coefficients. The primary outcome is an investigation of underlying aerodynamic phenomena through comparison of experimentally measured and numerically simulated flow fields, conducted qualitatively and quantitatively, the latter based on circulation and 2D force estimates.
+
+The remainder of the paper is organised as follows. Section~\ref{sec:method} describes the experimental methodology, including the wind tunnel, rigid scale model, experimental setup, stereoscopic PIV technique, test cases, data processing, and methods for deriving aerodynamic quantities. Section~\ref{sec:results} presents the results, including uncertainty analysis, qualitative comparisons between CFD and PIV, and quantitative comparisons. A discussion of the results follows in Sect.~\ref{sec:discussion}, addressing PIV measurement limitations, an analysis of quantitative discrepancies, and local strut effects. Conclusions and recommendations for future research are presented in Sect.~\ref{sec:conclusion}.
+
+%
+\section{Method}\label{sec:method}
+%
+This section outlines the specifications of the wind tunnel, the scale model, the experimental setup, and the PIV technique. The arrangement of the measurement planes is discussed next, followed by the data processing steps, and a description of how integral aerodynamic quantities are derived from planar flow field data.
+%
+\subsection{Wind tunnel}
+%
+The wind tunnel experiments were conducted in the closed-loop Open Jet Facility (OJF) of the TU Delft from $8$ to $12$ April 2024. The tunnel has an octagonal exhaust nozzle measuring $2.85 \times2.85~\unit{m}$ and is equipped with a $500~\unit{kW}$ electric motor and a large fan generating a flow speed up to $35~\unit{m s^{-1}}$. To ensure uniform flow conditions in the test section, the tunnel uses corner guide vanes and wire meshes. The maximum reported turbulence intensity in the test section is $0.5\%$ \citep{Lignarolo2014}. 
+% While the load measurements in \citep{Poland2026a} were done for several wind speeds, 
+The PIV measurements used a wind speed of $U_\infty = 15~\unit{m s^{-1}}$, with variations from the set point up to $0.2\%$. The inflow and atmospheric conditions for each measurement were logged to enable correct non-dimensionalisation of the data. This was particularly important in this campaign, as the temperature ranged from $22$ to $32~\unit{\degree}\text{C}$ due to a malfunctioning cooling system. 
+
+The projected frontal blockage ratio is approximately $3\%$, for which blockage-induced acceleration and the associated correction to the effective angle of attack are expected to be small~\citep{Poland2026a}. This assessment is consistent with common wind-tunnel guidance recommending blockage ratios below $7.5\%$ \citep{Barlow1999}. In the OJF, the jet is bounded by turbulent shear layers that originate at the nozzle edges and contract the jet core with a reported semi-angle of $4.75\unit{\degree}$ near the nozzle exit \citep{Lignarolo2014}. With the model centred in the $2.85~\unit{m}$ nozzle and a model width of $1.28~\unit{m}$, the wing tips remained approximately $0.8~\unit{m}$ from the nozzle edge. 
+
+On this basis, open-jet shear-layer effects and blockage corrections are considered negligible for the present dataset. By contrast, streamline-curvature effects measurably modify the effective angle of attack; the corresponding correction values are reported in Table~\ref{tab:wind_tunnel_corrections}, with the underlying analysis documented in the companion paper~\citep{Poland2026a}. These corrections are applied to all reported $\alpha$ values.
+%
+\begin{table}[htp]
+    \caption{Corrections for angle and drag coefficients~\citep{Poland2026a}.}
+    \centering
+    \begin{tabular}{ccc}
+        \toprule
+        $\Delta \alpha_\textrm{t}$ (\unit{\degree}) & $\Delta \beta_\textrm{t}$ (\unit{\degree}) & $\Delta C_\textrm{D}$ (\unit{-})\\ 
+        \midrule
+        $-0.47$ $C_{\textrm{L}}$ & $-0.46$ $C_{\textrm{S}}$ & $-0.0078$ $C_{\textrm{L}}^{2} - 0.0078$ $C_{\textrm{S}}^{2}$ \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:wind_tunnel_corrections}
+\end{table}
+%
+\subsection{Rigid scale kite model}
+%
+A rigid wing was used to decouple aerodynamics from aeroelasticity, enabling geometry-consistent, well-controlled measurements that provide unambiguous validation data for numerical models. Such a one-to-one comparison is not feasible for a scaled, flexible AWE-sized kite wing because aeroelastic similarity cannot be preserved: simultaneous matching of Reynolds number, mass distribution, structural stiffness, membrane pretension, and damping is not achievable in a practical wind-tunnel setup. The rigid configuration isolates the aerodynamic response of a well-defined reference geometry, so that discrepancies between measurements and simulations can be attributed primarily to aerodynamic modelling assumptions rather than to uncertain, unmeasured deformation states.
+
+To manufacture a rigid scale model of the V3 kite, the wing geometry adapted for the CFD simulations by \cite{Vire2022} was used, as detailed in the companion paper \citep{Poland2026a}. This CFD geometry differed slightly from the original design: the bridle line system was omitted, the trailing edge connecting the upper and lower wing surfaces was rounded, and edge fillets were applied to all tubular frame–to–canopy connections. Using the CFD geometry was motivated by the measurement data's intended purpose for validating computational studies. The wing was scaled down by a factor of $1$:$6.5$, resulting in the dimensions outlined in Table~\ref{tab:scale_model_properties}, and the Reynolds number
+\begin{equation}
+    \mathrm{Re} = \frac{\rho U_{\infty} c_{\textrm{ref}}}{\mu} = 3.8\times10^5 ,
+\end{equation}
+%
+where $\rho = 1.2~\unit{kg m^{-3}}$ denotes the density, $U_\infty = 15~\unit{m s^{-1}}$ the inflow speed, $c_{\textrm{ref}} = 0.396~\unit{m}$ the reference chord, and $\mu = 1.89 \times 10^{-5}$ the dynamic viscosity.
+The scale model mounted in the test section is shown in Fig.~\ref{fig:3D_lebesque_with_photo}(a), with a rear view of the wing tip in (b). The image highlights the smooth transition between the circular leading-edge tube and the membrane surface. Although the idealised CFD geometry also incorporates fillets in this region, the manufactured scale model exhibits slightly larger radii due to manufacturing constraints.
+%
+\begin{figure}[htp]
+   \centering
+   \includegraphics[width=0.99\textwidth]{Images/fig02.pdf}
+   \caption{Wind tunnel setup: (a) Rigid scale model in the wind tunnel, swivelled by $180\unit{\degree}$ with its back facing the octagonal
+OJF exhaust nozzle; (b) Rear view showing a smoke trail visualisation of the flow over a wing tip, and indicating the fillet between the circular leading edge and the canopy.}
+   \label{fig:3D_lebesque_with_photo}
+\end{figure}
+%
+\begin{table}[htp]
+    \caption{Dimensions of the 1:6.5 scale model. Chord length, height, and width of the manufactured model deviate by no more than $1~\unit{mm}$ from the scaled geometry, as verified using a laser tracker \citep{Poland2026a}.}
+    \centering
+    \begin{tabular}{l c c c}
+        \hline
+        \textbf{Property} & \textbf{Symbol} & \textbf{Value} & \textbf{Unit} \\
+        \hline
+        Mid-span chord & $c_{\textrm{ref}}$ & 0.396 & \unit{m} \\
+        Height & $h$ & 0.462 & \unit{m} \\
+        Width & $W$ & 1.278 & \unit{m} \\
+        Mass & $m$ & 7.965 & \unit{kg} \\
+        Flat surface area & $S$ & 0.59 & \unit{m^2} \\
+        Planform area & $A$ & 0.46 & \unit{m^2} \\
+        Projected frontal area at $\alpha=24\unit{\degree}$ & $A_{\textrm{f}}$ & 0.2 & \unit{m^2} \\
+        \hline
+    \end{tabular}
+    \label{tab:scale_model_properties}
+\end{table}
+%
+\subsection{Experimental setup}
+%
+The scale model is positioned in the centre of the octagonal jet-exhaust using a support structure of aluminium beams. Two steel rods extend from the wing’s centre struts and connect the scale model to the support frame, as shown in Fig.~\ref{fig:3D_lebesque_with_photo}(a) and detailed in the companion paper \citep{Poland2026a}. The images in Fig.~\ref{fig:PIV_setup} depict the normal and upside-down configurations, respectively, for analysing the flow field on both sides of the wing with the cameras positioned on the ground.
+% The support structure and rods were designed to minimize flow interference, the moment due to the weight, and visual obstruction of laser and cameras.
+The highlighted horizontal bar was used to adjust the angle of attack $\alpha$ of the wing, achieving an accuracy of $0.1\unit{\degree}$ as measured by digital inclinometers. Both the cameras and the laser were mounted on a motorised traverse system with a step size of $0.01~\unit{mm}$ in the $x$ and $y$ directions. This configuration permitted measurements at multiple chordwise ($x$) and transverse ($y$) locations without the need to refocus the cameras or recalibrate the software. Due to the wing’s downward curvature, the distance between the PIV system and the measurement plane varied. To ensure the wing remained within the camera field of view, its vertical position was adjusted for certain measurements by raising the blue table supporting the structure, as shown in Fig.~\ref{fig:PIV_setup}.
+%
+\begin{figure}[htp]
+   \centering
+   \includegraphics[width=0.99\textwidth]{Images/fig03.pdf}
+   \caption{Experimental setup: (a) Photograph showing the labelled components of the setup and the axis orientations; (b) Long-exposure photo of the laser light sheet projected onto the model. In this instance, the laser light sheet spans the entire chord, a coverage not typical during standard measurements, achieved here by operating the system in laser alignment mode. In both photos, the laser light sheet was graphically enhanced.}
+   \label{fig:PIV_setup}
+\end{figure}
+%
+\subsection{Stereoscopic particle image velocimetry}
+%
+The flow field around the wing was measured non-intrusively with stereoscopic PIV. The flow, seeded with tracer particles, was captured by two synchronised cameras, each recording pairs of images with a time delay of $100~\unit{\mu s}$. The flow field was determined by comparing these sets and tracking the displacement of particle groups. Laser control, camera synchronisation, and image acquisition were all triggered by a single pulse signal from an opto-coupler (TCST 2103), controlled via LaVision's DaVis $8$ software. For each plane, each camera recorded a total of $250$ image sets at $15~\unit{Hz}$, which, as demonstrated in Fig.~\ref{fig:convergence_250im} in App.~\ref{sec:appendix_convergence}, was sufficient to ensure statistical convergence for time-averaged results.
+
+A Quantel Evergreen double-pulsed neodymium-doped yttrium aluminium garnet laser was used as the light source, with a wavelength $\lambda_{\textrm{L}}$ of $532~\unit{nm}$, shaped into an approximately $3~\unit{mm}$ thick laser light sheet. As illustrated in Fig.~\ref{fig:PIV_setup}, the generated vertical sheet illuminates a flow-aligned cross-section of the floor-facing side of the wing. To reduce light reflections, both the wing and relevant parts of the support structure were spray-painted matte black. A Safex smoke generator produced tracer particles with a median diameter of $1~\unit{\mu m}$. The generator was positioned downstream of the tunnel test section to ensure a homogeneous mixing of the particles with the flow before re-entering the test section.
+
+The two LaVision Imager sCMOS cameras, with an $f$-number $f_{\#} = 8$, defined as the ratio between focal length and aperture diameter \citep{Raffel2018},
+% focal lengths of 0.099 \unit{m} and 0.118 \unit{m} and a numerical aperture of f/8,
+were placed at radial distances of $1.70$ and $1.95~\unit{m}$ from the laser light sheet. This configuration resulted in a field of view (FOV) of $0.42 \times 0.36~\unit{m}$. The cameras had a sensor resolution of $2560 \times 2160$, a pixel size $p_{\textrm{size}} = 6.5$ \unit{\mu m} corresponding to a spatial sampling density of 6.41 pixels per millimetre. The magnification factor $M$, defined as the image size divided by the object size, was computed along the $x$-axis.
+A sensor width of $2160~\unit{px}$ with a pixel size of $6.5~\unit{\mu m}$, over a $0.36~\unit{m}$-wide field of view, resulted in a value of $M=0.039$. The ratio of the diffraction diameter of the particles to the pixel diameter is recommended to be higher than one to minimise peak locking errors \citep{Raffel2018,Bensason2025}. It was calculated using
+\begin{equation}
+    \frac{d_{\textrm{diff}}}{p_{\textrm{size}}} = \frac{2.44 f_{\#} (M + 1) \lambda_L}{p_{\textrm{size}}} = 1.7.
+\end{equation}
+The cameras were calibrated using a target with a known grid pattern, visible as a black square on the left side of Fig.~\ref{fig:PIV_setup}(a). The calibration was verified by comparing the measured distances between reference points with their known physical spacing.
+%
+\subsection{Test cases}
+%
+Because the scale model is symmetric with respect to the centre chord and only symmetric inflow conditions were considered, the measurements were limited to one half of the wing. Seven measurement planes denoted as $Y1$ through $Y7$ were selected, as shown in Fig.~\ref{fig:measurement_planes}. To align with available CFD simulation results, the measurements were conducted at angles of attack $\alpha = 7\unit{\degree}$ and $17\unit{\degree}$, with the larger value also covering stall phenomena \citep{Poland2026b}.
+
+The positions of the bottom left corners of the measurement planes for the suction-side-up configuration, shown in Fig.~\ref{fig:overlapping_measurement_planes}, are listed in Table~\ref{tab:measurement_plane_locations} and measured relative to the mid-span leading-edge point. The table height was kept fixed for $Y1$ through $Y4$, and ideally, the vertical position $z$ at the top of each measurement plane would be zero.  However, small offsets were observed and attributed to minor imperfections in the experimental setup. These offsets were corrected in the post-processing by aligning the raw image light intensity with the expected cross-section location. For each measurement plane, the images were iteratively shifted until a precise match was achieved.
+
+As visible in Fig.~\ref{fig:measurement_planes}, only the mid-span plane $Y1$ was perpendicular to the wing surface. 
+Moving outwards from $Y1$ to $Y7$, the vertical planes became progressively more aligned with the wing surface as a result of its downward curvature. 
+Toward the tip, this alignment caused the velocity component normal to the measurement plane to increase, which is more difficult to accurately capture~\citep{PrasadAdrian1993,Prasad2000}. 
+At $\alpha = 17~\unit{\degree}$, measurements were obtained for planes $Y1$--$Y4$, but only planes meeting the data-quality and uncertainty criteria were retained for analysis.
+%
+\begin{figure}[htp]
+    \centering
+    \begin{tabular}{@{}cc@{}}
+        % Left: 3D measurement plane plot
+        \begin{minipage}{0.45\textwidth}
+            \centering
+            \def\svgwidth{.99\linewidth}
+            \subimport{Images/}{fig04.pdf_tex}
+            \caption{Arrangement of the measurement planes along the span, for $\alpha = 7$\unit{\degree} at 10\% $x/c$ aft of the mid-span leading edge.}
+            \label{fig:measurement_planes}
+        \end{minipage}
+        &
+        % Right: Table with plane locations
+        \begin{minipage}{0.45\textwidth}
+            \centering
+            \small
+            \begin{table}[H]
+                \caption{Bottom left corners of the measurement planes, shown in Fig.~\ref{fig:overlapping_measurement_planes}, at $\alpha = 0\unit{\degree}$.}
+                \label{tab:measurement_plane_locations}
+                \begin{tabular}{l c c c c}
+                    \hline
+                    & $x$ (\unit{m}) & $y$ (\unit{m}) & $z_{\alpha=7}$ (\unit{m}) & $z_{\alpha=17}$ (\unit{m}) \\ \hline
+                    $Y1$ & 0 & 0.000 & -0.000 & -0.000 \\
+                    $Y2$ & 0 & 0.203 & -0.004 & -0.000 \\
+                    $Y3$ & 0 & 0.287 & -0.001 & -0.001 \\
+                    $Y4$ & 0 & 0.301 & -0.005 & -0.006 \\
+                    $Y5$ & 0 & 0.399 & -0.120 & --- \\
+                    $Y6$ & 0 & 0.562 & -0.111 & --- \\
+                    $Y7$ & 0 & 0.632 & -0.244 & --- \\ \hline
+                \end{tabular}
+            \end{table}
+        \end{minipage}
+    \end{tabular}
+\end{figure}
+%
+\subsection{Data processing}
+%
+The measurements were processed using LaVision's DaVis $10$ software~\citep{lavision2025}. The procedure consisted of the following steps:
+(1) averaging the image sequence;
+%and dividing by an arbitrary value of 200;
+(2) normalising each image by the computed average;
+(3) applying a temporal filter with a filter length of five images;
+(4) applying masks to exclude regions not of interest;
+(5) performing the PIV analysis using interrogation windows of $64 \times 64~\unit{px^2}$
+with two passes and $50\%$ overlap; and
+(6) averaging the resulting vectors, including only data with at least $25$ source vectors and falling within two standard deviations of the mean. The first and second steps normalise the local light intensity to enhance particle detection, which proved particularly useful in regions affected by reflections.
+
+% For each $y$ location, six overlapping measurements were taken, as shown in Fig.~\ref{fig:overlapping_measurement_planes}. The data in the overlapping regions were stitched together to form a continuous flow field. The grid was evaluated sequentially along rows, corresponding to the $x$-direction.
+For each measurement plane, six partially overlapping sub-planes were acquired and combined into a single field on a common grid, illustrated in Fig.~\ref{fig:overlapping_measurement_planes}. Each sub-plane was first shifted to a shared coordinate system and interpolated onto the common grid. Non-overlapping regions were copied directly. 
+In overlap regions, values from the two contributing sub-planes were blended using a smooth sigmoid ramp to avoid discontinuities. Across an overlap of length $L$, a normalised coordinate $x\in[0,1]$ was defined and the weight
+\begin{equation}
+w(x)=\frac{1}{1+\exp\!\left[-10\left(x-\tfrac{1}{2}\right)\right]}
+\end{equation}
+was applied, such that the stitched value is $(1-w)\,\phi_1+w\,\phi_2$, where $\phi_1$ and $\phi_2$ denote the fields from the two sub-planes. A steepness parameter of ten was chosen empirically to balance smoothness and transition width. The same blending procedure was used for both streamwise and transverse stitching and was applied identically to all reported variables.
+% To ensure a smooth transition, data points from overlapping measurements were weighted based on their relative distance from the edges of the combined region. 
+In the remainder of the paper, the result of stitching these six measurements is referred to as a single measurement plane.
+%
+\begin{figure}[htp]
+    \centering
+    \def\svgwidth{.6\linewidth}
+    \subimport{Images/}{fig05.pdf_tex}
+    \caption{Mid-span cross-sectional view showing the LEI airfoil and the six overlapping measurement regions that together form plane $Y1$. The intentional overlap ensures full coverage of the flow field.}
+    \label{fig:overlapping_measurement_planes}
+\end{figure}
+%
+\subsection{Derivation of integral aerodynamic quantities}\label{sec:integral_aerodynamic_quantities}
+%
+
+The PIV measurements yield datasets of scalar- and vector-valued flow field properties, including the spatial coordinates $\vec{x}$, the streamwise, lateral, and vertical components $u_x$, $u_y$, and $u_z$, respectively, the velocity magnitude $u$, and the spatial derivatives of the velocity components. From this discrete data, the components $u_x$ and $u_z$ are interpolated along a suitable closed planar boundary curve $S$ around the airfoil. 
+In the present study, this boundary is defined as a closed planar curve within a single measurement plane, such that the resulting force estimates represent sectional, pseudo-2D loads per unit span and neglect out-of-plane momentum transport.
+% , positioned within the potential flow region surrounding the object of interest. 
+This allows for the computation of the circulation $\Gamma$ as a line integral of the velocity field
+\begin{equation}
+    \Gamma = \oint_{S} \vec{u} \cdot \textrm{d}\mathbf{s} ,
+\end{equation}
+quantifying the rotational strength of the flow in that region.
+% The negative sign in the circulation integral reflects the chosen orientation of the integration path. 
+Given the circulation, the 2D lift per unit span can be approximated using the Kutta--Joukowski theorem \citep{Anderson2016}
+\begin{equation}
+    C_{\textrm{l,Kutta}} = \frac{2\Gamma}{U_{\infty}c_{\textrm{ref}}} .
+\end{equation}
+This equation assumes that the integration boundary lies within the potential flow region surrounding the object of interest and that the flow is steady and attached. 
+Nevertheless, although derived from an inviscid formulation, the circulation-based method retains theoretical validity in viscous flows, with \cite{Liu2015} proving the exact applicability of the Kutta–Joukowski relation under steady 2D viscous and compressible conditions. 
+Because the flow is locally 3D and $\Gamma$ is evaluated from a single measurement plane, out-of-plane transport is not captured; the resulting value is therefore interpreted as an approximate sectional lift coefficient based on $U_{\infty}$ and $c_{\mathrm{ref}}$.
+% This equation assumes that the integration boundary lies within the potential flow region, outside the boundary layers along the airfoil, and that the flow is steady and attached. Despite being based on an inviscid formulation, the method can still yield accurate approximations for viscous flows, as shown by \citep{Liu2015}.
+%
+% In principle, aerodynamic forces could be obtained from the classical integral form of the Navier--Stokes equations applied to a control volume surrounding the airfoil.
+% In the present PIV measurements, however, this approach is impractical because it requires both pressure on the control surface boundaries—which PIV does not directly provide—and complete velocity data throughout the control volume, which are unavailable near the body due to optical reflections from the airfoil surface. These limitations would necessitate substantial additional modelling assumptions to reconstruct both the pressure field and the near-wall velocity, rendering volume-based momentum integration ill-posed under the present experimental constraints. 
+% As a result, the classical control-volume formulation would require additional reconstruction and modelling steps whose associated uncertainty would be comparable to, or larger than, that introduced by the gradient terms in Noca’s method.
+
+The aerodynamic force on an airfoil can be obtained from the integral momentum balance over a fixed control volume $V$ bounded by a closed surface $S$ with outward unit normal $\mathbf{n}$. For an incompressible, statistically steady flow,
+\begin{equation}
+\mathbf{F}_{\mathrm{body}}
+=
+\int_{S}\left(-p\,\mathbf{n} + \boldsymbol{\tau}\cdot\mathbf{n}\right)\,\mathrm{d}S
+-
+\int_{S}\rho\,\mathbf{u}\,(\mathbf{u}\cdot\mathbf{n})\,\mathrm{d}S,
+\label{eq:CV_momentum_steady}
+\end{equation}
+where $\mathbf{F}_{\mathrm{body}}$ denotes the net aerodynamic force on the body, $p$ the static pressure, $\mathbf{u}$ the velocity field, and $\boldsymbol{\tau}$ the viscous stress tensor. In special cases, pressure contributions can be minimised by choosing a control surface that extends sufficiently far into the wake such that static pressure has recovered to $p_{\infty}$ and viscous traction on the outer boundary is negligible. Under these conditions, drag may be estimated from the far-wake streamwise momentum deficit, whereas lift follows from the transverse momentum balance associated with wake downwash and vorticity. In both cases, the pressure-free simplification requires a far-field control surface that encloses the full wake and lies in a region of pressure recovery. For lift in particular, accurate force recovery additionally requires that the control surface captures the spatial extent of the induced velocity field, since truncation of the lateral or vertical boundaries introduces non-negligible momentum and pressure-flux contributions associated with downwash and tip-vortex transport.
+
+These conditions are not satisfied for the present dataset. The available PIV measurements are confined to the near field, so that any admissible control surface would necessarily intersect regions of separated flow, shear layers, and the developing wake, where static pressure has not recovered to $p_{\infty}$ and contributes non-negligibly to the surface integral momentum balance. Consequently, neither drag nor lift can be obtained from a pressure-free control-volume formulation without an additional pressure-reconstruction step, which is not accessible from planar PIV data alone.
+
+Moreover, as discussed in Sect.~\ref{sec:results}, near-wall velocity data are incomplete, preventing direct evaluation of the momentum flux through a closed control surface surrounding the body. Any attempt to apply the classical control-volume balance would therefore require substantial modelling assumptions to reconstruct both the pressure distribution and the masked near-wall velocity field, rendering the approach ill-posed under the present experimental constraints. 
+
+\cite{Noca1999} proposed an alternative formulation of the momentum conservation equations that expresses aerodynamic forces in terms of boundary integrals involving velocity, vorticity, and their temporal and spatial derivatives.
+% This formulation permits force estimation without requiring full volume integration and is therefore compatible with the available planar PIV data. 
+Although Noca’s method involves higher-order velocity gradients and temporal derivatives that are sensitive to measurement noise, it enables a closed force formulation under the present experimental constraints.
+% by avoiding an explicit evaluation of pressure on the control surface. 
+% without requiring explicit pressure reconstruction or near-wall velocity data. 
+% Accordingly, its use here is not claimed to be superior in general, but is adopted as a practical closure given the limitations of the current dataset. 
+Noca’s method has been successfully applied in similar PIV-based force estimation studies, including horizontal-axis wind turbines~\citep{Fritz2024a,Fritz2024b} and vertical-axis wind turbines~\citep{LeBlanc2022}.
+% An alternative approach for force estimation is based on integrating the momentum change over a finite control volume. However, when using PIV measurements, reflections from the object surface often prevent reliable data acquisition near the body. \cite{Noca1999} proposed an alternative formulation of the momentum conservation equations that relies solely on surface integrals of flow quantities evaluated along the boundary of the control volume. This approach facilitates force estimation from flow field measurements without requiring velocity data throughout the entire control volume. Noca's method has been successfully applied in such contexts to flow data from both horizontal-axis wind turbines \citep{Fritz2024a, Fritz2024b} and vertical-axis wind turbines \citep{LeBlanc2022}.
+The method, expressed in symbolic notation, evaluates the force per unit density as,
+\begin{equation}\label{eq:Noca}
+    \frac{\vec{F}}{\rho} = \oint_{{S}} \vec{n}\cdot \boldsymbol{\gamma}_\textrm{flux}   \textrm{d}s - \oint_{{S}_{\textrm{b}}} \vec{n}\cdot \left(\vec{u} - \vec{u}_{\textrm{b}}\right) \vec{u}   \textrm{d}s - \frac{{d}}{{d}t} \oint_{{S}_{\textrm{b}}} \vec{n}\cdot \left(\vec{u}\vec{x}\right)   \textrm{d}s ,
+\end{equation}
+where
+\begin{equation}\label{eq:Flux}
+    \begin{split}
+        \boldsymbol{\gamma}_\textrm{flux} = & \frac{1}{2} u^2 \vec{I} - \vec{u}\vec{u} - \frac{1}{\mathscr{N}-1} \vec{u} \left(\vec{x}\times\boldsymbol{\omega}\right)  + \frac{1}{\mathscr{N}-1} \boldsymbol{\omega} \left(\vec{x}\times \vec{u}\right) \\
+        & -\frac{1}{\mathscr{N}-1} \left(\vec{x}\cdot \frac{\partial\vec{u}}{\partial t}\right) \vec{I} + \frac{1}{\mathscr{N}-1} \vec{x} \frac{\partial\vec{u}}{\partial t} - \frac{\partial\vec{u}}{\partial t}\vec{x}\\
+        & +\frac{1}{\mathscr{N}-1} \left[\vec{x} \cdot \left(\boldsymbol{\nabla} \cdot\boldsymbol{\tau} \right)\right] \vec{I} - \frac{1}{\mathscr{N}-1} \vec{x} \left( \boldsymbol{\nabla}\cdot \boldsymbol{\tau}\right) + \boldsymbol{\tau} ,
+\end{split}
+\end{equation}
+and $\vec{n}$ is the normal vector on the bounding curve, $S$ is the outer boundary curve of the control volume surrounding the immersed body, $S_{\textrm{b}}$ is the inner boundary curve prescribed by the immersed body's surface, $\vec{u}_{\textrm{b}}$ is the velocity vector of the immersed body's surface, $\mathscr{N}$ represents the number of dimensions, $\boldsymbol{\omega}=\boldsymbol{\nabla}\times\vec{u}$ is the flow vorticity, $\vec{x}$ is the position vector, $\vec{I}$ the identity tensor, and $\boldsymbol{\tau}$ the viscous stress tensor. 
+In the present pseudo-2D application, $S$ and $S_{\textrm{b}}$ are closed planar curves and $\mathrm{d}s$ denotes arc length. 
+% The second term on the right-hand side of Eq.~\eqref{eq:Noca} represents the advective momentum flux through the body boundary. 
+% For an impermeable surface, the no-throughflow condition enforces $\vec{n}\cdot(\vec{u}-\vec{u}_{\textrm{b}})=0$ on $S_{\textrm{b}}$, so this term vanishes.
+% % The third term is also zero, as it accounts for forces due to boundary acceleration, and the scale model remained stationary during the experiment.
+% % The third term is also zero, as it accounts for forces due to boundary acceleration. In the present case, the scale model is assumed to remain stationary, and, because the no-throughflow condition on the body surface, $\vec{n}\cdot\vec{u}=0$, also enforces the product $\vec{n}\cdot(\vec{u}\vec{x})$ to vanish.
+% The third term is also zero because it accounts for contributions associated with body-boundary acceleration; the scale model is stationary ($\vec{u}_{\textrm{b}}=\vec{0}$) in the present experiments.
+
+The second term on the right-hand side of Eq.~\eqref{eq:Noca} represents the advective momentum flux through the body boundary. 
+For an impermeable surface, the no-throughflow condition enforces $\vec{n}\cdot(\vec{u}-\vec{u}_{\textrm{b}})=0$ on $S_{\textrm{b}}$, hence this term vanishes.
+The third term also vanishes for the present stationary model ($\vec{u}_{\textrm{b}}=\vec{0}$), because on $S_{\textrm{b}}$ the no-throughflow condition implies $\vec{n}\cdot\vec{u}=0$ and therefore
+$\vec{n}\cdot(\vec{u}\vec{x})=(\vec{n}\cdot\vec{u})\,\vec{x}=\vec{0}$.
+
+% Equation~\eqref{eq:Flux} describes ten individual contributions: the first four, presented in the first line, are inviscid contributions, the following three are time-dependent and are zero for steady flow. The final three contributions account for viscous effects. While Noca's method is inherently 3D, it is here applied to a pseudo 2D incompressible flow problem by setting the out-of-plane velocity $u_y$ to zero. Other out-of-plane quantities, such as the vorticity component $\omega_y$, are retained, consistent with the pseudo 2D flow assumption. This simplification reduces the expression accordingly, see App.~\ref{sec:appendix_2D_Noca} for the full derivation. The resulting 2D method facilitates the calculation of normal and tangential force components from a defined boundary path in a flow field.
+Equation~\eqref{eq:Flux} describes ten individual contributions: the first four, presented in the first line, are inviscid contributions; the following three represent unsteady terms associated with local acceleration; and the final three account for viscous effects. Because the present force estimates are evaluated from time-averaged, statistically steady velocity fields, the explicit time-derivative contributions in Eq.~\eqref{eq:Flux} vanish in the formulation adopted here. 
+% Viscous terms are retained.
+While Noca’s method is inherently 3D, it was here applied to a pseudo-2D incompressible flow problem by setting the out-of-plane velocity $u_y$ to zero. Other out-of-plane quantities, such as the vorticity component $\omega_y$, were retained, consistent with the pseudo-2D flow assumption. This simplification reduced the governing equations accordingly; the full derivation is provided in App.~\ref{sec:appendix_2D_Noca}.
+
+% The resulting force estimates represented sectional, pseudo‑2D aerodynamic loads per unit span, obtained by applying the momentum balance to a single measurement plane and neglecting out‑of‑plane fluxes. 
+% By construction, spanwise force transport and 3D coupling effects were excluded. 
+% This simplification reduced the accuracy of the estimates in regions where out‑of‑plane flow components became significant, such as near the wing tip and strut junctions. 
+% This simplified formulation enabled the computation of normal and tangential force components along a prescribed boundary path within the measured flow field.
+
+Since the CFD simulations provide the flow field for the entire domain, 2D aerodynamic forces can also be derived from surface pressure and shear force integrations. 
+Here, the integration was performed over sectional airfoil surfaces, yielding pseudo-2D aerodynamic loads directly comparable to planar PIV-based force estimates.
+% The airfoil surface nodes were identified from the nonzero wall shear stress reported by the CFD solver, which represents the viscous stress tensor $\boldsymbol{\tau}\cdot\vec{n}$ acting tangentially on the body surface. 
+% The total aerodynamic force acting on the airfoil is computed as
+% \begin{equation}
+%     \vec{F} = \rho \oint_{S_{\mathrm{b}}} \vec{n} \cdot \left( - p \vec{I} + \boldsymbol{\tau} \right)   \textrm{d}s,
+% \end{equation}
+% where $p$ represents the static pressure.
+The total aerodynamic force acting on the airfoil section is computed as
+\begin{equation}
+    \vec{F} = \oint_{S_{\mathrm{b}}} \left( - p \vec{I} + \boldsymbol{\tau} \right)\cdot \vec{n}\,\mathrm{d}s,
+\end{equation}
+where $p$ is the static pressure and $\boldsymbol{\tau}$ is the viscous stress tensor.
+%
+\section{Results}\label{sec:results}
+%
+This section presents the results obtained from stereoscopic PIV experiments, including an uncertainty assessment, a qualitative comparison of measured and simulated velocity fields, and a quantitative analysis of circulation and aerodynamic loads.
+%
+\subsection{Uncertainty analysis}
+%
+Following PIV uncertainty practice, we distinguish Type-A (statistical) from Type-B (systematic/modelling) contributions~\citep{sciacchitano2016}. The values in Table~\ref{tab:uncertainty} quantify the Type-A uncertainty of the estimated mean velocity due to the finite ensemble size. 
+Systematic contributions (Type-B) such as stereo-calibration/mapping residuals, correlation bias (peak locking), finite light-sheet thickness, masking/interpolation, stitching, and measurement-plane misalignment are discussed separately.
+
+Among the systematic (i.e., non-random, repeatable) effects, two experiment-specific effects dominated the present dataset. First, reflection-induced artefacts near the surface necessitated an additional out-of-plane velocity mask using the criterion $|u_y|>3~\unit{m s^{-1}}$; this threshold was applied as a diagnostic filter to suppress stereo-reconstruction failures in reflection-prone regions — where calibration residuals and image-mapping errors amplify out-of-plane uncertainty due to the inherent anisotropy of stereo-PIV \citep{sciacchitano2016} — rather than as a physical constraint on genuine 3D flow. Second, increasing measurement-plane misalignment towards the wing tip amplified out-of-plane transport and progressively reduced the validity of pseudo-2D sectional balances, thereby compromising near-wall data and the applicability of sectional momentum-based analyses. An additional quality-control filter based on the inverse coefficient of variation (ICV) was applied to suppress temporally incoherent velocity vectors: reflection-induced correlation failure produces low mean velocities relative to their fluctuations, yielding low ICV, whereas well-resolved flow regions retain high ICV values. 
+The ICV is defined as a ratio of mean to standard deviation of the in-plane velocity components (see App.~\ref{sec:appendix_masking}), where a median-based reduction is used at $\alpha = 7\unit{\degree}$ and a mean-based reduction at $\alpha = 17\unit{\degree}$. At the higher angle of attack, the filter is additionally restricted to a near-surface region to avoid removing physically relevant separated-flow fluctuations.
+
+
+To quantify the information loss, Table~\ref{tab:data_quality_breakdown} reports a plane-wise breakdown of vectors removed by successive quality-control steps. The fraction $f_{\mathrm{nan}}$ denotes vectors rejected by correlation and validation procedures and primarily reflects reflection- and geometry-driven loss of correlation, including specular reflections, laser shadowing, regions outside the illuminated laser sheet, and locally insufficient seeding. From the remaining valid vectors, $f_{u_y}$ denotes the fraction removed by an additional out-of-plane velocity filter, $|u_y|>3~\unit{m s^{-1}}$, applied in post-processing to suppress stereo-reconstruction failures in reflection-prone regions; further details are provided in App.~\ref{sec:appendix_masking}. 
+The ICV filter contributes a further $5$--$9\%$ loss at $\alpha=7\unit{\degree}$, rising to $15$--$23\%$ at $\alpha=17\unit{\degree}$, consistent with increased flow unsteadiness and reflection activity at the higher angle of attack.
+%
+\begin{table}[htp]
+    \centering
+    \caption{Data quality metrics per measurement plane, showing $f_{\mathrm{nan}}$, $f_{u,y}$, $f_\mathrm{ICV}$ and the remaining valid data fraction $f_\mathrm{valid}$.}
+    \label{tab:data_quality_breakdown}
+    \begin{tabular}{l ccccccc l cccc}
+    \hline
+    & \multicolumn{7}{c}{$\alpha = 7\unit{\degree}$} & & \multicolumn{4}{c}{$\alpha = 17\unit{\degree}$} \\
+     & $Y1$ & $Y2$ & $Y3$ & $Y4$ & $Y5$ & $Y6$ & $Y7$ & & $Y1$ & $Y2$ & $Y3$ & $Y4$ \\
+    \hline
+    $f_\mathrm{nan}$ (\%) & 13.1 & 9.8 & 14.3 & 14.7 & 13.8 & 20.4 & 11.5 & & 11.3 & 18.2 & 20.1 & 16.4 \\
+    $f_{u,y}$ (\%) & 10.2 & 11.8 & 15.3 & 15.5 & 21.7 & 13.3 & 17.8 & & 10.6 & 17.4 & 19.6 & 20.5 \\
+    $f_\mathrm{ICV}$ (\%) & 5.8 & 6.7 & 8.3 & 7.1 & 7.7 & 7.7 & 8.7 & & 23.3 & 16.4 & 14.8 & 15.2 \\
+    $f_\mathrm{valid}$ (\%) & 70.9 & 71.7 & 62.0 & 62.7 & 56.8 & 58.7 & 61.9 & & 54.8 & 48.0 & 45.4 & 47.8 \\
+    \hline
+    \end{tabular}
+\end{table}
+
+The results in Table~\ref{tab:data_quality_breakdown} show that the dominant reduction in usable data originates from $f_{\mathrm{nan}}$, which accounts for approximately half of the field across all planes.
+This arises, in large part, from obstruction of the cross-section and, in some planes, the support structure, as shown in Fig.~\ref{fig:qualitative_comparison_CFD_PIV}. 
+The out-of-plane velocity filter contributes an additional $6$--$13\%$ loss, with the loss increasing towards the wing tip, where 3D effects and measurement-plane misalignment become more pronounced. 
+
+Despite these data quality reductions, the sample size was sufficient to ensure convergence of the time-averaged velocity statistics, as demonstrated in App.~\ref{sec:appendix_convergence}. Following common PIV uncertainty practice, the Type-A (precision) uncertainty of the mean velocity is quantified from the sample standard deviation of the measured velocity time series and the number of samples~\citep{sciacchitano2016}. For a two-sided $95\%$ confidence interval, the expanded Type-A uncertainty of the mean is written as
+\begin{equation}\label{eq:velocity_averaged_uncertainty}
+\textrm{u}_{\overline{\textrm{u}}} = k \frac{\sigma_\textrm{u}}{\sqrt{N}},
+\end{equation}
+where $\sigma_\textrm{u}$ is the sample standard deviation, $N$ is the number of image pairs, and $k$ is the coverage factor. 
+For the present dataset ($N=250$), using the normal-approximation coverage factor $k=1.96$ instead of the exact Student-$t$ value changes $\textrm{u}_{\overline{\textrm{u}}}$ by less than $0.5\%$. Temporal correlation between successive image pairs is not explicitly accounted for; if present, it reduces the effective sample size and may therefore moderately underestimate the Type-A uncertainty. 
+
+Table~\ref{tab:uncertainty} summarises $\textrm{u}_{\overline{\textrm{u}}}$ for each velocity component, obtained by evaluating the sample standard deviation over the $N=250$ image pairs at each grid point and aggregating the result per measurement plane. The uncertainty levels increase towards the wing tip, consistent with increasing measurement-plane misalignment and enhanced surface reflections. At $\alpha = 17\unit{\degree}$, where stall was anticipated from integral load measurements \citep{Poland2026a}, uncertainties are significantly higher, consistent with increased flow unsteadiness and intermittency in separated regions and stitching errors. 
+These trends should be taken into account when interpreting the subsequent qualitative and quantitative analyses. Compared to the mean inflow velocity, the reported uncertainties correspond to approximately $0.2\%$--$0.7\%$ at $\alpha = 7\unit{\degree}$, increasing to about $0.7\%$--$1.7\%$ at $\alpha = 17\unit{\degree}$.
+% %
+% \begin{table}[htp]
+%     \centering
+%     \caption{Expanded uncertainties of the mean velocity corresponding to a $95\%$ confidence interval ($k \approx 1.96$), calculated from $N=250$ samples and aggregated over all data points within a measurement plane. These values quantify statistical convergence only and do not include systematic (Type-B) contributions.}
+%     \begin{tabular}{l ccccccc l cccc}
+%     \hline
+%     & \multicolumn{7}{c}{$\alpha$ = 7\unit{\degree}} & & \multicolumn{4}{c}{$\alpha$ = 17\unit{\degree}} \\
+%      & $Y1$ & $Y2$ & $Y3$ & $Y4$ & $Y5$ & $Y6$ & $Y7$ & & $Y1$ & $Y2$ & $Y3$ & $Y4$ \\
+%     \hline
+%     $\textrm{u}_{\overline{\textrm{u}},{x}}$ (\unit{m s^{-1}}) & 0.03 & 0.04 & 0.04 & 0.04 & 0.04 & 0.05 & 0.05 & & 0.11 & 0.12 & 0.11 & 0.13 \\
+%     $\textrm{u}_{\overline{\textrm{u}},{y}}$ (\unit{m s^{-1}})& 0.06 & 0.07 & 0.07 & 0.07 & 0.08 & 0.07 & 0.08 & & 0.14 & 0.19 & 0.19 & 0.22 \\
+%     $\textrm{u}_{\overline{\textrm{u}},{z}}$ (\unit{m s^{-1}})& 0.06 & 0.07 & 0.07 & 0.07 & 0.09 & 0.08 & 0.09 & & 0.13 & 0.21 & 0.21 & 0.25 \\
+%     $\textrm{u}_{\overline{\vec{u}}}$ (\unit{m s^{-1}})& 0.07 & 0.08 & 0.08 & 0.08 & 0.09 & 0.09 & 0.10 & & 0.18 & 0.23 & 0.22 & 0.26 \\
+%     \hline
+%     \end{tabular}
+%     \label{tab:uncertainty}
+% \end{table}
+% %
+% \textbf{NEW}
+\begin{table}[htp]
+    \centering
+    \caption{Expanded uncertainties of the mean velocity corresponding to a 95\% confidence interval ($k \approx 1.960$), calculated from $N=250$ samples and aggregated over all data points within a measurement plane. These values quantify statistical convergence only and do not include systematic (Type-B) contributions.}
+    \label{tab:uncertainty}
+    \begin{tabular}{l ccccccc l cccc}
+    \hline
+    & \multicolumn{7}{c}{$\alpha$ = 7\unit{\degree}} & & \multicolumn{4}{c}{$\alpha$ = 17\unit{\degree}} \\
+     & $Y1$ & $Y2$ & $Y3$ & $Y4$ & $Y5$ & $Y6$ & $Y7$ & & $Y1$ & $Y2$ & $Y3$ & $Y4$ \\
+    \hline
+    $\textrm{u}_{\overline{\textrm{u}},{x}}$ (\unit{m s^{-1}}) & 0.046 & 0.049 & 0.048 & 0.048 & 0.055 & 0.063 & 0.063 & & 0.050 & 0.062 & 0.060 & 0.058 \\
+    $\textrm{u}_{\overline{\textrm{u}},{y}}$ (\unit{m s^{-1}}) & 0.080 & 0.085 & 0.082 & 0.085 & 0.095 & 0.102 & 0.106 & & 0.077 & 0.105 & 0.110 & 0.108 \\
+    $\textrm{u}_{\overline{\textrm{u}},{z}}$ (\unit{m s^{-1}}) & 0.085 & 0.093 & 0.090 & 0.091 & 0.104 & 0.113 & 0.116 & & 0.071 & 0.114 & 0.121 & 0.119 \\
+    $\textrm{u}_{\overline{\vec{u}}}$ (\unit{m s^{-1}}) & 0.126 & 0.135 & 0.131 & 0.133 & 0.151 & 0.165 & 0.169 & & 0.117 & 0.168 & 0.174 & 0.171 \\
+    \hline
+    \end{tabular}
+\end{table}
+%
+
+In addition to the statistical (Type-A) uncertainty quantified in Table~\ref{tab:uncertainty}, discrepancies arise from the stitching of partially overlapping PIV sub-planes.
+The magnitude of residual velocity differences across overlap regions is quantified independently in App.~\ref{sec:appendix_stitching_uncertainty}.
+This quantity does not represent a formal uncertainty estimate, but instead provides a local measure of consistency between independently acquired sub-planes at identical spatial locations.
+It is therefore interpreted as a diagnostic indicator of stitching-related variability and is not included in the uncertainty propagation or the reported confidence bounds.
+%
+\subsection{Qualitative comparison}
+%
+The measured velocity fields are compared qualitatively against corresponding slices from CFD simulations by \cite{Vire2022}, extracted at the same locations. The CFD results presented here have been corrected for a $1.02\unit{\degree}$ offset in angle of attack, defined as the angle between the mid-span chord line and the apparent wind vector \citep{Poland2026a}. 
+This constant offset accounts for a difference in $\alpha$ definition and zero reference between the CFD and the experiment, whereas the streamline-curvature correction in Table~\ref{tab:wind_tunnel_corrections} is applied to the experimental angles to account for wind-tunnel interference effects.
+CFD results, available only at $\mathrm{Re} = 10 \times 10^5$, are compared against measurements conducted at $3.8 \times 10^5$ under the assumption that Reynolds number differences are negligible. This assumption is supported by previous analysis of integral 3D forces and moments, which demonstrated convergence for increasing $\mathrm{Re}$ from $1.3 \times 10^5$ to $5 \times 10^5$ using the same experimental setup, model, and wind tunnel \citep{Poland2026a}.
+
+Velocity magnitude fields for the measurement planes are shown in Fig.~\ref{fig:qualitative_comparison_CFD_PIV} for sections $Y1$, $Y3$, and $Y4$ at $\alpha = 7\unit{\degree}$, and for $Y1$ at $\alpha = 17\unit{\degree}$. 
+This specific subset was selected for the qualitative comparison, as these planes report a combination of lower stitching uncertainty (App.~\ref{sec:appendix_stitching_uncertainty}) and higher $f_\mathrm{valid}$, shown in Table~\ref{tab:data_quality_breakdown}.
+%
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Images/fig06.pdf}
+    \caption{Comparison of CFD-predicted and PIV-measured velocity-magnitude fields $u$. The first column shows CFD slices extracted at the measurement-plane locations, and the second column shows the corresponding PIV results. Rows (top to bottom) show planes $Y1$, $Y3$, and $Y4$ at $\alpha = 7\unit{\degree}$, and plane $Y1$ at $\alpha = 17\unit{\degree}$.}
+    \label{fig:qualitative_comparison_CFD_PIV}
+\end{figure}
+%
+
+No PIV data are available in the immediate vicinity of the airfoil surface, as near-wall regions are masked due to surface reflections and correlation loss. Only CFD therefore captures the anticipated separation zone downstream of the leading-edge tube. 
+The masked region expands progressively from $Y1$ to $Y4$, consistent with 
+increasing surface reflection severity and measurement-plane misalignment towards 
+the wing tip. 
+Away from the surface, good agreement between PIV and CFD is indicated, including consistent velocity magnitudes observed in the wake. 
+At $\alpha = 17\unit{\degree}$, both datasets consistently capture the key flow features: suction-side separation, a reduced velocity increase on the suction side, shear layer development, and the associated velocity gradients — confirming the anticipated stall behaviour inferred from integral force measurements \citep{Poland2026b}.
+%
+\subsection{Quantitative results}
+%
+\subsubsection{Boundary-curve methodology}
+%
+Aerodynamic properties were obtained by integrating the velocity field 
+along parametrised boundary curves enclosing the lifting surface. Two 
+curve geometries, elliptical and rectangular, were considered, as 
+illustrated in Fig.~\ref{fig:bound_single_row}. Each curve is defined by 
+its centre location, rotation angle, width, height, and boundary-node 
+discretisation.
+
+When a boundary intersected regions with missing data, the velocity field 
+was locally interpolated prior to evaluation at the boundary nodes.
+
+To assess sensitivity to the integration contour, the nominal curve 
+dimensions were perturbed by $\pm 5\%$ in width and height, generating an 
+ensemble of $36$ contour realisations per geometry. Circulation was 
+evaluated for each realisation, and ensemble-averaged results are reported. 
+Further details on contour convergence and the selection of nominal 
+dimensions are provided in App.~\ref{sec:defining_boundary_curves}.
+%
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Images/fig07.pdf}
+    \caption{The velocity magnitude field, $u$, is shown for both CFD (left) and PIV (right) at plane $Y4$ and angle of attack $\alpha = 7\unit{\degree}$. 
+    On the CFD plot, elliptical and rectangular bound curves are displayed, while the PIV plot features a rectangular bound curve along with interpolation squares.
+    }
+    \label{fig:bound_single_row}
+\end{figure}
+%
+\subsubsection{Circulation distributions}
+%
+The spanwise distributions of circulation strength $\Gamma$ obtained from CFD 
+and PIV are shown in Fig.~\ref{fig:gamma_distribution}. VSM predictions at 
+$\textrm{Re} = 3.8 \times 10^5$, computed using the recommended settings and 
+2D polars from the companion paper~\citep{Poland2026b}, are included for 
+comparison. The PIV results are reported up to plane $Y6$. Plane $Y7$ was 
+excluded because the fraction of vectors requiring interpolation exceeded 
+$1\%$ for all contour realisations 
+(App.~\ref{sec:defining_boundary_curves}). Circulation is reported only for 
+$\alpha = 7\unit{\degree}$, because the uncertainty levels at 
+$\alpha = 17\unit{\degree}$ were too large at planes $Y2$--$Y4$ 
+(App.~\ref{sec:appendix_stitching_uncertainty}).
+
+%
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=0.5\textwidth]{Images/fig08.pdf}
+    \caption{Circulation distribution at $\alpha = 7\unit{\degree}$, computed using boundary curve velocity interpolation, is shown for CFD across all measurement planes, for PIV data up to plane $Y6$, and as predicted by the VSM method. 
+    The data are plotted on top of the wing shape outline, with the measurement plane locations indicated; note that these are not to scale.
+    }
+    \label{fig:gamma_distribution}
+\end{figure}
+%
+
+The intervals shown in Fig.~\ref{fig:gamma_distribution} quantify the 
+sensitivity of $\Gamma$ to the integration contour. For each contour 
+geometry, $\Gamma$ was evaluated over an ensemble of perturbed contours, and 
+the reported value is the mean of the elliptical and rectangular 
+shape-averaged estimates. The plotted intervals represent the full min--max 
+range across the contour ensemble for each dataset. They therefore reflect 
+contour sensitivity, rather than the total measurement uncertainty.
+
+The CFD-derived circulation distributions exhibit a narrow spread, indicating 
+that the result is only weakly affected by contour geometry, with further 
+convergence towards the wing tip. The PIV-derived distributions follow a 
+similar spanwise trend, but are approximately $10\%$--$15\%$ lower inboard, 
+with the difference decreasing towards the tip. The largest deviation occurs 
+at $Y4$, where the measurement plane intersects a strut.
+
+The comparatively small spread of the PIV ensemble in the outboard planes is 
+partly a methodological artefact. Extensive missing data reduce the number of 
+admissible contour realisations, thereby artificially narrowing the ensemble 
+variability. This effect is most pronounced at $Y6$, as illustrated in 
+Fig.~\ref{fig:fig15_line_interference_PIV}. Despite the different numerical 
+formulations, the RANS-based CFD and VSM predictions show similar spanwise 
+trends and comparable magnitudes of circulation. This agreement supports the 
+consistency of the integration routine and indicates that the numerical tools 
+capture the spanwise distribution of aerodynamic loading. It also reduces the 
+likelihood that the previously reported agreement in integral lift 
+\citep{Poland2026b} results from compensating errors.
+%
+\subsubsection{Force decomposition and comparison}
+%
+To compare force estimates obtained from circulation- and velocity-based 
+approaches, aerodynamic forces are evaluated using the Kutta--Joukowski 
+theorem, the Noca formulation, and pressure integration. The resulting 
+spanwise distributions for $\alpha = 7\unit{\degree}$ are shown in 
+Fig.~\ref{fig:quantitative_results_alpha_6} for both rectangular and 
+elliptical boundary shapes. The corresponding numerical values are 
+reported in App.~\ref{sec:tabulated_quantitative_results} in 
+Table~\ref{tab:quantitative_results}, which also includes results for the 
+$Y1$ plane at $\alpha = 17\unit{\degree}$. The $Y7$ plane is excluded due 
+to excessive misalignment, resulting in unreliable force estimates.
+
+To interpret the contributions of individual terms in the Noca formulation, the force integral is decomposed into components based on their dependence 
+on velocity $\boldsymbol{u}$, vorticity $\boldsymbol{\omega}$, and viscous 
+stress tensor $\boldsymbol{\tau}$.
+
+The inviscid, non-rotational contribution is given by:
+\begin{equation}
+\frac{\boldsymbol{F}}{\rho} = \oint_{S} 
+\boldsymbol{n} \cdot 
+\left( \frac{1}{2} u^2 \mathbf{I} - \boldsymbol{u}\boldsymbol{u} \right) 
+\, \mathrm{d}s.
+\end{equation}
+
+The inviscid, rotational contribution is given by:
+\begin{equation}
+\frac{\boldsymbol{F}}{\rho} = \oint_{S} 
+\boldsymbol{n} \cdot 
+\left( -\boldsymbol{u} (\boldsymbol{x} \times \boldsymbol{\omega}) 
++ \boldsymbol{\omega} (\boldsymbol{x} \times \boldsymbol{u}) \right) 
+\, \mathrm{d}s.
+\end{equation}
+
+The viscous contribution is given by:
+\begin{equation}
+\frac{\boldsymbol{F}}{\rho} = \oint_{S} 
+\boldsymbol{n} \cdot 
+\left( 
+\left[ \boldsymbol{x} \cdot (\nabla \cdot \boldsymbol{\tau}) \right] \mathbf{I} 
+- \boldsymbol{x} (\nabla \cdot \boldsymbol{\tau}) 
++ \boldsymbol{\tau} 
+\right) 
+\, \mathrm{d}s.
+\end{equation}
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Images/fig09.pdf}
+    \caption{Spanwise distributions of force coefficients at $\alpha=7^\circ$ from CFD and PIV. Top: $C_\mathrm{l}$; bottom: $C_\mathrm{d}$. Left: CFD-based estimates; right: PIV-based estimates. Noca is decomposed into inviscid non-rotational, inviscid rotational, and viscous terms, together with the Noca total and pressure-integration result.}
+    \label{fig:quantitative_results_alpha_6}
+\end{figure}
+%
+
+For $C_{\mathrm{l}}$, retaining only the inviscid, non-rotational terms 
+yields the most consistent results, both in magnitude and in 
+spanwise trend. CFD Noca and PIV Noca agree to within $10\%$--$15\%$, and 
+exhibit the expected monotonic decrease in $C_{\mathrm{l}}$. Including all 
+terms has only a minor effect for CFD, but introduces a substantial 
+deviation for PIV. Since the viscous contribution to $C_{\mathrm{l}}$ is 
+negligible, this discrepancy originates from the inviscid, rotational 
+terms, which amplify sensitivity to measurement artefacts.
+
+With increasing spanwise position, the force integral becomes more 
+sensitive to the contour geometry, particularly for the inviscid, 
+rotational terms. This sensitivity arises because the integration contour 
+intersects progressively larger masked regions in the PIV domain towards 
+the wing tip, increasing the influence of incomplete velocity data on the 
+evaluated integral.
+
+For $C_{\mathrm{d}}$, a fundamentally different behaviour is observed. 
+Retaining only the inviscid, rotational terms yields the best results, since the inviscid, non-rotational terms produce unphysical negative drag values for both CFD and PIV. 
+The PIV inviscid, rotational terms exhibit the same increasing spanwise spread observed for 
+$C_{\mathrm{l}}$, while the non-rotational terms display the opposite 
+trend. Viscous contributions remain negligible throughout.
+
+This contrasting behaviour indicates that lift and drag are governed by 
+different dominant terms within the Noca formulation: lift is primarily 
+captured by inviscid, non-rotational contributions, whereas drag depends 
+critically on inviscid, rotational terms.
+
+The increased sensitivity of drag reflects its dependence on small 
+momentum deficits and wake structures, which are more strongly affected by 
+measurement noise, masking, spatial resolution, and out-of-plane effects 
+than lift.
+
+Comparison with CFD pressure integration provides an independent reference 
+based on complete flow-field information. For $C_{\mathrm{l}}$, the 
+inviscid, non-rotational terms yield the closest agreement, whereas the 
+rotational terms introduce unphysical distortions. For $C_{\mathrm{d}}$, 
+the opposite holds, with the inviscid, rotational terms producing the most 
+consistent results and the non-rotational terms yielding unphysical 
+negative values.
+
+Overall, the magnitudes obtained from pressure integration are comparable 
+to those from the Noca formulation. However, while both the Noca method and 
+the Kutta--Joukowski theorem predict a monotonic spanwise decrease in 
+aerodynamic loading from $Y1$ to $Y4$, the pressure-integration results 
+deviate from this trend at planes $Y3$ and $Y4$, exhibiting a local 
+increase in both lift and drag, most pronounced at $Y4$. As these planes 
+coincide with the second strut location, this deviation is attributed to a 
+local three-dimensional disturbance that violates the pseudo-2D 
+assumptions underlying planar sectional analysis, and is not captured by 
+circulation- or boundary-curve-based methods. This hypothesis is examined 
+in Sect.~\ref{sec:local_strut_effects}.
+
+The non-dimensional force obtained using the Kutta--Joukowski theorem, 
+$C_{\mathrm{l,Kutta}}$, generally exceeds the reported sectional lift 
+coefficients. CFD predicts higher values, consistent with the circulation 
+analysis. Although the magnitudes derived from this simplified approach 
+are larger, the spanwise trends remain in good agreement.
+%
+\section{Discussion}\label{sec:discussion}
+%
+% This section interprets the experimental findings by addressing critical aspects of data quality and accuracy, followed by explanations for observed discrepancies between experimental and numerical results. The section first evaluates limitations inherent to the PIV measurements, subsequently discusses quantitative analysis discrepancies, and concludes with an investigation into local aerodynamic phenomena induced by the wing struts.
+% %Here, the limitations and shortcomings of the PIV measurements are presented. This is followed by potential causes of discrepancies in the quantitative analysis and an analysis of local strut effects.
+This section interprets the experimental findings by addressing key aspects of data quality and accuracy, followed by explanations for the observed discrepancies between experimental and numerical results. 
+It begins by evaluating the limitations inherent to the PIV measurements, then discusses quantitative analysis discrepancies, and concludes with an investigation of local aerodynamic phenomena induced by the wing struts. 
+% The interpretation of the results is primarily constrained by data loss due to surface reflections and by increasing misalignment of the measurement plane toward the wing tip, both of which disproportionately affect near‑wall gradients and thus the reliability of sectional force estimates.
+%
+\subsection{PIV measurement limitations}
+%
+The dominant limitation of the present stereoscopic PIV measurements arises from surface reflections associated with the complex LEI wing geometry, characterised by pronounced anhedral curvature, a near-cylindrical leading edge, and multiple strut elements. These reflections lead to local correlation failure and data loss in the vicinity of the airfoil surface, particularly in regions where the laser light sheet impinges at shallow angles. For LEI-type wings with strongly curved leading edges and anhedral canopies, reflection avoidance therefore constitutes a primary experimental constraint, alongside optical access and measurement-plane alignment, and should be prioritised in future PIV campaign designs.
+
+Despite extensive mitigation measures, including matte black surface treatment, masking of support structures, and tailored post-processing, reflection-induced artefacts could not be fully eliminated. The affected regions necessitated masking and, in some cases, local interpolation of the velocity field, particularly close to the surface. These procedures introduce localised uncertainty and disproportionately affect near-wall velocity gradients, thereby reducing the reliability of derived quantities that depend on spatial derivatives, such as circulation and sectional force estimates.
+
+The impact of these limitations is not uniform across the wing. Toward the tip, increasing geometric curvature leads to greater misalignment between the measurement plane and the local flow direction, amplifying out-of-plane transport and further reducing the validity of psuedo-2D sectional assumptions. Consequently, sectional force estimates in these regions should be interpreted with caution, whereas mid-span planes—where masking and interpolation are limited—provide the most reliable quantitative information.
+
+Overall, while the measured flow fields robustly capture the dominant flow topology and spanwise trends, surface-adjacent quantities and gradient-based load estimates remain sensitive to reflection-induced data loss and measurement-plane misalignment. These limitations define the practical bounds within which the present PIV dataset can be interpreted quantitatively.
+%%%%% OLD %%%%%%
+% The raw PIV data showed anomalous regions, particularly near the airfoil surface on both suction and pressure sides. 
+% We hypothesise that the anomalies primarily result from surface reflections caused by the LEI wing’s complex geometry, which includes a double-curved anhedral shape, a near-circular leading edge, and multiple strut elements. 
+% This explanation is supported by the increased occurrence of faulty regions in planes $Y3$ and $Y4$, both located near a strut, as shown in Fig.~\ref{fig:qualitative_comparison_CFD_PIV}. Raw image analysis further reveals a strong spatial correlation between these velocity anomalies and distinct geometric features, reinforcing the conclusion that surface reflections are the dominant source of error. 
+% For LEI-type wings with strongly curved leading edges and anhedral canopies, reflection avoidance constitutes a primary experimental constraint alongside optical access and measurement-plane alignment. Future PIV campaign designs should therefore prioritise it accordingly.
+
+% Despite various mitigation efforts, including support-structure masking, matte black spray paint, and dedicated post-processing, artefacts remained in the data. 
+% To mitigate their impact, a lateral-velocity filter on $u_{y}$ excluded visibly faulty regions (App.~\ref{sec:appendix_masking}). 
+% Residual anomalies nevertheless remained, as indicated by the dark blue regions in Fig.~\ref{fig:qualitative_comparison_CFD_PIV}. 
+% These areas were deemed faulty due to their clear mismatch with CFD results, which display smooth and physically consistent flow. Reflection-induced gaps in the data required interpolation near the surface, introducing localised uncertainties that reduce the fidelity of velocity gradients and derived aerodynamic quantities.
+
+% Measurements on both the suction and pressure sides were conducted on the same half of the wing, shown on the left in Fig.~\ref{fig:3D_lebesque_with_photo}, thereby avoiding uncertainties related to geometric asymmetries. A randomised convergence study confirmed robust convergence of mean velocities over the 250-image sequence, see Fig.~\ref{fig:convergence_250im} in App.~\ref{sec:appendix_convergence}.
+
+% Despite mitigation efforts, anomalous regions persisted and required interpolation, particularly near the airfoil surface, introducing localised uncertainties that reduce the fidelity of near-wall velocity gradients and, consequently, compromise the accuracy of aerodynamic force estimates.
+%
+%%%%%%%%%%%%%%%%%%%%%
+%
+% Besides reflections causing problems in capturing the entire PIV flow field, there is also room for improvement in the rest of the setup. The laser light sheet thickness, while functional, could be optimized in future experiments, where a narrower sheet would concentrate laser power more effectively. Even though six measurements were made for each plane, the field of view was still relatively large in comparison to other PIV analyses using the same cameras.
+% Furthermore, the stitching process may have caused errors, especially when considering that suction and pressure side measurements were conducted on opposite sides of the model under the assumption of symmetry. This assumption was made on the basis of zero sideslip angle and a symmetrical wing design. Asymmetries were, however, found using the same setup and measuring integral 3D loads \cite{Poland2026a}. The work also found structural vibrations, albeit small at 15 \unit{m s^{-1}}, but still could have further compromised the measurement by moving the airfoil inside the 250-image sequence. Although if present and substantial, it did not cause convergence problems as shown in Fig.~\ref{fig:convergence_250im} in App.~\ref{sec:appendix_convergence}.
+% Reflections are considered to have the most significant impact on the measurement data quality for this experiment. Other improvements could be made by creating a slightly narrower laser light sheet, which would concentrate the laser power more effectively.
+% Additional uncertainties might have been introduced by a relatively large field of view compared to other PIV studies using the same cameras \citep{Fritz2024a,Fritz2024b}, although it is unsure through what mechanisms. Considering the particle diffraction to pixel diameter was shown to be higher than the desired minimal value \citep{Raffel2018}, the authors consider it unlikely a result of peak locking errors.
+% Both suction and pressure measurements were made on the same half of the wing (left in Fig.~\ref{fig:3D_lebesque_with_photo}), which removes the additional source of uncertainty that would have arisen from potential geometric asymmetries. A randomized convergence study was conducted, demonstrating that despite the presence of minor vibrations \citep{Poland2026a}, the mean converges well over the 250-image sequence, see Fig.~\ref{fig:convergence_250im} in App.~\ref{sec:appendix_convergence}.
+%
+\subsection{Quantitative analysis discrepancies}
+%
+Incomplete velocity data near the airfoil surface necessitated interpolation to enable boundary curve analysis, inherently introducing uncertainty. This limitation is reflected in the sensitivity to boundary curve parameter selection, as demonstrated in App.~\ref{sec:defining_boundary_curves} in Fig.~\ref{fig:convergence_study_w_and_h}. Averaging across a 10\% parameter range reduced variability but did not fully eliminate it. 
+% Planes requiring minimal interpolation yielded the closest agreement in sectional lift coefficient between PIV and CFD, see Table~\ref{tab:quantitative_results}. 
+% Drag coefficients were not consistent and occasionally resulted in non-physical negative values.
+
+In addition to interpolation-related effects, discrepancies may have also been introduced by the integration methods themselves. 
+% At $\alpha = 17\unit{\degree}$, the 2D planar PIV-derived lift exceeded the CFD-predicted value—opposite to the trend observed in the 3D integrated force measurements reported in the companion paper~\citep{Poland2026a}, where CFD produced higher lift. 
+At $\alpha = 17\unit{\degree}$, the 2D planar PIV-derived lift exceeded the CFD prediction. This trend contrasted with the 3D-integrated force measurements in the companion paper~\citep{Poland2026a}, where CFD produced higher lift.
+While this discrepancy likely reflects increased uncertainty at high angles of attack, it also suggests integration errors, as the trend was consistently observed in both Noca- and Kutta–Joukowski-based force estimates.
+
+\textbf{This paragraph is new, and taken from results but fits better here}
+This behaviour is consistent with the well-established difficulty of 
+recovering drag from velocity-field-based force integration. Drag is 
+typically an order of magnitude smaller than lift, rendering it highly 
+sensitive to measurement noise, spatial resolution, and systematic 
+bias~\citep{Fritz2024a,Fritz2024b}. It depends on subtle momentum deficits 
+and viscous contributions in the near and far wake, which are challenging 
+to resolve accurately using planar PIV, particularly in the presence of 
+wake truncation, masking, and incomplete near-wall information 
+\citep{Huang2023}. These limitations are further exacerbated by 
+out-of-plane effects, which disproportionately affect drag relative to 
+lift in velocity-only formulations~\citep{LeBlanc2022}.
+
+To independently assess aerodynamic loads, surface pressure integration was conducted, incorporating both pressure forces $F_{\textrm{p}}$ and viscous forces $F_{\textrm{v,j}}$. Pressure forces dominated, with viscous contributions typically below 1\%. Compared to values derived from boundary curves, see  Table~\ref{tab:quantitative_results}, the pressure integration results showed different magnitudes but similar trends, except at planes $Y3$ and $Y4$, where elevated lift and drag were observed. For $Y4$, the elevated values are partly attributed to the integration plane intersecting the strut section, which increases the effective airfoil thickness, shown in Fig.~\ref{fig:qualitative_comparison_CFD_PIV}, thereby enhancing local camber. Supporting this interpretation is the observation that the discrepancy in trend is not captured by the bound integration methods. A further contribution could stem from a local strut effect, which, although smaller than at $Y4$, may also contribute to the off-trend increase in lift and drag observed at $Y3$.
+%
+\subsection{Local strut effects}\label{sec:local_strut_effects}
+%
+The following analysis addresses the off-trend sectional loads observed at planes $Y3$ and $Y4$, which coincide with the second strut location and are not reproduced by velocity-based methods. Because near-wall PIV data in the strut vicinity are insufficient to resolve the associated 3D flow, CFD results are used here solely to interpret the physical origin of these deviations.
+
+In the literature, CFD simulations have been performed both with struts \citep{Vire2022} and without \citep{Vire2020}. Based on comparisons of global aerodynamic properties, it was concluded that the presence of struts has little influence on overall performance. However, \cite{Vire2022} noted that struts do affect the local flow field, including increased vortex shedding. This observation was supported by 
+spanwise plots of the $\lambda_2$-criterion, which provides an indication of vortex core lines in \citep{Jeong1995}. For the case $\alpha = 13\unit{\degree}$ at a $\mathrm{Re} = 30 \times 10^5$, developing vorticity was found on the pressure side, with structures present between $x/c = 0.3$ and $x/c = 0.6$, except near the tip vortex and the strut regions—indicative of strut-induced effects. The work of \cite{Vire2022} is the published version of the MSc thesis by \cite{Lebesque2020}, which further reported that strut blockage influenced the location and size of recirculation regions and, more generally, introduced stronger local effects.
+
+To investigate the mechanism behind the strut-induced effect, measurement planes $Y3$ and $Y4$ were positioned at the location of the second strut. While the flow fields are not resolved close enough to the surface to investigate this mechanism using PIV, CFD results do provide sufficient resolution. As shown in App.~\ref{sec:appendix_masking} in Fig.~\ref{fig:CFD_w_over_span}, the struts indeed appear to affect the local spanwise flow, evidenced by localised regions of increased and decreased $u_{y}$ values, indicative of a strut-induced velocity increase. This interaction does not produce a uniform effect along the streamwise direction but develops progressively, particularly within the recirculation zone aft of the leading-edge tube.
+
+To investigate this effect, four spanwise slices focused on the second strut, spanning from $x/c = 0.1$ to $0.3$, are shown in Fig.~\ref{fig:CFD_strut_effect}. The first row displays the streamwise velocity $u$, where regions of increased upstream flow around the strut are indicated by blue contours. This corresponds to an increase in downward velocity $u_{z}$, also shown in blue in the second row, and enhanced spanwise velocity $u_{y}$, shown in red in the third row. Similar to the $u$ component, the velocity differences in $u_{y}$ and $u_{z}$ become less pronounced downstream, as evident in the last column. 
+Near the strut, the flow accelerated downward, spanwise, and upstream. 
+This combined signature was consistent with a tilted vortex structure.
+%
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=\linewidth]{Images/fig10.png}
+    \caption{Spanwise CFD slices at $\alpha=7\unit{\degree}$ and $\mathrm{Re}=10\times10^{5}$ near the second strut. Columns show four $x/c$ locations; rows show $u_x$, $u_y$, $u_z$, and $\lambda_2$. Upstream slices intersect the leading-edge tube and fillet, so the membrane is only visible at the most downstream location.}
+    \label{fig:CFD_strut_effect}
+\end{figure}
+
+To investigate whether vortices are present, the $\lambda_{2}$ criterion is plotted in the last row. It is derived from the eigenvalues of the symmetric tensor $\mathbf{E}^{2} + \mathbf{W}^{2}$, where the square denotes a matrix multiplication yielding another second-order tensor. The symmetric strain rate and antisymmetric spin tensors are defined as
+\begin{align}
+    \mathbf{E} & = \frac{1}{2} \left( \nabla \mathbf{u} + \left( \nabla \mathbf{u} \right)^{\mathsf{T}} \right) , \quad \text{and} \\
+    \mathbf{W} & = \frac{1}{2} \left( \nabla \mathbf{u} - \left( \nabla \mathbf{u} \right)^{\mathsf{T}} \right) ,
+\end{align}
+respectively, where $\nabla \mathbf{u}$ denotes the velocity gradient tensor.
+
+The $\lambda_2$ criterion specifically evaluates the second-largest eigenvalue of this tensor, where $\lambda_2 < 0$ indicates the presence of a vortex core \citep{Jeong1995}. The values reported here differ in magnitude from those in \cite{Vire2022} due to the adjustment in angle of attack, scaling to the projected frontal area rather than the projected side area, and the omission of the sign inversion applied in that study.
+
+At $x/c = 0.1$, the $\lambda_2$-criterion indicates negative regions within the shear layer and close to the surface on the outward side of the strut. The latter region somewhat corresponds to areas of elevated $u_{y}$ and $u_{z}$ velocities. Closer to the strut, the shear layer structures begin to break down. The breaking down phenomenon intensifies downstream and coincides with a shear layer bump best observed in the $u$ velocity plot, attributed to negative $u_{y}$ regions. Another factor contributing to the breakdown of a well moving downstream is increased turbulent mixing. By $x/c = 0.3$, a region of negative $\lambda_2$ values has grown in size and now covers nearly the entire recirculation region.
+
+In summary, the strut is associated with local increases in velocity in all three spatial directions, consistent with a strong 3D interaction. This effect cannot be attributed solely to spanwise transport, as elevated upstream velocities in the $u$ direction are also observed in the strut region. The combined signatures are consistent with a 3D mechanism, such as an inclined vortex originating near the inward side of the strut, which could account for the local upstream flow. Although the upstream shear layer is clearly identified in the $\lambda_2$ field, the existence and topology of such a vortex cannot be confirmed unambiguously from the present evidence.
+
+Nevertheless, the strut’s influence on both velocity and vorticity shedding is apparent. Given the spatial overlap between these disturbed flow regions and planes $Y3$ and $Y4$, the strut effect is a credible contributor to the elevated lift and drag observed in the surface pressure integration. While global aerodynamic coefficients remain largely unaffected by strut inclusion, as reported by \citep{Vire2022}, this CFD analysis demonstrates how the struts affect local aerodynamic phenomena, highlighting important implications for both experimental interpretation and sectional load modelling.
+%
+\section{Conclusion}\label{sec:conclusion}
+%
+% A stereoscopic particle image velocimetry (PIV) campaign was carried out in the Open Jet Facility at TU Delft using a rigid 1:6.5 scale model of the TU Delft V3 leading-edge inflatable (LEI) kite, providing novel spatially resolved flow-field measurements for this class of geometry.
+% The resulting flow-field dataset further established the V3 kite as a benchmark configuration for LEI kites.
+% The experiments used the same idealised geometry with fillets as employed in simulations to ensure consistency in comparison.
+
+% The authors hypothesise that reflections were the dominant source of anomalous velocity vectors in the PIV images. Despite the use of matte coatings, tailored processing, and out-of-plane velocity filters these effects persisted, underscoring the need to refine reflection-suppression techniques for LEI wings. These are marked by the double-curved anhedral canopy, a near-cylindrical leading edge, and supporting struts.
+
+% Qualitatively, the PIV vector maps reproduce the principal flow-field features predicted by CFD. At $\alpha=17\unit{\degree}$, selected because separated flow was anticipated from prior integral load measurements, the measurements visualise the separated-flow topology and shear-layer development in regions minimally affected by surface reflections, enabling a direct qualitative comparison.
+
+% Although surface-adjacent flow could not be fully resolved and some anomalous regions remained, quantitative comparison based on bound-curve integration remained feasible. Spanwise circulation extracted from the PIV measurements follows the same overall trends as both CFD and vortex-step-method predictions within the reported confidence intervals. Two-dimensional momentum integration of the PIV fields yields sectional load estimates that are broadly consistent with CFD at mid-span when elliptical integration boundaries are used, where measurement uncertainty is lowest. However, the comparison remains semi-quantitative and deteriorates towards the wing tip and in drag-related quantities, consistent with increased masking, interpolation, and three-dimensional transport.
+
+% Because near-surface PIV data were unavailable, the strut-induced flow mechanisms were assessed using CFD, which indicates that the strut accelerates the local flow both spanwise and upstream, enlarges the downstream recirculation zone, and redistributes shear-layer vorticity. The resulting local discrepancies near the strut locations demonstrate that, although global aerodynamic coefficients are only weakly affected by struts, sectional load estimation based on planar flow fields can break down locally when strong three-dimensional disturbances are present. These findings highlight strut aerodynamics as a non-negligible factor in sectional load modelling and, potentially, in future kite wing planform optimisation.
+
+% Future efforts are strongly encouraged to explore more effective methods for minimising reflections, such as advanced coating solutions with ultra-low reflectivity. Implementing a volumetric measurement approach could enable the capture of more 3D effects, including strut-induced interactions. Additional insight may also be gained by analysing the wake region, particularly the dynamics of tip vortices. 
+% Measurement quality could be improved by employing a narrower laser light sheet. 
+% Concentrating the laser power would have reduced stray illumination and could have mitigated the intensity of reflections.
+% e.g., using more advanced coating solutions with ultra-low reflective properties.
+% improving resolution, e.g., by increasing the laser light intensity.
+% As the LEI wing shape has shown to be susceptible, the next experiment is strongly recommended to consider how to more effectively remove reflections, e.g., using more advanced coating solutions with ultra-low reflective properties.
+
+This study has presented the first geometry-consistent, spatially resolved stereoscopic PIV dataset for a representative LEI kite configuration, obtained from a rigid $1{:}6.5$ scale model of the TU Delft V3 kite in controlled wind-tunnel conditions. By combining stereoscopic PIV measurements with RANS simulations and vortex-step-method predictions, the work addresses a previously unresolved gap in the experimental characterisation of sectional flow physics for strongly anhedral, double-curved kite wings.
+
+The stereoscopic PIV fields reproduce the dominant CFD-predicted topology, including suction-side acceleration and stall-associated shear-layer development at elevated angles of attack. Circulation distributions from bound-curve integration show consistent spanwise trends between PIV, CFD, and VSM predictions at $\alpha=7\unit{\degree}$, supporting numerically predicted sectional loading trends and indicating robustness of circulation-based metrics under the present pseudo-2D assumption when out-of-plane transport is limited. The closest quantitative agreement between PIV and CFD in sectional lift is obtained at mid-span, where measurement-plane alignment is most favourable and reflection-induced data loss is minimal.
+
+By contrast, drag recovery from near-field planar velocity data is shown to be fundamentally unreliable in the present configuration. Negative or non-physical sectional drag estimates arise from the combined effects of near-wall data loss, wake truncation, sensitivity to velocity gradients, and unaccounted three-dimensional momentum transport. These findings reinforce the established limitation of velocity-field-based drag estimation and delineate the practical bounds within which planar PIV-derived force estimates can be interpreted for LEI wings.
+
+Local offsets between adjacent PIV planes are consistent with strut-induced three-dimensional disturbances that violate the pseudo-two-dimensional assumption. CFD indicates local acceleration and vorticity redistribution in the strut vicinity, which can perturb sectional loads without materially affecting global coefficients and thereby limits the interpretability of planar force estimates near the struts.
+
+Overall, the dataset supports model–experiment comparison of mean-flow topology and spanwise circulation trends in planes with sufficient data coverage. Where plane alignment is favourable and masking is limited (close to mid-span), pseudo-two-dimensional sectional lift estimates are broadly consistent with CFD. Limitations due to near-surface data loss, drag-recovery sensitivity, and strongly three-dimensional regions are quantified and explicitly documented. In this sense, the work provides benchmark data and an explicit applicability map for the presented measurement approach.
+
+Future work should prioritise mitigating reflection-induced data loss through improved surface treatments and optical access. Volumetric PIV would enable direct quantification of out-of-plane transport and strut-induced interactions, while complementary wake measurements would strengthen the assessment of induced velocities and tip-vortex dynamics. Together, these developments would extend the utility of the TU Delft V3 kite reference dataset for validating flow-resolved aerodynamic models.
+%
+\appendix
+%
+\section{Convergence over the 250 image samples}\label{sec:appendix_convergence}
+%
+\appendixfigures
+\appendixtables
+%
+This appendix assesses whether the ensemble size of $N=250$ image pairs is sufficient to obtain statistically converged time-averaged velocities.
+A representative high-variance case was selected by considering plane $Y4$ at $\alpha=17\unit{\degree}$, which exhibits the largest expanded Type-A uncertainties of the mean among the retained datasets (Table~\ref{tab:uncertainty}).
+Time series of the instantaneous velocity components $u_{x}$, $u_{y}$, and $u_{z}$ at a fixed grid point are shown in Fig.~\ref{fig:convergence_250im}.
+To avoid visual misinterpretation associated with acquisition order, the $N=250$ samples were randomly permuted prior to plotting.
+
+The monitored point is located above the airfoil surface and corresponds to image-plane coordinates $x=-0.75~\unit{mm}$ and $z=-118.18~\unit{mm}$, i.e.\ approximately $x\approx0.25~\unit{m}$ and $z\approx0.25~\unit{m}$ in the reference frame used throughout the manuscript (cf.\ Fig.~\ref{fig:qualitative_comparison_CFD_PIV}).
+The observed fluctuations remain bounded about a stable mean without systematic drift, indicating that the time-averaged velocity estimate at this location is statistically converged for $N=250$ samples.
+Accordingly, the uncertainty metric in Eq.~\eqref{eq:velocity_averaged_uncertainty} is interpreted as a Type-A (precision) uncertainty of the mean due to finite ensemble size, rather than as evidence of unresolved non-stationarity.
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{Images/figA1.pdf}
+    \caption{Instantaneous velocity components $u_{x}$, $u_{y}$, and $u_{z}$ at a fixed point above the airfoil surface in plane $Y4$ at $\alpha=17\unit{\degree}$. The $N=250$ samples are randomly permuted for visualisation.}
+    \label{fig:convergence_250im}
+\end{figure}
+%
+%
+\section{Noca's method, in reduced form}\label{sec:appendix_2D_Noca}
+%
+%
+
+% \section{Other thing}
+
+% \subsubsection{Classical steady control--volume momentum balance and limitations for near-field PIV}\label{sec:cv_momentum_limitations}
+% In principle, the aerodynamic force on an airfoil can be obtained from the integral momentum balance over a fixed control volume $V$ bounded by a closed surface $S$ with outward unit normal $\mathbf{n}$. For an incompressible, statistically steady flow,
+% \begin{equation}
+% \mathbf{F}_{\mathrm{body}}
+% =
+% \int_{S}\left(-p\,\mathbf{n} + \boldsymbol{\tau}\cdot\mathbf{n}\right)\,\mathrm{d}S
+% -
+% \int_{S}\rho\,\mathbf{u}\,(\mathbf{u}\cdot\mathbf{n})\,\mathrm{d}S,
+% \label{eq:CV_momentum_steady}
+% \end{equation}
+% where $\mathbf{F}_{\mathrm{body}}$ denotes the net aerodynamic force on the body, $p$ the static pressure, $\mathbf{u}$ the velocity field, and $\boldsymbol{\tau}$ the viscous stress tensor.
+
+% In special cases, a pressure-free formulation can be obtained by choosing a control surface that extends sufficiently far into the wake such that pressure has recovered to $p_{\infty}$ and viscous traction on the outer boundary is negligible. Under these conditions, the streamwise force reduces to the classical momentum-deficit expression,
+% \begin{equation}
+% D
+% \approx
+% \rho \int_{A_w} u\,(U_\infty-u)\,\mathrm{d}A,
+% \label{eq:momentum_deficit_drag}
+% \end{equation}
+% which implicitly assumes a far-field wake plane on which static pressure is uniform and equal to the free-stream value.
+
+% These assumptions are not satisfied for the present dataset. The available PIV measurements are confined to the near field, where the control surface would necessarily intersect regions of separated flow, shear layers, and the developing wake. In this region, static pressure is not uniform, has not recovered to $p_{\infty}$, and contributes non-negligibly to the surface integral in Eq.~\eqref{eq:CV_momentum_steady}. Consequently, the pressure term cannot be eliminated without an explicit pressure reconstruction, which is not accessible from planar PIV data alone.
+
+% Moreover, the control surface would cross the near wake, where momentum deficit and pressure deficit coexist. In such regions, neglecting the pressure contribution leads to an incomplete force balance and, in general, to a systematic under- or over-estimation of the aerodynamic loads. This limitation is fundamental and does not diminish with increased spatial resolution of the velocity field.
+
+% In addition, near-wall velocity data are incomplete due to reflection-induced masking near the airfoil surface, preventing direct evaluation of the momentum flux through a closed control surface surrounding the body. Any attempt to apply Eq.~\eqref{eq:CV_momentum_steady} under these constraints would therefore require substantial modelling assumptions to reconstruct both the pressure distribution and the masked near-wall velocity field. The resulting reconstruction uncertainty would be comparable to, or larger than, that introduced by derivative-based surface formulations.
+
+% For these reasons, the classical control-volume momentum balance is ill-posed for the present near-field PIV configuration, motivating the use of velocity-only surface-integral formulations, such as Noca’s method, that remain formally closed under the available experimental constraints.
+
+% %
+% \section{real noca section}
+% 
+\cite{Noca1999} presented a 3D method for the computation of forces from a boundary surface, given sufficient flow-field information. In the present work, this method was applied under the assumption of 2D incompressible flow. To reduce the dimensions $\mathscr{N}$ from three to two, a zero was substituted in the second component of the normal vector,
+\begin{equation}
+\vec{n} = \begin{bmatrix} n_{{x}} & 0 & n_{z} \end{bmatrix}^{\top},
+\end{equation}
+the position vector,
+\begin{equation}
+\vec{x} = \begin{bmatrix} x & 0 & z \end{bmatrix}^{\top},
+\end{equation}
+and the velocity vector,
+\begin{equation}
+\vec{u} = \begin{bmatrix} u_{{x}} & 0 & u_{{z}} \end{bmatrix}^{\top},
+\end{equation}
+and the first and last components of the vorticity vector,
+\begin{equation}
+\boldsymbol{\omega} = \begin{bmatrix} 0 & \omega_{y} & 0 \end{bmatrix}^{\top}.
+\end{equation}
+
+As shown in Sect.~\ref{sec:integral_aerodynamic_quantities}, the second and third terms of Noca’s equation, Eq.~\eqref{eq:Noca}, fall away: the second term, representing momentum flux through the solid, impermeable surface, is zero due to the no-throughflow condition, and the third term, accounting for boundary acceleration, is zero since the body was stationary. In addition, because the reduced formulation is evaluated using time-averaged, statistically steady fields, the explicit time-derivative terms in the flux equation (second line of Eq.~\eqref{eq:Flux}) vanish in the formulation used here.
+
+
+To derive the reduced form, the expressions were rewritten in matrix notation. A direct transfer of the symbolic ordering was not possible, since the left-hand side required a column vector, whereas the right-hand side produced a row vector. This inconsistency was resolved by reordering the dot product, placing the flux term before the surface normal,
+\begin{equation}
+ \frac{\vec{F}}{\rho} = \oint_{S} \boldsymbol{\gamma}_\textrm{flux} \vec{n}  \textrm{d}s .
+\end{equation}
+Such a reordering is permissible without modification for symmetric dyadics, but non-symmetric dyadics, present at the third, fourth, and ninth terms, had to be explicitly rewritten by taking the transpose.
+
+\subsection{Inviscid terms}
+The first four terms are the inviscid contributions. The first was reduced to
+%
+\begin{equation}
+\frac{1}{2} \oint_{S} (u^{2}\mathbf{I}) \vec{n}  \textrm{d}s
+= \frac{1}{2} \oint_{S} 
+\Bigg(
+(u_{{x}}^{2} + u_{{z}}^{2})
+\begin{bmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{bmatrix}
+\Bigg)
+\begin{bmatrix} n_{{x}} \\ 0 \\ n_{{z}} \end{bmatrix} \textrm{d}s
+= \frac{1}{2} \oint_{S}
+\begin{bmatrix} n_{{x}}(u_{{x}}^{2}+u_{{z}}^{2}) \\ 0 \\ n_{{z}}(u_{{x}}^{2}+u_{{z}}^{2}) \end{bmatrix} \textrm{d}s ,
+\end{equation}
+%
+the second to
+%
+\begin{equation}
+-\!\oint_{S} (\vec{u}\vec{u}^{\top}) \vec{n}  \textrm{d}s
+= -\!\oint_{S}
+\Bigg(
+\begin{bmatrix} u_{{x}} \\ 0 \\ u_{{z}} \end{bmatrix}
+\begin{bmatrix} u_{{x}} & 0 & u_{{z}} \end{bmatrix}
+\Bigg)
+\begin{bmatrix} n_{{x}} \\ 0 \\ n_{{z}} \end{bmatrix} \textrm{d}s
+= -\!\oint_{S}
+\begin{bmatrix} n_{{x}}u_{{x}}^{2} + n_{{z}}u_{{z}}u_{{x}} \\ 0 \\ n_{{x}}u_{{x}}u_{{z}} + n_{{z}}u_{{z}}^{2} \end{bmatrix} \textrm{d}s ,
+\end{equation}
+%
+the third to
+%
+\begin{equation}
+-\frac{1}{\mathscr{N}-1} \oint_{S} \big[(\vec{x} \times \boldsymbol{\omega})\vec{u}^{\top}\big]\vec{n}  \textrm{d}s
+= - \oint_{S}
+\Bigg(
+\begin{bmatrix} -z\omega_{y} \\[2pt] 0 \\[2pt] x\omega_{y} \end{bmatrix}
+\begin{bmatrix} u_{x} & 0 & u_{z} \end{bmatrix} 
+\Bigg)
+\begin{bmatrix} n_{x} \\[2pt] 0 \\[2pt] n_{z} \end{bmatrix} \textrm{d}s
+= \oint_{S}
+\begin{bmatrix}
+(n_{x}u_{x}+n_{z}u_{z}) z \omega_{y} \\[4pt]
+0 \\[4pt]
+-(n_{x}u_{x}+n_{z}u_{z}) x \omega_{y}
+\end{bmatrix} \textrm{d}s .
+\end{equation}
+%
+and the fourth to
+%
+\begin{equation}
+\frac{1}{\mathscr{N}-1} \oint_{S} \big[(\vec{x} \times \vec{u})\boldsymbol{\omega}^{\top}\big]\vec{n}  \textrm{d}s
+=   \oint_{S}
+\Bigg(
+\begin{bmatrix} 0 \\ x u_{{z}} - z u_{{x}} \\ 0 \end{bmatrix}
+\begin{bmatrix} 0 & \omega_{y} & 0 \end{bmatrix}
+\Bigg)
+\begin{bmatrix} n_{{x}} \\ 0 \\ n_{{z}} \end{bmatrix} \textrm{d}s
+= \begin{bmatrix} 0 \\ 0 \\ 0 \end{bmatrix} .
+\end{equation}
+
+\subsection{Viscous terms}
+The last line of Eq.~\eqref{eq:Flux} contains the viscous terms, where the viscous stress tensor
+$\boldsymbol{\tau}$ appears. Defined in Cartesian coordinates, it was reduced to
+%
+\begin{equation}
+\boldsymbol{\tau} = \mu
+\begin{bmatrix}
+2 \frac{\partial u_{x}}{\partial x} - \frac{2}{3} (\nabla\!\cdot\!\vec{u}) &
+\frac{\partial u_{x}}{\partial y} + \frac{\partial u_{y}}{\partial x} &
+\frac{\partial u_{x}}{\partial z} + \frac{\partial u_z}{\partial x} \\[6pt]
+\frac{\partial u_{y}}{\partial x} + \frac{\partial u_{x}}{\partial y} &
+2 \frac{\partial u_{y}}{\partial y} - \frac{2}{3} (\nabla\!\cdot\!\vec{u}) &
+\frac{\partial u_{y}}{\partial z} + \frac{\partial u_z}{\partial y} \\[6pt]
+\frac{\partial u_z}{\partial x} + \frac{\partial u_{x}}{\partial z} &
+\frac{\partial u_z}{\partial y} + \frac{\partial u_{y}}{\partial z} &
+2 \frac{\partial u_z}{\partial z} - \frac{2}{3} (\nabla\!\cdot\!\vec{u})
+\end{bmatrix}
+=
+\mu
+\begin{bmatrix}
+2 \dfrac{\partial u_{x}}{\partial x} & 0 & \dfrac{\partial u_{x}}{\partial z}+\dfrac{\partial u_{z}}{\partial x} \\[8pt]
+0 & 0 & 0 \\[8pt]
+\dfrac{\partial u_{z}}{\partial x}+\dfrac{\partial u_{x}}{\partial z} & 0 & 2 \dfrac{\partial u_{z}}{\partial z}
+\end{bmatrix},
+\end{equation}
+%
+and its divergence becomes
+%
+% Divergence of the viscous stress
+\begin{equation}
+\nabla \cdot \boldsymbol{\tau}=\mu
+\begin{bmatrix}
+2 \dfrac{\partial^2 u_{x}}{\partial x^2}
++\dfrac{\partial^2 u_{z}}{\partial x \partial z}
++\dfrac{\partial^2 u_{x}}{\partial z^2} \\[10pt]
+0 \\[10pt]
+\dfrac{\partial^2 u_{x}}{\partial x \partial z}
++\dfrac{\partial^2 u_{z}}{\partial x^2}
++2 \dfrac{\partial^2 u_{z}}{\partial z^2}
+\end{bmatrix}
+=
+\mu
+\begin{bmatrix}
+\Pi_1 \\[6pt]
+0 \\[6pt]
+\Pi_3
+\end{bmatrix}.
+\end{equation}
+% where
+% %
+% \begin{equation}
+% \Pi_1
+% = 2 \frac{\partial^2 u_{x}}{\partial x^2}
+% + \frac{\partial^2 u_{z}}{\partial x \partial z}
+% + \frac{\partial^2 u_{x}}{\partial z^2},
+% \qquad
+% \Pi_3
+% = \frac{\partial^2 u_{x}}{\partial x \partial z}
+% + \frac{\partial^2 u_{z}}{\partial x^2}
+% + 2 \frac{\partial^2 u_{z}}{\partial z^2}.
+% \end{equation}
+% %
+
+Substituting the reduced forms into the eighth term gives
+%
+\begin{equation}
+\frac{1}{\mathscr{N}-1}\!\oint_S
+\Big[\big(\vec{x}^{\mathsf T}(\nabla \boldsymbol{\tau})\big)\mathbf{I}\Big]\vec{n} \textrm{d}s
+= \mu\!\oint_S
+\Bigg(\begin{bmatrix} x & 0 & z \end{bmatrix}
+\begin{bmatrix} \Pi_1 \\ 0 \\ \Pi_3 \end{bmatrix}\Bigg)\mathbf{I}
+\begin{bmatrix} n_{x} \\ 0 \\ n_{z} \end{bmatrix}\textrm{d}s
+= \mu\!\oint_S
+\begin{bmatrix}
+n_{x} (x\Pi_1+z\Pi_3)\\[2pt]
+0\\[2pt]
+n_{z} (x\Pi_1+z\Pi_3)
+\end{bmatrix} \textrm{d}s .
+\end{equation}
+%
+
+The ninth term is reduced to
+%
+\begin{equation}
+-\frac{1}{\mathscr{N}-1}\!\oint_S
+\Big[(\nabla\boldsymbol{\tau}) \vec{x}^{\mathsf T}\Big]\vec{n} \textrm{d}s
+= -\mu\!\oint_S
+\Bigg(
+\begin{bmatrix} \Pi_1 \\ 0 \\ \Pi_3 \end{bmatrix}
+\begin{bmatrix} x & 0 & z \end{bmatrix}
+\Bigg)
+\begin{bmatrix} n_{x} \\ 0 \\ n_{z} \end{bmatrix}\textrm{d}s
+= -\mu\!\oint_S
+\begin{bmatrix}
+\Pi_1 (x n_{x}+z n_{z})\\[2pt]
+0\\[2pt]
+\Pi_3 (x n_{x}+z n_{z})
+\end{bmatrix}\textrm{d}s .
+\end{equation}
+%
+
+Finally, the tenth term became
+%
+\begin{equation}
+\oint_S \boldsymbol{\tau} \vec{n} \textrm{d}s
+= \mu \!\oint_S
+\begin{bmatrix}
+2 \dfrac{\partial u_{x}}{\partial x} & 0 & \dfrac{\partial u_{x}}{\partial z} + \dfrac{\partial u_{z}}{\partial x} \\
+0 & 0 & 0 \\
+\dfrac{\partial u_{z}}{\partial x} + \dfrac{\partial u_{x}}{\partial z} & 0 & 2 \dfrac{\partial u_{z}}{\partial z}
+\end{bmatrix}
+\begin{bmatrix} n_{x} \\ 0 \\ n_{z} \end{bmatrix}\textrm{d}s
+= \mu \!\oint_S
+\begin{bmatrix}
+n_{x} \big(2 \tfrac{\partial u_{x}}{\partial x}\big) + n_{z} \big(\tfrac{\partial u_{x}}{\partial z} + \tfrac{\partial u_{z}}{\partial x}\big) \\[6pt]
+0 \\[6pt]
+n_{x} \big(\tfrac{\partial u_{z}}{\partial x} + \tfrac{\partial u_{x}}{\partial z}\big) + n_{z} \big(2 \tfrac{\partial u_{z}}{\partial z}\big)
+\end{bmatrix}\textrm{d}s .
+\end{equation}
+%
+
+\subsection{Reduced form}
+Combining everything, the following reduced form was obtained:
+%
+\begin{equation}
+\begin{aligned}
+\frac{F_{x}}{\rho} &= \oint_S \Bigg[
+\frac{1}{2} n_{x}\!\left(u_{z}^2-u_{x}^2\right) - n_{z} u_{x} u_{z}
++ (n_{x} u_{x}+n_{z} u_{z}) z \omega_y
++\mu n_{x}(x\Pi_1+z\Pi_3) - \mu \Pi_1(x n_{x}+z n_{z}) \\
+&\hspace{4.3cm}
++\;\mu\!\left(2n_{x} \frac{\partial u_{x}}{\partial x}
++ n_{z}\!\left(\frac{\partial u_{x}}{\partial z}+\frac{\partial u_{z}}{\partial x}\right)\right)
+\Bigg] \textrm{d}s , \\[1ex]
+\frac{F_{z}}{\rho} &= \oint_S \Bigg[
+\frac{1}{2} n_{z}\!\left(u_{x}^2-u_{z}^2\right) - n_{x} u_{x} u_{z}
+- (n_{x} u_{x}+n_{z} u_{z}) x \omega_y
++\mu n_{z}(x\Pi_1+z\Pi_3) - \mu \Pi_3(x n_{x}+z n_{z}) \\
+&\hspace{4.3cm}
++\;\mu\!\left(n_{x}\!\left(\frac{\partial u_{x}}{\partial z}+\frac{\partial u_{z}}{\partial x}\right)
++ 2n_{z} \frac{\partial u_{z}}{\partial z}\right)
+\Bigg] \textrm{d}s ,
+\end{aligned}
+\end{equation}
+%
+with
+%
+\begin{equation}
+\Pi_1
+= 2 \frac{\partial^2 u_{x}}{\partial x^2}
++ \frac{\partial^2 u_{z}}{\partial x \partial z}
++ \frac{\partial^2 u_{x}}{\partial z^2},
+\qquad
+\Pi_3
+= \frac{\partial^2 u_{x}}{\partial x \partial z}
++ \frac{\partial^2 u_{z}}{\partial x^2}
++ 2 \frac{\partial^2 u_{z}}{\partial z^2} .
+\end{equation}
+% %
+% \section{Masking}\label{sec:appendix_masking}
+% %
+% The three velocity components $u_{x}$, $u_{y}$ and $u_{z}$ of plane $Y1$, unmasked and masked are shown in Fig.~\ref{fig:y1_masking}. 
+% The raw $u_{y}$ field contains spatially localised regions with unrealistically large out-of-plane velocities. In the present measurement planes, values with $|u_{y}| > 3~\unit{m s^{-1}}$ are inconsistent with the corresponding CFD predictions and occur predominantly in zones affected by surface reflections and correlation loss. The applied threshold is therefore introduced as a reconstruction-failure proxy to suppress reflection-driven artefacts, rather than as a physical constraint on genuine 3D flow (e.g.\ near the wing tip or strut junctions).
+% The colour bar is limited to $\pm3$ \unit{m s^{-1}} for better interpretability. The $u_{x}$ and $u_{y}$ velocity components in the same areas also exhibit unrealistic values. Comparisons with raw images revealed that reflections in these areas prohibited accurate PIV processing. This led to the conclusion that the discussed regions require a masking procedure.
+
+% Using the standard deviation as a mask to remove these regions proved ineffective because it could not capture all the zones and removed many data points outside the identified regions. This was especially prevalent in the $\alpha$ = 17\unit{\degree} case, where a large separated flow region is present that, given its unsteady nature, fluctuates substantially over the 250 images, thereby causing large standard deviations that would have consequently been filtered out. The lateral velocity component $u_{y}$ provided the best proxy to filter out the data points, which also removed most of the off-predicted $u_{x}$ and $u_{z}$ regions due to the overlap with the off-predicted $u_{y}$ regions.
+% %
+% \begin{figure}[htp]
+%     \centering
+%     \includegraphics[width=\linewidth]{Images/figC1.pdf}
+%     \caption{The first column indicates the unmasked raw PIV images for the three velocity components $u_{x}$, $u_{y}$ and $u_{z}$ at measurement plane $Y1$ and $\alpha =7\unit{\degree}$. The second column shows the same plane, but masked using a $u_{y}$ filter.
+%     \textbf{\textcolor{red}{Update caption}}}
+%     \label{fig:y1_masking}
+% \end{figure}
+% %
+
+% Both the identification of regions as off-prediction and selecting $\pm$ 3 \unit{m s^{-1}} $u_{y}$ to mask the experimental data were motivated by comparing the measured data to numerical data. Two spanwise slices are plotted in Fig.~\ref{fig:CFD_w_over_span}, which show that no $u_{y}$ components outside of $\pm$ 3 \unit{m s^{-1}} range are present for the measurement planes, except the $Y7$ plane for the $\alpha = 7\unit{\degree}$ case. With $\alpha$ = 17\unit{\degree}, a larger white region shows but does not cross any of the measurement planes, i.e., at this $\alpha$, only up to $Y4$ located at $y=0.301$ \unit{m}, measurements were made.
+
+% An additional mask was applied to exclude the regions where the support structure holding the wing obstructed the camera's line of sight and, thus, prohibited particle tracking. These masked areas are visible behind the wing's trailing edge, see Fig.~\ref{fig:y1_masking}.
+% \begin{figure}[htp]
+%     \centering
+%     \includegraphics[width=\linewidth]{Images/figC2.pdf}
+%     \caption{Spanwise slices of the $u_{y}$ flow fields made using the data from \cite{Vire2022}, the left showing the $\alpha$ = 7\unit{\degree} case and the right the 17\unit{\degree} case. The white regions indicate where the absolute $u_{y}$ velocity is larger than 3 \unit{m s^{-1}}. The displayed slices are taken at 0.25 $x/c$ offset from the leading edge in the stream-wise $x$ direction.
+%     }
+%     \label{fig:CFD_w_over_span}
+% \end{figure}
+% %
+%
+\section{Masking}\label{sec:appendix_masking}
+%
+Spanwise slices of the CFD $u_{y}$ field (Fig.~\ref{fig:CFD_w_over_span}) confirm that values outside $\pm 3~\unit{m s^{-1}}$ are absent at all measurement planes, except $Y7$ at $\alpha = 7\unit{\degree}$, and that the larger exceeding region at $\alpha = 17\unit{\degree}$ does not intersect any measurement plane. Experimental values with $|u_{y}| > 3~\unit{m s^{-1}}$ are therefore attributed to surface reflections and correlation loss rather than genuine 3D flow; the $u_{x}$ and $u_{z}$ components in these regions are similarly corrupted (Fig.~\ref{fig:CFD_w_over_span}), and since their off-predicted areas largely overlap with those of $u_{y}$, the out-of-plane component provides a reliable masking proxy. The support-structure obstruction behind the trailing edge was also masked out, and contributes to $f_\mathrm{NaN}$ in Table~\ref{tab:data_quality_breakdown}.
+
+An inverse coefficient of variation (ICV)-based filter was applied to suppress residual temporally incoherent vectors. The ICV is defined as
+%
+\begin{equation}\label{eq:icv}
+    \mathrm{ICV}(i) = \mathrm{median}\left(\frac{|\overline{u_x}(i)|}{\sigma_{u_x}(i)},\, \frac{|\overline{u_z}(i)|}{\sigma_{u_z}(i)}\right),
+\end{equation}
+%
+where $\overline{(\cdot)}$ and $\sigma_{(\cdot)}$ denote the ensemble mean and standard deviation; only components with $\sigma_{(\cdot)} > \sigma_{\min} = 10^{-6}~\unit{m s^{-1}}$ are included to avoid division by near-zero variance, and $u_y$ is excluded. The per-component ratios are combined using a median reduction at $\alpha = 7\unit{\degree}$ and a mean reduction at $\alpha = 17\unit{\degree}$. Vectors with $\mathrm{ICV} < 2.0$ are rejected at both angles of attack. Reflection-induced correlation failure collapses the mean and inflates the standard deviation, yielding low ICV, whereas well-resolved regions retain high values. At $\alpha = 17\unit{\degree}$, genuine flow separation produces a similar low-ICV signature; the filter is therefore spatially restricted to the region below a line fitted through the rear $50\%$ of the airfoil surface, confining rejection to the near-surface reflection-prone zone and avoiding masking of the separated flow region above the airfoil. The resulting rejection fractions $f_\mathrm{ICV}$ are reported in Table~\ref{tab:data_quality_breakdown}.
+%
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=\linewidth]{Images/figC1.pdf}
+    \caption{
+    The process from raw to masked is illustrated. Showing the velocity components $u_{x}$, $u_{y}$, and $u_{z}$ at plane $Y1$, $\alpha = 7\unit{\degree}$.
+    }
+    \label{fig:y1_masking}
+\end{figure}
+%
+%
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Images/figC2.pdf}
+    \caption{Spanwise slices of the $u_{y}$ flow fields from \cite{Vire2022} at $\alpha = 7\unit{\degree}$ (left) and $\alpha = 17\unit{\degree}$ (right), taken at $0.25~x/c$ from the leading edge. White regions indicate $|u_{y}| > 3~\unit{m s^{-1}}$.}
+    \label{fig:CFD_w_over_span}
+\end{figure}
+%
+\section{Stitching uncertainty}
+\label{sec:appendix_stitching_uncertainty}
+%
+To quantify the consistency between adjacent PIV sub-planes after stitching, a stitching uncertainty was evaluated from the velocity differences in the overlap regions.
+However, missing vectors and locally degraded reconstruction quality in the overlap regions reduced the spatial coverage available for these comparisons and prevented robust averaging over the full overlap extents.
+Therefore, the reported stitching uncertainty was computed from a restricted subset of overlap points sampled above an upper-layer line at $z = 0.25~\unit{m}$.
+This line was selected because, for the measurement planes emphasised in the manuscript, and for those with comparatively lower uncertainty (Table~\ref{tab:uncertainty}), the reconstructed flow fields in this region remained qualitatively consistent.
+The measured velocity fields and the corresponding line used for the overlap analysis are shown in Fig.~\ref{fig:fig15_line_interference_PIV}.
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{Images/figD1.pdf}
+    \caption{Stitched PIV velocity fields used to assess consistency across sub-plane overlaps. Fields are shown for multiple measurement planes $Y_i$ at $\alpha\approx7\unit{\degree}$ (columns 1–2) and $\alpha\approx17\unit{\degree}$ (column 3). Colours indicate the velocity magnitude $u$, with the airfoil outline overlaid. The dashed black line at $z=0.25~\unit{m}$ indicates the threshold above which overlap data are sampled for Table~\ref{tab:stitching_uncertainty_flipped}.}
+    \label{fig:fig15_line_interference_PIV}
+\end{figure}
+%
+
+For each measurement plane $Y_i$, the streamwise overlap regions between sub-planes were considered when present, and each overlap was analysed independently.
+Prior to comparison, the velocity fields from the two contributing sub-planes were subjected to identical validity filtering, as described in the manuscript.
+Within each overlap region, the difference between the two sub-plane velocity fields was computed component-wise over grid points where both fields remained valid.
+For each velocity component, the root-mean-square (RMS) of the difference field was then calculated as
+\begin{equation}
+\mathrm{RMS} = \sqrt{\left\langle \left(u_A - u_B\right)^2 \right\rangle},
+\end{equation}
+where $\langle \cdot \rangle$ denotes averaging over all valid overlap points.
+
+This metric does not represent a full measurement uncertainty.
+Instead, it provides a local measure of consistency between independently acquired sub-planes at identical spatial locations, and therefore serves as an indicator of the magnitude of residual differences across stitched regions.
+The resulting RMS differences for all available measurement planes and angles of attack are summarised in Table~\ref{tab:stitching_uncertainty_flipped}.
+
+\textbf{the story would be consistent if you argue that above 1ms deviation is too large!}
+
+%
+\begin{table}[htp]
+    \centering
+    \caption{Stitching uncertainty quantified as the root-mean-square (RMS) difference in the overlap regions, reported for the stitched velocity components $u$, $v$, and $w$. Values are aggregated per measurement plane.}
+    \begin{tabular}{l ccccccc cccc}
+    \hline
+    & \multicolumn{7}{c}{$\alpha = 7\unit{\degree}$}
+    & \multicolumn{4}{c}{$\alpha = 17\unit{\degree}$} \\
+     & $Y1$ & $Y2$ & $Y3$ & $Y4$ & $Y5$ & $Y6$ & $Y7$
+     & $Y1$ & $Y2$ & $Y3$ & $Y4$ \\
+    \hline
+    $\mathrm{RMS}(u_x)$ (\unit{m s^{-1}})
+    & 0.1172 & 0.1559 & 0.1846 & 0.1492 & 0.3580 & 0.1287 & n/a
+    & 3.2712 & 1.8190 & 1.6685 & 1.9265 \\
+    $\mathrm{RMS}(u_y)$ (\unit{m s^{-1}})
+    & 0.3057 & 0.5044 & 0.2967 & 0.2499 & 0.6791 & 0.2716 & n/a
+    & 0.8836 & 0.9267 & 0.8763 & 1.0996 \\
+    $\mathrm{RMS}(u_z)$ (\unit{m s^{-1}})
+    & 0.3136 & 0.4943 & 0.3556 & 0.3156 & 0.8714 & 0.3120 & n/a
+    & 1.0359 & 0.8302 & 1.0307 & 1.0388 \\
+    \hline
+    \end{tabular}
+    \label{tab:stitching_uncertainty_flipped}
+\end{table}
+
+
+Overall, the overlap-based RMS differences reported in Table~\ref{tab:stitching_uncertainty_flipped} indicate that residual discontinuities between adjacent PIV sub-planes are generally limited to $\mathcal{O}(10^{-1})$–$\mathcal{O}(1)$~\unit{m s^{-1}} for most measurement planes and angles of attack, with larger values occurring primarily in regions where reconstruction quality is already degraded. These differences quantify the local consistency between independently acquired measurements at identical spatial locations and therefore provide a direct, location-specific indication of stitching-related variability. 
+
+At $\alpha = 7\unit{\degree}$, RMS differences remain moderate across all planes except $Y5$, where values approach 0.7–1.3~\unit{m s^{-1}}, where an increased amount of missing data shows in the evaluated region (Fig.~\ref{fig:fig15_line_interference_PIV}). For plane $Y7$, insufficient valid data remained above $z = 0.25~\unit{m}$ to compute overlap-based RMS values, reinforcing the decision to exclude this plane from the quantitative analysis in Sect.~\ref{sec:results}.
+
+At $\alpha = 17\unit{\degree}$, RMS differences in planes $Y2$, $Y3$ and $Y4$ exceed 2~\unit{m s^{-1}} for the streamwise component, corresponding to approximately 13–18\% of the free-stream velocity. These elevated values reflect the combined effects of separated flow unsteadiness, increased reflection-induced masking, and reduced correlation quality under stalled conditions. Combined with the Type-A uncertainties reported in Table~\ref{tab:uncertainty}, these observations provided further justification for limiting the quantitative analysis at $\alpha = 17\unit{\degree}$ to plane $Y1$ only, as stated in Sect.~\ref{sec:results}.
+
+For comparison, the Type-A velocity uncertainties reported in Table~\ref{tab:uncertainty} range from 0.07–0.10~\unit{m s^{-1}} at $\alpha=7\unit{\degree}$ and 0.18–0.26~\unit{m s^{-1}} at $\alpha=17\unit{\degree}$. The stitching-related RMS differences are 3–10 times larger than the statistical uncertainty of the mean, indicating that stitching introduces a non-negligible systematic contribution to the total measurement uncertainty, particularly in overlap regions. The analysis is necessarily restricted to a subset of overlap points and does not constitute a comprehensive PIV uncertainty assessment. Instead, it demonstrates that visible transitions between sub-planes, such as those observable in plane $Y1$ at $\alpha=17\unit{\degree}$ in Fig.~\ref{fig:fig15_line_interference_PIV}, correspond to finite and quantified velocity offsets rather than uncontrolled artefacts.
+
+Consequently, the stitched velocity fields are considered sufficiently consistent for the flow analyses presented in Sect.~\ref{sec:results}, provided that the reported stitching uncertainty is taken into account when interpreting derived quantities.
+%
+\section{Defining boundary curves}\label{sec:defining_boundary_curves}
+%
+To obtain aerodynamic properties of a flow field, the methods described in Sect.~\ref{sec:integral_aerodynamic_quantities} are used and require a boundary curve. Two curve shapes were used, an ellipse and a rectangle, illustrated for both CFD and PIV at $Y2$ and $Y5$ with $\alpha=7\unit{\degree}$ in Fig.~\ref{fig:quantitative_PIV_bounds}.
+The boundary curves are described by a number of nodes $N_{\textrm{b}}$.
+For each boundary node $N_{\textrm{b,i}}$, the flow field data inside a square of 0.05 \unit{m} by 0.05 \unit{m} centred at $N_{\textrm{b,i}}$ was interpolated to populate $N_{\textrm{b,i}}$.
+
+When analysing the PIV measurement planes, certain boundary curves cross regions without flow field data. Each encountered empty flow field node inside an interpolation square is populated by an additional interpolation using the neighbouring nodes. Examples of interpolation squares crossing initially empty flow fields are indicated by the black squares in the second column of Fig.~\ref{fig:quantitative_PIV_bounds}.
+%
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=\linewidth]{Images/figE1.pdf}
+    \caption{The left column shows CFD and the right column PIV, both colored by the velocity magnitude $u$. The top row contains the $Y2$ plane and the bottom the $Y5$ plane, both measured at $\alpha$ = 7\unit{\degree}. The white rectangle and the black ellipse represent the two investigated boundary shapes, and the smaller black squares in the right column represent the PIV locations for which additional interpolation was required to ensure sufficient data presence for populating the boundary nodes.}
+    \label{fig:quantitative_PIV_bounds}
+\end{figure}
+%
+
+The boundary curves are defined by an $x$ centre coordinate $x_{\textrm{b}}$, a $z$ centre coordinate $z_{\textrm{b}}$, rotation angle, width $W_{\textrm{b}}$, height $H_{\textrm{b}}$, and $N_{\textrm{b}}$. The centre locations are set equal to the airfoil centroids. To determine suitable $W_{\textrm{b}}$ and $H_{\textrm{b}}$ values, a convergence study was done on the lift calculated with Noca's method $C_{\textrm{l, Noca}}$ and the circulation $\Gamma$.
+
+The sensitivity results are shown for $Y2$ with $\alpha=7$\unit{\degree} in Fig~\ref{fig:convergence_study_w_and_h}. The first column shows the variation when only changing $N_{\textrm{b}}$, where both CFD and PIV results show a converging trend for $C_{\textrm{l, Noca}}$ and $\Gamma$. For PIV, the rectangle shape predicts different values. 
+In the second and third columns, the boundary width $W_{\mathrm{b}}$ and height $H_{\mathrm{b}}$ are shown. Each marker is coloured by the percentage of grid points inside the interpolation squares whose $u$ value was missing and therefore locally interpolated, normalised by the total number of grid points inside these squares. Cases exceeding $1~\%$ are excluded from the dataset.
+The CFD results exhibit good convergence for both variations in $W_{\textrm{b}}$ and $H_{\textrm{b}}$. Both the ellipse and rectangle shapes show close agreement in the values of $C_{\textrm{l, Noca}}$, with only a small deviation in the circulation, $\Gamma$. In contrast, the PIV results often fail to converge, with frequent misalignment between the ellipse and rectangle shape predictions.
+
+The `optimal' number of nodes was determined considering the convergence of circulation $\Gamma$ and the drag predicted by the Noca's method $C_{\textrm{d, Noca}}$. All planes converged when increasing $N_{\textrm{b}}$. A value of 360 nodes was selected for all planes.
+% Increasing resolution, by increasing $N_{\textrm{b}}$, showed good convergence throughout when using 360 nodes, hence this values was selected for all planes.
+Determining the parameters $W_{\textrm{b}}$ and $H_{\textrm{b}}$ was done iteratively for each plane and $\alpha$ separately. The resulting curves were checked visually and numerically using the \% of interpolated empty flow field points to ensure that the curve crossed as many as possible through the measured flow field. On top of that, the neighbouring points, e.g., not only 0.4\unit{m} wide but also 0.41\unit{m} wide, were checked using the same criteria. A vertical line is present in all plots, indicating the selected values, which, together with the centres, are reported in Table~\ref{tab:quantitative_results} for all planes.
+
+As the sensitivity analysis showed that the PIV flow field is sensitive to the boundary curve parameters, i.e., does not converge well, the analysis was done on a total of 100 combinations of $W_{\textrm{b}}$ and $H_{\textrm{b}}$ and averaged to reduce inconsistencies. The 100 combinations comprise of 10 $W_{\textrm{b}}$ values and 10 $H_{\textrm{b}}$ values and span a $\pm$ 10\% region, indicated in the plots by the vertical grey band, around the `optimal' value. A sensitivity analysis was performed on the rotation angle and over a sweep of $\pm 10\unit{\degree}$, less than 0.01 difference in $C_{\textrm{l, Noca}}$ and $\Gamma$ was seen, hence not reported here.
+%
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{Images/figE2.pdf}
+    \caption{Convergence analysis for $Y2$ the boundary curve setting, i.e. $N_{\textrm{b}}$, $W_{\textrm{b}}$ and $H_{\textrm{b}}$, used for calculation $C_{\textrm{l, Noca}}$ presented in the top row and $\Gamma$ reported in the bottom row. Each plot contains a vertical line, indicating the determined `optimal' value, and the vertical grey band indicates the region that was used for averaging.
+    }
+    \label{fig:convergence_study_w_and_h}
+\end{figure}
+%
+\section{Tabulated quantitative results}\label{sec:tabulated_quantitative_results}
+%
+The quantitative results are shown in Table~\ref{tab:quantitative_results}.
+Only planes containing sufficient data for boundary curve interpolation are included in the analysis. 
+For an overview of all planes, the reader is referred to Fig.~\ref{fig:fig15_line_interference_PIV} in App.~\ref{sec:appendix_stitching_uncertainty}.
+%
+\begin{table}[H]
+    \centering
+    \caption{Aerodynamic coefficients for the measured PIV and simulated CFD of different planes, using different calculation methods.}
+    \begin{tabular}{p{0.5cm} p{0.8cm} p{.8cm} p{2.6cm} p{1.8cm} c c c p{1cm} p{1.3cm} c} %1.5 and 0.2
+    \hline
+    \multirow{2}{*}{Plane} & \multirow{2}{*}{$\alpha$} & \multicolumn{2}{c}{\multirow{2}{*}{Boundary Setting}} & \multirow{2}{*}{} & \multicolumn{2}{c}{Ellipse} & \multicolumn{2}{c}{Rectangle} &  & $P$-integration \\
+    & & & & & CFD & PIV & CFD & PIV & & CFD \\
+    \hline
+    \multirow{3}{*}{$Y1$} & \multirow{3}{*}{7\unit{\degree}}
+    & $x_{\textrm{b}},z_{\textrm{b}}$ & 0.24, 0.14 (\unit{m}) & $C_{\textrm{l, Noca}}$ (\unit{-}) & 0.60 & 0.61 & 0.60 & 0.39 & $C_{\textrm{l, p}}$ (\unit{-})& 0.53 \\
+    & & $W_{\textrm{b}}, H_{\textrm{b}}$ & 0.6, 0.37 (\unit{m}) & $C_{\textrm{d, Noca}}$ (\unit{-})& 0.02 & 0.20 & 0.02 & 0.25 & $C_{\textrm{d, p}}$ (\unit{-})& 0.02 \\
+    & & $N_{\textrm{b}}$ & 360 (\unit{-}) & $C_{\textrm{l,Kutta}}$ (\unit{-})& 0.78 & 0.80 & 0.74 & 0.65 & & \\
+    \hline
+    \multirow{3}{*}{$Y2$} & \multirow{3}{*}{7\unit{\degree}}
+    & $x_{\textrm{b}},z_{\textrm{b}}$ & 0.24, 0.12 (\unit{m}) & $C_{\textrm{l, Noca}}$ (\unit{-})& 0.57 & 0.43 & 0.57 & 0.36 & $C_{\textrm{l, p}}$ (\unit{-})& 0.49 \\
+    & & $W_{\textrm{b}}, H_{\textrm{b}}$ & 0.67, 0.39 (\unit{m}) & $C_{\textrm{d, Noca}}$ (\unit{-})& -0.04 & 0.25 & -0.05 & 0.35 & $C_{\textrm{d, p}}$ (\unit{-})& 0.02 \\
+    & & $N_{\textrm{b}}$ & 360 (\unit{-}) & $C_{\textrm{l,Kutta}}$ (\unit{-})& 0.72 & 0.68 & 0.70 & 0.62 & & \\
+    \hline
+    \multirow{3}{*}{$Y3$} & \multirow{3}{*}{7\unit{\degree}}
+    & $x_{\textrm{b}},z_{\textrm{b}}$ & 0.24, 0.09 (\unit{m}) & $C_{\textrm{l, Noca}}$ (\unit{-})& 0.53 & 0.44 & 0.54 & 0.39 & $C_{\textrm{l, p}}$ (\unit{-})& 0.51 \\
+    & & $W_{\textrm{b}}, H_{\textrm{b}}$ & 0.67, 0.43 (\unit{m}) & $C_{\textrm{d, Noca}}$ (\unit{-})& 0.01 & 0.48 & 0.01 & 0.24 & $C_{\textrm{d, p}}$ (\unit{-})& 0.03 \\
+    & & $N_{\textrm{b}}$ & 360 (\unit{-}) & $C_{\textrm{l,Kutta}}$ (\unit{-})& 0.68 & 0.63 & 0.65 & 0.61 & & \\
+    \hline
+    \multirow{3}{*}{$Y4$} & \multirow{3}{*}{7\unit{\degree}}
+    & $x_{\textrm{b}},z_{\textrm{b}}$ & 0.24, 0.09 (\unit{m}) & $C_{\textrm{l, Noca}}$ (\unit{-})& 0.53 & 0.51 & 0.54 & 0.36 & $C_{\textrm{l, p}}$ (\unit{-})& 0.73 \\
+    & & $W_{\textrm{b}}, H_{\textrm{b}}$ & 0.65, 0.42 (\unit{m}) & $C_{\textrm{d, Noca}}$ (\unit{-})& -0.02 & 0.08 & -0.02 & 0.16 & $C_{\textrm{d, p}}$ (\unit{-})& 0.08 \\
+    & & $N_{\textrm{b}}$ & 360 (\unit{-}) & $C_{\textrm{l,Kutta}}$ (\unit{-})& 0.67 & 0.61 & 0.65 & 0.57 & & \\
+    \hline
+    \multirow{3}{*}{$Y5$} & \multirow{3}{*}{7\unit{\degree}}
+    & $x_{\textrm{b}},z_{\textrm{b}}$ & 0.23, 0.16 (\unit{m}) & $C_{\textrm{l, Noca}}$ (\unit{-})& 0.48 & 0.56 & 0.47 & 0.30 & $C_{\textrm{l, p}}$ (\unit{-})& 0.41 \\
+    & & $W_{\textrm{b}}, H_{\textrm{b}}$ & 0.70, 0.40 (\unit{m}) & $C_{\textrm{d, Noca}}$ (\unit{-})& -0.08 & -0.14 & -0.08 & -0.06 & $C_{\textrm{d, p}}$ (\unit{-})& 0.02 \\
+    & & $N_{\textrm{b}}$ & 360 (\unit{-}) & $C_{\textrm{l,Kutta}}$ (\unit{-})& 0.60 & 0.34 & 0.58 & 0.62 & & \\
+    \hline
+    \multirow{3}{*}{$Y1$} & \multirow{3}{*}{17\unit{\degree}}
+    & $x_{\textrm{b}},z_{\textrm{b}}$ & 0.25, 0.09 (\unit{m}) & $C_{\textrm{l, Noca}}$ (\unit{-})& 0.57 & 0.77 & 0.58 & 0.77 & $C_{\textrm{l, p}}$ (\unit{-})& 0.41 \\
+    & & $W_{\textrm{b}}, H_{\textrm{b}}$ & 0.60, 0.44 (\unit{m}) & $C_{\textrm{d, Noca}}$ (\unit{-})& 0.29 & -0.29 & 0.48 & 0.22 & $C_{\textrm{d, p}}$ (\unit{-})& 0.08 \\
+    & & $N_{\textrm{b}}$ & 360 (\unit{-}) & $C_{\textrm{l,Kutta}}$ (\unit{-})& 0.69 & 0.82 & 0.70 & 0.89 & & \\
+    \hline
+    \end{tabular}
+    \label{tab:quantitative_results}
+\end{table}
+
+
+
+%
+\noappendix
+%% Please add \clearpage between each table and/or figure. Further guidelines on figures and tables can be found below.
+
+%
+\codedataavailability{
+The processed PIV measurements are available on
+Zenodo from \url{https://doi.org/10.5281/zenodo.17395913}~\citep{Poland2026_piv_data}.
+The code for the analysis of this data and the generation of the tables and diagrams in this paper is available on Zenodo from \url{https://doi.org/10.5281/zenodo.17396075}~\citep{Poland2026_piv_code} and GitHub from \url{https://github.com/jellepoland/kite_piv_analysis} (last accessed on 18 March 2026). 
+The CFD data, presented in~\cite{Vire2022}, and used throughout this study, is also available on Zenodo from \url{https://doi.org/10.5281/zenodo.17395314}~\citep{Poland2025_cfd_data}. 
+This code also includes vortex-step method (VSM) simulations, which were performed in the context of this study.
+The latest version of the VSM can be found on: \url{https://github.com/awegroup/Vortex-Step-Method} (last accessed on 18 March 2026). 
+The geometric mesh of the TU Delft V3 kite is available on Zenodo from \url{https://doi.org/10.5281/zenodo.15316036}~\citep{Poland2025_V3CAD_data} and GitHub from \url{https://github.com/awegroup/TUDELFT_V3_LEI_KITE}~(last accessed on 18 March 2026). 
+More information on the TU Delft V3 Kite is available from \url{https://awegroup.github.io/TUDELFT_V3_KITE/}~(last accessed on 18 March 2026).
+This paper includes verified computational reproducibility, confirmed through an independent CODECHECK process, which is an open-science initiative to improve reproducibility \citep{Nust2021CODECHECK}. 
+The certificate is accessible through \url{https://zenodo.org/records/18890103}~\citep{CODECHECK_piv}.
+}
+%
+\authorcontribution{
+JAWP wrote the manuscript, co-designed the experiment, executed the experiment, and performed the analysis. EF co-designed the experiment, executed the experiment, aided in performing the analysis, and made several other contributions to the manuscript. RS supervised the project and made several contributions to the manuscript.}
+%
+\competinginterests{At least one of the (co-)authors is a member of the editorial board of Wind Energy Science.}
+%
+\begin{acknowledgements}
+%
+The authors would like to thank the following people for their help: Mark van Spronsen for aiding in data gathering and co-designing the experiment. David Bensason for setting up the PIV and Frits Donker Duyvis for aiding with the laser and more. Mac Gaunaa, Andrea Sciacchitano, and Delphine de Tavernier for advice and guidance. We acknowledge the use of OpenAI’s ChatGPT and Grammarly for
+assistance in refining the writing style of this manuscript.
+%
+\end{acknowledgements}
+%
+\financialsupport{This research has been supported by the Nederlandse Organisatie voor Wetenschappelijk Onderzoek (NWO) under grant number 17628. This work has partially been supported by the MERIDIONAL project, which receives funding from the European Union’s 410 Horizon Europe Programme under the grant agreement No. 101084216.}
+
+%% REFERENCES
+
+%% The reference list is compiled as follows:
+
+% \begin{thebibliography}{}
+
+% \bibitem[AUTHOR(YEAR)]{LABEL1}
+% REFERENCE 1
+
+% \bibitem[AUTHOR(YEAR)]{LABEL2}
+% REFERENCE 2
+
+% \end{thebibliography}
+
+%% Since the Copernicus LaTeX package includes the BibTeX style file copernicus.bst,
+%% authors experienced with BibTeX only have to include the following two lines:
+%%
+\bibliographystyle{copernicus}
+\bibliography{report.bib}
+%%
+%% URLs and DOIs can be entered in your BibTeX file as:
+%%
+%% URL = {http://www.xyz.org/~jones/idx_g.htm}
+%% DOI = {10.5194/xyz}
+
+
+%% LITERATURE CITATIONS
+%%
+%% command                        & example result
+%% \citet{jones90}|               & Jones et al. (1990)
+%% \citep{jones90}|               & (Jones et al., 1990)
+%% \citep{jones90,jones93}|       & (Jones et al., 1990, 1993)
+%% \citep[p.~32]{jones90}|        & (Jones et al., 1990, p.~32)
+%% \citep[e.g.,][]{jones90}|      & (e.g., Jones et al., 1990)
+%% \citep[e.g.,][p.~32]{jones90}| & (e.g., Jones et al., 1990, p.~32)
+%% \citeauthor{jones90}|          & Jones et al.
+%% \citeyear{jones90}|            & 1990
+
+
+%% FIGURES
+
+%% When figures and tables are placed at the end of the MS (article in one-column style), please add \clearpage
+%% between bibliography and first table and/or figure as well as between each table and/or figure.
+
+% The figure files should be labelled correctly with Arabic numerals (e.g. fig01.jpg, fig02.png).
+
+
+%% ONE-COLUMN FIGURES
+
+%%f
+%\begin{figure}[t]
+%\includegraphics[width=8.3cm]{FILE NAME}
+%\caption{TEXT}
+%\end{figure}
+%
+%%% TWO-COLUMN FIGURES
+%
+%%f
+%\begin{figure*}[t]
+%\includegraphics[width=12cm]{FILE NAME}
+%\caption{TEXT}
+%\end{figure*}
+%
+%
+%%% TABLES
+%%%
+%%% The different columns must be seperated with a & command and should
+%%% end with \\ to identify the column brake.
+%
+%%% ONE-COLUMN TABLE
+%
+%%t
+%\begin{table}[t]
+%\caption{TEXT}
+%\begin{tabular}{column = lcr}
+%\tophline
+%
+%\middlehline
+%
+%\bottomhline
+%\end{tabular}
+%\belowtable{} % Table Footnotes
+%\end{table}
+%
+%%% TWO-COLUMN TABLE
+%
+%%t
+%\begin{table*}[t]
+%\caption{TEXT}
+%\begin{tabular}{column = lcr}
+%\tophline
+%
+%\middlehline
+%
+%\bottomhline
+%\end{tabular}
+%\belowtable{} % Table Footnotes
+%\end{table*}
+%
+%%% LANDSCAPE TABLE
+%
+%%t
+%\begin{sidewaystable*}[t]
+%\caption{TEXT}
+%\begin{tabular}{column = lcr}
+%\tophline
+%
+%\middlehline
+%
+%\bottomhline
+%\end{tabular}
+%\belowtable{} % Table Footnotes
+%\end{sidewaystable*}
+%
+%
+%%% MATHEMATICAL EXPRESSIONS
+%
+%%% All papers typeset by Copernicus Publications follow the math typesetting regulations
+%%% given by the IUPAC Green Book (IUPAC: Quantities, Units and Symbols in Physical Chemistry,
+%%% 2nd Edn., Blackwell Science, available at: http://old.iupac.org/publications/books/gbook/green_book_2ed.pdf, 1993).
+%%%
+%%% Physical quantities/variables are typeset in italic font (t for time, T for Temperature)
+%%% Indices which are not defined are typeset in italic font (x, y, z, a, b, c)
+%%% Items/objects which are defined are typeset in roman font (Car A, Car B)
+%%% Descriptions/specifications which are defined by itself are typeset in roman font (abs, rel, ref, tot, net, ice)
+%%% Abbreviations from 2 letters are typeset in roman font (RH, LAI)
+%%% Vectors are identified in bold italic font using \vec{x}
+%%% Matrices are identified in bold roman font
+%%% Multiplication signs are typeset using the LaTeX commands \times (for vector products, grids, and exponential notations) or \cdot
+%%% The character * should not be applied as mutliplication sign
+%
+%
+%%% EQUATIONS
+%
+%%% Single-row equation
+%
+%\begin{equation}
+%
+%\end{equation}
+%
+%%% Multiline equation
+%
+%\begin{align}
+%& 3 + 5 = 8\\
+%& 3 + 5 = 8\\
+%& 3 + 5 = 8
+%\end{align}
+%
+%
+%%% MATRICES
+%
+%\begin{matrix}
+%x & y & z\\
+%x & y & z\\
+%x & y & z\\
+%\end{matrix}
+%
+%
+%%% ALGORITHM
+%
+%\begin{algorithm}
+%\caption{...}
+%\label{a1}
+%\begin{algorithmic}
+%...
+%\end{algorithmic}
+%\end{algorithm}
+%
+%
+%%% CHEMICAL FORMULAS AND REACTIONS
+%
+%%% For formulas embedded in the text, please use \chem{}
+%
+%%% The reaction environment creates labels including the letter R, i.e. (R1), (R2), etc.
+%
+%\begin{reaction}
+%%% \rightarrow should be used for normal (one-way) chemical reactions
+%%% \rightleftharpoons should be used for equilibria
+%%% \leftrightarrow should be used for resonance structures
+%\end{reaction}
+%
+%
+%%% PHYSICAL UNITS
+%%%
+%%% Please use \unit{} and apply the exponential notation
+
+
+\end{document}

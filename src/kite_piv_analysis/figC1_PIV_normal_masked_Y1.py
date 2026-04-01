@@ -153,7 +153,7 @@ def normal_masked_interpolated(plot_params: dict) -> None:
 
 
 def normal_masked_interpolated_3by2(plot_params: dict) -> None:
-    """Create a 3x3 comparison: raw, |w|-only masked, and |w|+SNR masked."""
+    """Create a 3x3 comparison: raw, |u_y|-only masked, and |w|+SNR masked."""
     is_pcolormesh = None
     fig, axes = plt.subplots(
         3,
@@ -236,8 +236,8 @@ def normal_masked_interpolated_3by2(plot_params: dict) -> None:
         # setting titles
         if i == 0:
             axes[i, 0].set_title("Raw")
-            axes[i, 1].set_title(r"Only $|w|$ masked")
-            axes[i, 2].set_title("$|w|$ and ICV masked")
+            axes[i, 1].set_title(r"Only $|u_y|$ masked")
+            axes[i, 2].set_title(r"$|u_y|$ and ICV masked")
 
         # adding cbar
         add_vertical_colorbar_for_row(
@@ -321,10 +321,10 @@ def main():
         "bound_alpha": 1.0,
         # Circulation analysis
         "is_with_circulation_analysis": False,
-        "rho": 1.225,
+        "rho": 1.20,
         "mu": 1.7894e-5,
         "is_with_maximim_vorticity_location_correction": True,
-        "chord": 0.37,
+        "chord": 0.396,
         # Mask settings
         "is_with_mask": False,
         "is_with_w_mask": True,

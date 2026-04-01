@@ -23,6 +23,24 @@ def _alpha_from_aoa(aoa: int) -> int:
     return {13: 6, 23: 16}.get(int(aoa), int(aoa))
 
 
+def _raw_input_roots() -> list[Path]:
+    """Ordered search roots for raw PIV input folders."""
+    return [
+        Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input",
+        Path(project_dir) / "data_old_21_10_2025" / "raw_dat_files",
+        Path(project_dir) / "data" / "raw_dat_files",
+    ]
+
+
+def _resolve_raw_plane_base_path(aoa: int, y_plane: int) -> Path | None:
+    """Return first existing aoa/y-plane folder across known raw-data roots."""
+    for root in _raw_input_roots():
+        candidate = root / f"aoa_{aoa}" / f"Y{y_plane}"
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def _mask_plot_params(aoa: int, y_num: int, w_threshold: float = 3.0) -> dict:
     return {
         "alpha": _alpha_from_aoa(aoa),
@@ -99,9 +117,6 @@ def collect_y1_data(
     return interpolated data + metadata for Y1 only.
     Applies per-plane delta_x/delta_y from planes_location.csv.
     """
-    # Primary input source only.
-    input_dir = Path(project_dir) / "data_ALL_ERIK_FILES" / "JelleStitching" / "Input"
-
     # plane offsets table (alpha stored as 6/16; map AoA 23 -> alpha 16)
     planes_loc = pd.read_csv(
         Path(project_dir)
@@ -114,17 +129,27 @@ def collect_y1_data(
     alpha_map = {23: 16, 13: 6}
     alpha = alpha_map.get(aoa, aoa)
 
-    aoa_dir = input_dir / f"aoa_{aoa}"
-    if not aoa_dir.exists():
-        print(f"aoa_{aoa} folder not found")
+    y_planes: set[int] = set()
+    for root in _raw_input_roots():
+        aoa_dir = root / f"aoa_{aoa}"
+        if not aoa_dir.exists():
+            continue
+        for d in aoa_dir.iterdir():
+            if d.is_dir() and d.name.startswith("Y"):
+                try:
+                    y_planes.add(int(d.name[1:]))
+                except ValueError:
+                    continue
+    if not y_planes:
+        print(f"aoa_{aoa} folder not found in configured raw-data roots.")
         return None
 
-    y_planes = sorted(int(d.name[1:]) for d in aoa_dir.iterdir() if d.is_dir())
-
-    for y_plane in y_planes:
+    for y_plane in sorted(y_planes):
         if y_plane != y_num:
             continue
-        base_path = aoa_dir / f"Y{y_plane}"
+        base_path = _resolve_raw_plane_base_path(aoa, y_plane)
+        if base_path is None:
+            continue
 
         configs_data = {}
         for config in ["flipped", "normal"]:
@@ -236,7 +261,7 @@ def collect_y1_data(
                 "y_threshold": grid_y.min() + q * (grid_y.max() - grid_y.min()),
             }
 
-    print(f"No Y1 data found for aoa={aoa}")
+    print(f"No Y{y_num} data found for aoa={aoa}")
     return None
 
 
@@ -797,11 +822,32 @@ def print_stitching_uncertainty_table_flipped(
     Print RMS for u, v, w for flipped config only.
     Combines X1-X2 and X2-X3 overlaps into a single RMS per component.
     """
+    rms_values = _compute_flipped_stitching_rms(
+        y1_data, w_threshold=w_threshold, y_mask_min_height=y_mask_min_height
+    )
+
+    print("\nFlipped stitching uncertainty (combined overlaps) — AoA", aoa)
+    for comp, label in [("u", "u_x"), ("v", "u_y"), ("w", "u_z")]:
+        val = rms_values.get(comp)
+        if val is None:
+            print(f"  RMS {label}: n/a (no valid overlap)")
+        else:
+            print(f"  RMS {label}: {val:.4f} m/s (averaged over X1-X2 & X2-X3)")
+    print("")
+    return rms_values
+
+
+def _compute_flipped_stitching_rms(
+    y1_data, w_threshold=3.0, y_mask_min_height=-0.5
+) -> dict[str, float | None]:
+    """
+    Compute combined-overlap RMS for flipped config only.
+    Returns dict with keys: u, v, w (None when unavailable).
+    """
     interp_by_cfg = y1_data.get("interpolated_by_config", {})
     flipped = interp_by_cfg.get("flipped")
     if flipped is None:
-        print("No flipped configuration found.")
-        return
+        return {"u": None, "v": None, "w": None}
 
     y_grid = y1_data.get("grid_y")
 
@@ -825,8 +871,7 @@ def print_stitching_uncertainty_table_flipped(
         pairs.append(("X2", "X3"))
 
     if not pairs:
-        print("No flipped overlaps available.")
-        return
+        return {"u": None, "v": None, "w": None}
 
     rms_accum = {"u": [], "v": [], "w": []}
 
@@ -840,14 +885,84 @@ def print_stitching_uncertainty_table_flipped(
             diff = pA[comp][mask] - pB[comp][mask]
             rms_accum[comp].append(float(np.sqrt(np.nanmean(diff**2))))
 
-    print("\nFlipped stitching uncertainty (combined overlaps) — AoA", aoa)
-    for comp in ["u", "v", "w"]:
-        if rms_accum[comp]:
-            combined = float(np.mean(rms_accum[comp]))
-            print(f"  RMS {comp}: {combined:.4f} m/s (averaged over X1-X2 & X2-X3)")
-        else:
-            print(f"  RMS {comp}: n/a (no valid overlap)")
-    print("")
+    return {
+        comp: (float(np.mean(vals)) if len(vals) > 0 else None)
+        for comp, vals in rms_accum.items()
+    }
+
+
+def export_stitching_uncertainty_latex_table(
+    output_dir: Path,
+    q: float = 0.6,
+    w_threshold: float = 3.0,
+    y_mask_min_height: float = -0.5,
+) -> Path:
+    """
+    Export and print the stitching RMS LaTeX table for alpha=7 and alpha=17.
+    """
+    aoa_planes = {13: [1, 2, 3, 4, 5, 6, 7], 23: [1, 2, 3, 4]}
+    results: dict[int, dict[int, dict[str, float | None]]] = {}
+
+    for aoa, planes in aoa_planes.items():
+        results[aoa] = {}
+        for y_num in planes:
+            y_data = collect_y1_data(q=q, aoa=aoa, y_num=y_num)
+            if y_data is None:
+                results[aoa][y_num] = {"u": None, "v": None, "w": None}
+                continue
+            results[aoa][y_num] = _compute_flipped_stitching_rms(
+                y_data,
+                w_threshold=w_threshold,
+                y_mask_min_height=y_mask_min_height,
+            )
+
+    def _fmt(val: float | None) -> str:
+        return "n/a" if val is None else f"{val:.4f}"
+
+    row_u_7 = [_fmt(results[13][y]["u"]) for y in aoa_planes[13]]
+    row_v_7 = [_fmt(results[13][y]["v"]) for y in aoa_planes[13]]
+    row_w_7 = [_fmt(results[13][y]["w"]) for y in aoa_planes[13]]
+    row_u_17 = [_fmt(results[23][y]["u"]) for y in aoa_planes[23]]
+    row_v_17 = [_fmt(results[23][y]["v"]) for y in aoa_planes[23]]
+    row_w_17 = [_fmt(results[23][y]["w"]) for y in aoa_planes[23]]
+
+    latex_text = "\n".join(
+        [
+            "%",
+            r"\begin{table}[htp]",
+            r"    \centering",
+            r"    \caption{Stitching uncertainty quantified as the root-mean-square (RMS) difference in the overlap regions, reported for the stitched velocity components $u$, $v$, and $w$. Values are aggregated per measurement plane.}",
+            r"    \begin{tabular}{l ccccccc cccc}",
+            r"    \hline",
+            r"    & \multicolumn{7}{c}{$\alpha = 7\unit{\degree}$}",
+            r"    & \multicolumn{4}{c}{$\alpha = 17\unit{\degree}$} \\",
+            r"     & $Y1$ & $Y2$ & $Y3$ & $Y4$ & $Y5$ & $Y6$ & $Y7$",
+            r"     & $Y1$ & $Y2$ & $Y3$ & $Y4$ \\",
+            r"    \hline",
+            r"    $\mathrm{RMS}(u_x)$ (\unit{m s^{-1}})",
+            f"    & {' & '.join(row_u_7)}",
+            f"    & {' & '.join(row_u_17)} \\\\",
+            r"    $\mathrm{RMS}(u_y)$ (\unit{m s^{-1}})",
+            f"    & {' & '.join(row_v_7)}",
+            f"    & {' & '.join(row_v_17)} \\\\",
+            r"    $\mathrm{RMS}(u_z)$ (\unit{m s^{-1}})",
+            f"    & {' & '.join(row_w_7)}",
+            f"    & {' & '.join(row_w_17)} \\\\",
+            r"    \hline",
+            r"    \end{tabular}",
+            r"    \label{tab:stitching_uncertainty_flipped}",
+            r"\end{table}",
+        ]
+    )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    latex_path = output_dir / "stitching_uncertainty_table.tex"
+    with open(latex_path, "w") as f:
+        f.write(latex_text + "\n")
+
+    print("\n" + latex_text + "\n")
+    print(f"LaTeX table saved to: {latex_path}")
+    return latex_path
 
 
 def sweep_offsets_and_report(
@@ -976,14 +1091,13 @@ def main():
     q = 0.6
     aoa = 23
     y_num = 1
+    output_dir = Path(project_dir) / "results" / "overlap_analysis"
     for y_num in [1, 2, 3, 4]:
         print(f"\nLoading Y{y_num} data for AoA={aoa}°...")
         y1_data = collect_y1_data(q=q, aoa=aoa, y_num=y_num)
         if y1_data is None:
             print("Failed to load data.")
             return
-
-        output_dir = Path(project_dir) / "results" / "overlap_analysis"
 
         # # Print uncertainty table
         print_stitching_uncertainty_table_flipped(
@@ -1024,6 +1138,13 @@ def main():
     #     y_min_mask=-0.5,
     # )
     # plt.show()
+
+    export_stitching_uncertainty_latex_table(
+        output_dir=output_dir,
+        q=q,
+        w_threshold=3.0,
+        y_mask_min_height=y_mask_min_height,
+    )
 
 
 if __name__ == "__main__":

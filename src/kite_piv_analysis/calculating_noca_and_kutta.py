@@ -37,6 +37,75 @@ def _apply_fig06_masking(df: pd.DataFrame, plot_params: dict) -> pd.DataFrame:
     return df
 
 
+def _required_mask_from_interpolation_zones(
+    df: pd.DataFrame,
+    interpolation_zones: list[dict],
+) -> pd.Series:
+    """Return boolean mask for the union of all interpolation-zone squares."""
+    required_mask = pd.Series(False, index=df.index)
+    for zone in interpolation_zones:
+        x_min, x_max, y_min, y_max = zone["bounds"]
+        in_zone = (
+            (df["x"] >= x_min)
+            & (df["x"] <= x_max)
+            & (df["y"] >= y_min)
+            & (df["y"] <= y_max)
+        )
+        required_mask |= in_zone
+    return required_mask
+
+
+def _compute_interpolation_metrics(
+    df_before: pd.DataFrame,
+    df_after: pd.DataFrame,
+    required_mask: pd.Series,
+) -> dict[str, float]:
+    """
+    Compute interpolation metrics on unique required points.
+
+    Definitions:
+    - required points: union of all points inside interpolation-zone squares.
+    - invalid before: required points where u or v is NaN before interpolation.
+    - filled successfully: invalid-before points where u and v are finite after.
+    """
+    required_mask = required_mask.astype(bool)
+    n_required = int(required_mask.sum())
+    if n_required == 0:
+        return {
+            "n_required_points": 0,
+            "n_invalid_before_points": 0,
+            "n_filled_success_points": 0,
+            "perc_missing_before_required": 0.0,
+            "perc_of_interpolated_points": 0.0,
+            "perc_filled_of_missing": 0.0,
+        }
+
+    invalid_before_mask = required_mask & (
+        df_before["u"].isna() | df_before["v"].isna()
+    )
+    n_invalid_before = int(invalid_before_mask.sum())
+
+    filled_success_mask = (
+        invalid_before_mask & df_after["u"].notna() & df_after["v"].notna()
+    )
+    n_filled_success = int(filled_success_mask.sum())
+
+    perc_missing_before_required = 100.0 * n_invalid_before / n_required
+    perc_of_interpolated_points = 100.0 * n_filled_success / n_required
+    perc_filled_of_missing = (
+        100.0 * n_filled_success / n_invalid_before if n_invalid_before > 0 else 0.0
+    )
+
+    return {
+        "n_required_points": n_required,
+        "n_invalid_before_points": n_invalid_before,
+        "n_filled_success_points": n_filled_success,
+        "perc_missing_before_required": perc_missing_before_required,
+        "perc_of_interpolated_points": perc_of_interpolated_points,
+        "perc_filled_of_missing": perc_filled_of_missing,
+    }
+
+
 def _quantitative_csv_path(alpha: int) -> Path:
     return (
         Path(project_dir)
@@ -62,6 +131,41 @@ def _load_existing_rows_by_y(alpha: int, y_num_list: list[int]) -> dict[int, pd.
         if len(row) > 0:
             rows_by_y[int(y_num)] = row.iloc[0]
     return rows_by_y
+
+
+def _merge_quantitative_rows_by_y(alpha: int, df_new: pd.DataFrame) -> pd.DataFrame:
+    """
+    Merge newly computed rows into the quantitative cache by y_num.
+
+    This prevents partial runs (e.g. only Y6) from overwriting the whole
+    alpha-specific CSV.
+    """
+    if "y_num" not in df_new.columns:
+        raise ValueError("Expected 'y_num' column in new quantitative results.")
+
+    csv_path = _quantitative_csv_path(alpha)
+
+    df_new_clean = df_new.copy()
+    df_new_clean["y_num"] = pd.to_numeric(df_new_clean["y_num"], errors="coerce")
+    df_new_clean = df_new_clean.dropna(subset=["y_num"])
+    df_new_clean["y_num"] = df_new_clean["y_num"].astype(int)
+
+    if csv_path.exists():
+        df_existing = pd.read_csv(csv_path)
+        if "y_num" in df_existing.columns:
+            df_existing = df_existing.copy()
+            df_existing["y_num"] = pd.to_numeric(df_existing["y_num"], errors="coerce")
+            df_existing = df_existing.dropna(subset=["y_num"])
+            df_existing["y_num"] = df_existing["y_num"].astype(int)
+            combined = pd.concat([df_existing, df_new_clean], ignore_index=True, sort=False)
+        else:
+            combined = df_new_clean
+    else:
+        combined = df_new_clean
+
+    combined = combined.drop_duplicates(subset=["y_num"], keep="last")
+    combined = combined.sort_values("y_num").reset_index(drop=True)
+    return combined
 
 
 def _extract_cached_values(
@@ -189,19 +293,50 @@ def _aggregate_noca_term_breakdown(df_raw: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
     agg.columns = [
-        "_".join([p for p in col if p]).rstrip("_")
-        if isinstance(col, tuple)
-        else col
+        "_".join([p for p in col if p]).rstrip("_") if isinstance(col, tuple) else col
         for col in agg.columns
     ]
 
     counts = (
-        df_raw.groupby(group_cols, dropna=False)
-        .size()
-        .reset_index(name="n_samples")
+        df_raw.groupby(group_cols, dropna=False).size().reset_index(name="n_samples")
     )
     agg = agg.merge(counts, on=group_cols, how="left")
+    agg = _ensure_rotational_total_columns(agg)
     return agg
+
+
+def _ensure_rotational_total_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ensure rotational (3+4) aggregate columns exist for raw and aggregated tables.
+    Fills from available term-3 and optional term-4 columns.
+    """
+    if df.empty:
+        return df
+
+    out = df.copy()
+    for prefix in ["Fx", "Fy", "Cd", "Cl"]:
+        suffixes = [
+            suffix
+            for suffix in ["", "_mean", "_std"]
+            if (
+                f"{prefix}_term_3{suffix}" in out.columns
+                or f"{prefix}_term_4{suffix}" in out.columns
+            )
+        ]
+        for suffix in suffixes:
+            col_term3 = f"{prefix}_term_3{suffix}"
+            col_term4 = f"{prefix}_term_4{suffix}"
+            col_rot = f"{prefix}_rotational_total_3_4{suffix}"
+
+            if col_rot not in out.columns:
+                out[col_rot] = np.nan
+            if col_term3 not in out.columns:
+                continue
+
+            term4_vals = out[col_term4] if col_term4 in out.columns else 0.0
+            rot_vals = out[col_term3] + term4_vals
+            out[col_rot] = out[col_rot].where(out[col_rot].notna(), rot_vals)
+    return out
 
 
 def _merge_write_noca_breakdown(
@@ -219,6 +354,8 @@ def _merge_write_noca_breakdown(
         combined = pd.concat([existing, df_new], ignore_index=True)
     else:
         combined = df_new.copy()
+
+    combined = _ensure_rotational_total_columns(combined)
 
     valid_keys = [c for c in key_cols if c in combined.columns]
     if valid_keys:
@@ -257,10 +394,10 @@ def computing_gamma_and_noca_fx_fy(
     mu=1.7894e-5,
     rho=1.2,
     drot=0,
-    ref_chord=0.39834712,
+    ref_chord=0.396,
     is_with_smoothing: bool = True,
     is_with_vort_correction: bool = True,
-    max_perc_interpolated_zones=1.0000001,
+    max_perc_interpolated_zones=25.0,
     n_datapoints=104304,
     noca_term_rows_collector: list[dict] | None = None,
 ):
@@ -298,6 +435,12 @@ def computing_gamma_and_noca_fx_fy(
 
             # Interpolation check (assuming these functions and parameters exist)
             perc_of_interpolated_points = 0
+            perc_missing_before_required = 0
+            perc_missing_before_global = 0
+            perc_filled_of_missing = 0
+            n_required_points = 0
+            n_invalid_before_points = 0
+            n_filled_success_points = 0
 
             # Check if not CFD data and interpolation is needed
             if not plot_params.get("is_CFD", False):
@@ -311,33 +454,45 @@ def computing_gamma_and_noca_fx_fy(
                     dLy=current_dLy,
                 )
 
-                # Determine number of poitns that are interpolated
-                n_points_nan = 0
-                for interpolation_zone_i in plot_params["interpolation_zones"]:
-                    x_min, x_max, y_min, y_max = interpolation_zone_i["bounds"]
-                    subset = df[
-                        (df["x"] >= x_min)
-                        & (df["x"] <= x_max)
-                        & (df["y"] >= y_min)
-                        & (df["y"] <= y_max)
-                    ]
-                    dropped_by_nan = subset[subset["u"].isna()]
-                    n_points_nan += len(dropped_by_nan)
+                required_mask = _required_mask_from_interpolation_zones(
+                    df,
+                    plot_params["interpolation_zones"],
+                )
+                pre_metrics = _compute_interpolation_metrics(df, df, required_mask)
+                n_required_points = int(pre_metrics["n_required_points"])
+                n_invalid_before_points = int(pre_metrics["n_invalid_before_points"])
+                perc_missing_before_required = float(
+                    pre_metrics["perc_missing_before_required"]
+                )
+                # Backward-compatible alias for historical output columns.
+                perc_missing_before_global = perc_missing_before_required
 
-                # Calculate percentage of interpolated points
-                perc_of_interpolated_points = 100 * (n_points_nan / n_datapoints)
-
-                # Interpolate if within acceptable range
-                if perc_of_interpolated_points < max_perc_interpolated_zones:
+                # Skip criterion based on required-region missing fraction.
+                if perc_missing_before_required < max_perc_interpolated_zones:
                     for interpolation_zone in plot_params["interpolation_zones"]:
                         current_df, _ = interpolate_missing_data(
                             current_df,
                             interpolation_zone,
                         )
+                    post_metrics = _compute_interpolation_metrics(
+                        df,
+                        current_df,
+                        required_mask,
+                    )
+                    n_filled_success_points = int(
+                        post_metrics["n_filled_success_points"]
+                    )
+                    perc_of_interpolated_points = float(
+                        post_metrics["perc_of_interpolated_points"]
+                    )
+                    perc_filled_of_missing = float(
+                        post_metrics["perc_filled_of_missing"]
+                    )
                 else:
                     # Skip this iteration if too many points need interpolation
                     print(
-                        f"---> SKIPPED perc_of_interpolated_points: {perc_of_interpolated_points:.2f}%, "
+                        f"---> SKIPPED perc_missing_before_required: {perc_missing_before_required:.2f}% "
+                        f"(threshold={max_perc_interpolated_zones:.2f}%), "
                         f"dLx: {current_dLx:.2f}, dLy: {current_dLy:.2f}"
                     )
                     continue
@@ -395,7 +550,16 @@ def computing_gamma_and_noca_fx_fy(
                         "dLy_optimal": float(dLy),
                         "dLx_current": float(current_dLx),
                         "dLy_current": float(current_dLy),
+                        # (invalid-before and valid-after) / required.
                         "perc_interpolated_points": float(perc_of_interpolated_points),
+                        "perc_missing_before_required": float(
+                            perc_missing_before_required
+                        ),
+                        "perc_missing_before_global": float(perc_missing_before_global),
+                        "perc_filled_of_missing": float(perc_filled_of_missing),
+                        "n_required_points": int(n_required_points),
+                        "n_invalid_before_points": int(n_invalid_before_points),
+                        "n_filled_success_points": int(n_filled_success_points),
                         "ref_chord": float(ref_chord),
                         "rho": float(rho),
                         "U_inf": float(U_inf),
@@ -406,7 +570,9 @@ def computing_gamma_and_noca_fx_fy(
                     }
                 )
             print(
-                f"C_kutta:{(circulation*rho*U_inf)/((0.5 * rho * U_inf**2 * ref_chord)):.2f}, NOCA: C_l:{C_l:.2f}, C_d:{C_d:.2f}, % interpolated: {perc_of_interpolated_points:.2f}%"
+                f"C_kutta:{(circulation*rho*U_inf)/((0.5 * rho * U_inf**2 * ref_chord)):.2f}, "
+                f"NOCA: C_l:{C_l:.2f}, C_d:{C_d:.2f}, "
+                f"% required points filled by interpolation: {perc_of_interpolated_points:.2f}%"
             )
 
     # Return average circulation and forces (use lists and handle empty lists)
@@ -445,9 +611,9 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
 ):
 
     Re_cfd = 1e6
-    Re_piv = 4.2e5
+    Re_piv = 3.8e5
     rho = 1.20
-    ref_chord = 0.39834712
+    ref_chord = 0.396
     U_inf = 15
     mu_cfd = (rho * ref_chord * U_inf) / Re_cfd
     mu_piv = (rho * ref_chord * U_inf) / Re_piv
@@ -676,10 +842,11 @@ def get_PIV_and_CFD_gamma_distribution_for_single_alpha(
             )
 
     if noca_term_rows_all:
-        raw_path, agg_path = _save_noca_term_breakdowns(pd.DataFrame(noca_term_rows_all))
+        raw_path, agg_path = _save_noca_term_breakdowns(
+            pd.DataFrame(noca_term_rows_all)
+        )
         print(
-            "Saved NOCA term breakdown caches: "
-            f"raw='{raw_path}', agg='{agg_path}'"
+            "Saved NOCA term breakdown caches: " f"raw='{raw_path}', agg='{agg_path}'"
         )
 
     return (
@@ -744,7 +911,12 @@ def save_results_single_alpha(
         }
     )
     csv_path = _quantitative_csv_path(alpha)
-    df.to_csv(csv_path, index=False)
+    df_merged = _merge_quantitative_rows_by_y(alpha, df)
+    df_merged.to_csv(csv_path, index=False)
+    print(
+        f"Saved quantitative cache '{csv_path.name}': "
+        f"updated {len(df)} row(s), total {len(df_merged)} row(s)."
+    )
     return df
 
 
@@ -774,7 +946,7 @@ def main(n_points=10):
     ## printing results
     rho = 1.20
     U_inf = 15
-    ref_chord = 0.39834712
+    ref_chord = 0.396
     q_infc = 0.5 * rho * (U_inf**2) * ref_chord
     print(f"rho: {rho}, U_inf: {U_inf}, ref_chord: {ref_chord} --> q_infc: {q_infc}")
     print(f"\nalpha: 6")
@@ -832,7 +1004,7 @@ if __name__ == "__main__":
     # Re_cfd = 1e6
     # Re_piv = 3.8e5
     # rho = 1.20
-    # ref_chord = 0.39834712
+    # ref_chord = 0.396
     # U_inf = 15
     # mu_cfd = (rho * ref_chord * U_inf) / Re_cfd
     # mu_piv = (rho * ref_chord * U_inf) / Re_piv

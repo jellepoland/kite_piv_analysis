@@ -578,7 +578,7 @@ def _build_noca_term_breakdown(
 
     Saved explicit term contributions:
     - inviscid: 1, 2
-    - rotational: 3
+    - rotational: 3 (+ 4 stored as aggregate)
     - viscous: 8, 9, 10
 
     Unsteady terms (5,6,7) are excluded from outputs by design since d/dt inputs are
@@ -600,6 +600,8 @@ def _build_noca_term_breakdown(
     fy_total = float(d1Ft[0])
     fx_bern_like = float(d1Fn[1] + d1Fn[2])
     fy_bern_like = float(d1Ft[1] + d1Ft[2])
+    fx_rot_3_4 = float(d1Fn[3] + d1Fn[4])
+    fy_rot_3_4 = float(d1Ft[3] + d1Ft[4])
     fx_visc = float(d1Fn[8] + d1Fn[9] + d1Fn[10])
     fy_visc = float(d1Ft[8] + d1Ft[9] + d1Ft[10])
     fx_delta = float(d1Fn[3] + d1Fn[8] + d1Fn[9] + d1Fn[10])
@@ -616,6 +618,11 @@ def _build_noca_term_breakdown(
     out["Fy_bernoulli_like_1_2"] = fy_bern_like
     out["Cd_bernoulli_like_1_2"] = float(fx_bern_like / q_infc)
     out["Cl_bernoulli_like_1_2"] = float(fy_bern_like / q_infc)
+
+    out["Fx_rotational_total_3_4"] = fx_rot_3_4
+    out["Fy_rotational_total_3_4"] = fy_rot_3_4
+    out["Cd_rotational_total_3_4"] = float(fx_rot_3_4 / q_infc)
+    out["Cl_rotational_total_3_4"] = float(fy_rot_3_4 / q_infc)
 
     out["Fx_viscous_total_8_9_10"] = fx_visc
     out["Fy_viscous_total_8_9_10"] = fy_visc
@@ -650,7 +657,7 @@ def main(
     is_with_smoothing: bool = True,
     rho: float = 1.20,
     U_inf: float = 15,
-    ref_chord: float = 0.39834712,
+    ref_chord: float = 0.396,
     return_term_breakdown: bool = False,
 ):
     # print(f"\nRunning NOCA calculating F_x, F_y, C_l, C_d")
